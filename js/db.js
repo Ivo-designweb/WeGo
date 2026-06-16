@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-// SplitPay — db.js v1.0
+// WeGo — db.js v1.0
 // Gestione dati locali con IndexedDB (offline-first)
 // ═══════════════════════════════════════════════════════════════
 
 const DB = (() => {
-  const DB_NAME    = 'splitpay_db';
+  const DB_NAME    = 'wego_db';
   const DB_VERSION = 1;
   let _db = null;
 
@@ -42,7 +42,7 @@ const DB = (() => {
 
       req.onsuccess = (e) => {
         _db = e.target.result;
-        console.log('[DB] Opened SplitPay DB');
+        console.log('[DB] Opened WeGo DB');
         resolve(_db);
       };
 

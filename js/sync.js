@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// SplitPay — sync.js v1.0
+// WeGo — sync.js v1.0
 // Gestione sincronizzazione bidirezionale con Supabase
 // ═══════════════════════════════════════════════════════════════
 
@@ -187,7 +187,7 @@ const Sync = {
     if ('serviceWorker' in navigator && 'SyncManager' in window) {
       try {
         const reg = await navigator.serviceWorker.ready;
-        await reg.sync.register('splitpay-sync');
+        await reg.sync.register('wego-sync');
         console.log('[Sync] Background sync registered');
       } catch (e) {
         console.warn('[Sync] Background sync not available:', e);

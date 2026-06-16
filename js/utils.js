@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// SplitPay — utils.js v1.0
+// WeGo — utils.js v1.0
 // Funzioni di utilità condivise da tutti i moduli
 // ═══════════════════════════════════════════════════════════════
 
@@ -31,10 +31,10 @@ const Utils = {
    * Genera un device ID persistente
    */
   getDeviceId() {
-    let id = localStorage.getItem('splitpay_device_id');
+    let id = localStorage.getItem('wego_device_id');
     if (!id) {
       id = `dev_${Utils.uuid()}`;
-      localStorage.setItem('splitpay_device_id', id);
+      localStorage.setItem('wego_device_id', id);
     }
     return id;
   },
@@ -125,7 +125,7 @@ const Utils = {
    */
   getConfig(key, defaultValue = null) {
     try {
-      const cfg = JSON.parse(localStorage.getItem('splitpay_config') || '{}');
+      const cfg = JSON.parse(localStorage.getItem('wego_config') || '{}');
       return key in cfg ? cfg[key] : defaultValue;
     } catch { return defaultValue; }
   },
@@ -135,9 +135,9 @@ const Utils = {
    */
   setConfig(key, value) {
     try {
-      const cfg = JSON.parse(localStorage.getItem('splitpay_config') || '{}');
+      const cfg = JSON.parse(localStorage.getItem('wego_config') || '{}');
       cfg[key] = value;
-      localStorage.setItem('splitpay_config', JSON.stringify(cfg));
+      localStorage.setItem('wego_config', JSON.stringify(cfg));
     } catch (e) { console.warn('Config write error:', e); }
   },
 
@@ -146,7 +146,7 @@ const Utils = {
    */
   getAllConfig() {
     try {
-      return JSON.parse(localStorage.getItem('splitpay_config') || '{}');
+      return JSON.parse(localStorage.getItem('wego_config') || '{}');
     } catch { return {}; }
   },
 

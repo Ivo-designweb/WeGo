@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// SplitPay — app.js v1.0
+// WeGo — app.js v1.0
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -11,7 +11,7 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] SplitPay v1.0 init');
+    console.log('[App] WeGo v1.0 init');
 
     // Applica tema salvato
     const theme = Utils.getConfig('theme', 'dark');
@@ -369,9 +369,9 @@ const App = {
   },
 
   _showShareCode(code, title) {
-    const msg = `Entra in "${title}" su SplitPay con il codice:\n\n${code}`;
+    const msg = `Entra in "${title}" su WeGo con il codice:\n\n${code}`;
     if (confirm(`Evento creato! Codice: ${code}\n\nVuoi condividere il codice con i partecipanti?`)) {
-      Utils.share({ title: 'SplitPay — Unisciti all\'evento', text: msg });
+      Utils.share({ title: 'WeGo — Unisciti all\'evento', text: msg });
     }
   },
 
