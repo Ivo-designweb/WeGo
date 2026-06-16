@@ -4,449 +4,291 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
-  <title>Admin — WeGo v1.3</title>
+  <title>Admin — WeGo v1.4</title>
   <link rel="stylesheet" href="/css/style.css" />
   <style>
     .admin-section { margin-bottom: 22px; }
-
     .admin-group {
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
       overflow: hidden;
     }
-
     .admin-row {
       padding: 11px 13px;
       border-bottom: 1px solid var(--border);
     }
     .admin-row:last-child { border-bottom: none; }
-
-    /* Status dot */
     .status-dot {
       display: inline-flex; align-items: center; gap: 5px;
       font-size: 11px; font-weight: 600;
     }
-    .status-dot__circle {
-      width: 7px; height: 7px;
-      border-radius: 50%; flex-shrink: 0;
-    }
+    .status-dot__circle { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .status-dot.ok    .status-dot__circle { background: var(--green); }
     .status-dot.error .status-dot__circle { background: var(--red); }
-    .status-dot.warn  .status-dot__circle { background: var(--amber); }
+    .status-dot.warn  .status-dot__circle { background: #F59E0B; }
     .status-dot.ok    { color: var(--green); }
     .status-dot.error { color: var(--red); }
-    .status-dot.warn  { color: var(--amber); }
-
-    /* SQL block */
+    .status-dot.warn  { color: #F59E0B; }
     .sql-block {
-      background: #0A0F1A;
-      border: 1px solid var(--border);
-      border-radius: var(--r-md);
-      padding: 12px;
-      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-      font-size: 11px;
-      color: #7DD3FC;
-      line-height: 1.6;
-      overflow-x: auto;
-      white-space: pre;
-      max-height: 240px;
-      overflow-y: auto;
+      background: #0A0F1A; border: 1px solid var(--border); border-radius: var(--r-md);
+      padding: 12px; font-family: 'Menlo','Monaco','Courier New',monospace;
+      font-size: 11px; color: #7DD3FC; line-height: 1.6;
+      overflow-x: auto; white-space: pre; max-height: 240px; overflow-y: auto;
     }
-    .sql-block .kw  { color: #F472B6; }
-    .sql-block .cm  { color: #4B5563; font-style: italic; }
-    .sql-block .st  { color: #86EFAC; }
-    .sql-block .fn  { color: #FCD34D; }
-
-    /* Step badge */
+    .sql-block .kw { color: #F472B6; }
+    .sql-block .cm { color: #4B5563; font-style: italic; }
+    .sql-block .st { color: #86EFAC; }
+    .sql-block .fn { color: #FCD34D; }
     .step-badge {
       display: inline-flex; align-items: center; justify-content: center;
-      width: 20px; height: 20px;
-      border-radius: 50%;
-      background: var(--accent);
-      color: #fff;
-      font-size: 10px; font-weight: 800;
-      flex-shrink: 0;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; flex-shrink: 0;
     }
-
-    /* Link esterno */
     .ext-link {
       display: inline-flex; align-items: center; gap: 4px;
-      color: var(--accent); font-size: 12px; font-weight: 600;
-      text-decoration: none;
+      color: var(--accent); font-size: 12px; font-weight: 600; text-decoration: none;
     }
     .ext-link:hover { text-decoration: underline; }
-    .ext-link svg   { width: 11px; height: 11px; }
-
-    /* Test result */
+    .ext-link svg { width: 11px; height: 11px; }
     .test-result {
-      margin-top: 10px; padding: 9px 11px;
-      border-radius: var(--r-md);
-      font-size: 12px; font-weight: 500;
-      display: none;
+      margin-top: 10px; padding: 10px 12px; border-radius: var(--r-md);
+      font-size: 12px; font-weight: 500; display: none; line-height: 1.6;
     }
     .test-result.ok    { background: rgba(16,185,129,0.1); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }
     .test-result.error { background: rgba(239,68,68,0.1);  color: var(--red);   border: 1px solid rgba(239,68,68,0.25); }
-
-    /* FCM fields */
-    .fcm-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
-    }
+    .test-result.warn  { background: rgba(245,158,11,0.1); color: #D97706;      border: 1px solid rgba(245,158,11,0.25); }
+    .diag-step { display: flex; align-items: flex-start; gap: 7px; padding: 2px 0; font-size: 11px; }
+    .diag-step__icon { flex-shrink: 0; }
+    .diag-step--ok   .diag-step__text { color: var(--green); }
+    .diag-step--err  .diag-step__text { color: var(--red); }
+    .diag-step--warn .diag-step__text { color: #D97706; }
+    .diag-step--info .diag-step__text { color: var(--text-secondary); }
+    .fcm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     @media (max-width: 360px) { .fcm-grid { grid-template-columns: 1fr; } }
-
-    /* About */
-    .admin-about {
-      text-align: center;
-      padding: 20px 14px;
-      border-top: 1px solid var(--border);
-      margin-top: 8px;
-    }
+    .config-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; padding: 4px 0; }
+    .admin-about { text-align: center; padding: 20px 14px; border-top: 1px solid var(--border); margin-top: 8px; }
     .admin-about__logo {
-      width: 36px; height: 36px;
-      background: var(--accent); border-radius: 8px;
+      width: 36px; height: 36px; background: var(--accent); border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 800; color: #fff;
-      letter-spacing: -0.3px; margin: 0 auto 8px;
+      font-size: 13px; font-weight: 800; color: #fff; letter-spacing: -0.3px; margin: 0 auto 8px;
     }
-    .admin-about__title  { font-size: 14px; font-weight: 700; color: var(--text-primary); }
-    .admin-about__ver    { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-    .admin-about__sep    { height: 1px; background: var(--border); margin: 12px 0; }
-    .admin-about__dev    { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
-    .admin-about__name   { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
-    .admin-about__mail   {
+    .admin-about__title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+    .admin-about__ver   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .admin-about__sep   { height: 1px; background: var(--border); margin: 12px 0; }
+    .admin-about__dev   { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+    .admin-about__name  { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+    .admin-about__mail  {
       display: inline-flex; align-items: center; gap: 4px;
-      font-size: 12px; font-weight: 500; color: var(--accent);
-      text-decoration: none;
+      font-size: 12px; font-weight: 500; color: var(--accent); text-decoration: none;
     }
     .admin-about__mail:hover { text-decoration: underline; }
-    .admin-about__mail svg   { width: 12px; height: 12px; }
+    .admin-about__mail svg { width: 12px; height: 12px; }
+    .dev-contact { text-align: center; padding: 10px 0 4px; font-size: 11px; color: var(--text-muted); }
+    .dev-contact a { color: var(--accent); text-decoration: none; font-weight: 500; }
+    .dev-contact a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-
 <div class="toast-container" id="toastContainer"></div>
-
 <div class="app-shell">
-
-  <!-- HEADER -->
   <header class="app-header">
     <div class="app-header__logo">
       <div class="app-header__logo-mark">WG</div>
       <span class="app-header__title">Pannello Admin</span>
     </div>
     <div class="app-header__actions">
-      <a href="/index.html" class="btn btn--ghost btn--sm">← App</a>
+      <a href="/index.html" class="btn btn--ghost btn--sm">&#8592; App</a>
     </div>
   </header>
-
   <main class="page-content" style="padding-bottom:40px;">
 
-    <!-- STATO GENERALE -->
+    <!-- STATO -->
     <div class="admin-section">
       <div class="section-header"><span class="section-title">Stato sistema</span></div>
       <div class="admin-group">
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:13px;color:var(--text-secondary);">Supabase</span>
-          <span class="status-dot" id="statusSupabase">
-            <span class="status-dot__circle"></span>
-            <span id="statusSupabaseText">Non configurato</span>
-          </span>
+          <span class="status-dot" id="statusSupabase"><span class="status-dot__circle"></span><span id="statusSupabaseText">Non configurato</span></span>
         </div>
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:13px;color:var(--text-secondary);">Firebase FCM</span>
-          <span class="status-dot" id="statusFCM">
-            <span class="status-dot__circle"></span>
-            <span id="statusFCMText">Non configurato</span>
-          </span>
+          <span class="status-dot" id="statusFCM"><span class="status-dot__circle"></span><span id="statusFCMText">Non configurato</span></span>
         </div>
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:13px;color:var(--text-secondary);">Service Worker</span>
-          <span class="status-dot" id="statusSW">
-            <span class="status-dot__circle"></span>
-            <span id="statusSWText">Verifica…</span>
-          </span>
+          <span class="status-dot" id="statusSW"><span class="status-dot__circle"></span><span id="statusSWText">Verifica...</span></span>
+        </div>
+        <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:13px;color:var(--text-secondary);">Permesso notifiche</span>
+          <span class="status-dot" id="statusNotif"><span class="status-dot__circle"></span><span id="statusNotifText">Verifica...</span></span>
         </div>
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:13px;color:var(--text-secondary);">IndexedDB locale</span>
-          <span class="status-dot" id="statusDB">
-            <span class="status-dot__circle"></span>
-            <span id="statusDBText">Verifica…</span>
-          </span>
+          <span class="status-dot" id="statusDB"><span class="status-dot__circle"></span><span id="statusDBText">Verifica...</span></span>
         </div>
       </div>
     </div>
 
-    <!-- ─── SUPABASE ─── -->
+    <!-- BACKUP CONFIG -->
+    <div class="admin-section">
+      <div class="section-header"><span class="section-title">Backup configurazione</span></div>
+      <div class="admin-group">
+        <div class="admin-row">
+          <p class="config-note">
+            Le credenziali sono salvate nel <b>localStorage</b> del browser corrente e non sono disponibili su altri PC o browser.
+            Esporta un file <code style="font-size:10px;background:var(--bg-input);padding:1px 4px;border-radius:3px;">wego-config.json</code>
+            da importare su ogni nuovo dispositivo. Conservalo in modo sicuro — contiene le chiavi API.
+          </p>
+        </div>
+        <div class="admin-row" style="display:flex;gap:8px;">
+          <button class="btn btn--primary" style="flex:1;" onclick="AdminApp.exportConfig()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Esporta config
+          </button>
+          <button class="btn btn--ghost" style="flex:1;" onclick="AdminApp.importConfig()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Importa config
+          </button>
+          <input type="file" id="configFileInput" accept=".json" style="display:none;" onchange="AdminApp._onConfigFileSelected(this)" />
+        </div>
+        <div class="test-result" id="configImportResult"></div>
+      </div>
+    </div>
+
+    <!-- SUPABASE -->
     <div class="admin-section">
       <div class="section-header">
         <span class="section-title">Supabase — Database</span>
-        <a href="https://supabase.com" target="_blank" rel="noopener" class="ext-link">
-          Apri dashboard
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-        </a>
+        <a href="https://supabase.com" target="_blank" rel="noopener" class="ext-link">Apri dashboard<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
       </div>
-
-      <!-- Guida setup -->
       <div class="admin-group" style="margin-bottom:10px;">
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span class="step-badge">1</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text-primary);">Crea account su supabase.com</span>
-          </div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">
-            Vai su <a href="https://supabase.com" target="_blank" class="ext-link" style="font-size:11px;">supabase.com</a>,
-            crea un account gratuito e un nuovo progetto. Tier gratuito: 500MB storage, 2GB bandwidth.
-          </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">1</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Crea account su supabase.com</span></div>
+          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Vai su <a href="https://supabase.com" target="_blank" class="ext-link" style="font-size:11px;">supabase.com</a>, crea un account gratuito e un nuovo progetto.</p>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span class="step-badge">2</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text-primary);">Esegui lo schema SQL</span>
-          </div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;margin-bottom:8px;">
-            Nel pannello Supabase → <b>SQL Editor</b> → <b>New query</b>, incolla e lancia il seguente script:
-          </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">2</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Esegui lo schema SQL</span></div>
+          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;margin-bottom:8px;">Pannello Supabase &#8594; <b>SQL Editor</b> &#8594; <b>New query</b>, incolla e lancia:</p>
           <div class="sql-block" id="sqlBlock"></div>
-          <button class="btn btn--ghost btn--sm" onclick="AdminApp.copySQL()" style="margin-top:8px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="9" y="9" width="13" height="13" rx="2"/>
-              <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-            </svg>
-            Copia SQL
-          </button>
+          <button class="btn btn--ghost btn--sm" onclick="AdminApp.copySQL()" style="margin-top:8px;">Copia SQL</button>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span class="step-badge">3</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text-primary);">Copia le credenziali API</span>
-          </div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">
-            Nel pannello: <b>Project Settings</b> → <b>API</b>. Copia la <b>Project URL</b> e la <b>anon public key</b> nei campi qui sotto.
-          </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">3</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Copia le credenziali API</span></div>
+          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><b>Project Settings</b> &#8594; <b>API</b>. Copia Project URL e anon public key.</p>
         </div>
       </div>
-
-      <!-- Campi credenziali -->
       <div class="admin-group">
         <div class="admin-row">
           <div class="form-group" style="margin-bottom:10px;">
             <label class="form-label">Project URL *</label>
-            <input type="url" class="form-input" id="supabaseUrl"
-              placeholder="https://xxxxxxxxxxx.supabase.co"
-              value="" autocomplete="off" />
+            <input type="url" class="form-input" id="supabaseUrl" placeholder="https://xxxxxxxxxxx.supabase.co" autocomplete="off" />
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Anon Public Key *</label>
-            <input type="text" class="form-input" id="supabaseKey"
-              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9…"
-              autocomplete="off"
-              style="font-family:monospace;font-size:11px;" />
+            <input type="text" class="form-input" id="supabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." autocomplete="off" style="font-family:monospace;font-size:11px;" />
           </div>
         </div>
         <div class="admin-row" style="display:flex;gap:8px;">
-          <button class="btn btn--primary" style="flex:1;" onclick="AdminApp.saveSupabase()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-              <polyline points="17 21 17 13 7 13 7 21"/>
-            </svg>
-            Salva
-          </button>
-          <button class="btn btn--ghost" style="flex:1;" onclick="AdminApp.testSupabase()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-            Testa connessione
-          </button>
+          <button class="btn btn--primary" style="flex:1;" onclick="AdminApp.saveSupabase()">Salva</button>
+          <button class="btn btn--ghost" style="flex:1;" onclick="AdminApp.testSupabase()">Testa connessione</button>
         </div>
         <div class="test-result" id="supabaseTestResult"></div>
       </div>
     </div>
 
-    <!-- ─── FIREBASE FCM ─── -->
+    <!-- FIREBASE FCM -->
     <div class="admin-section">
       <div class="section-header">
         <span class="section-title">Firebase — Push Notifications</span>
-        <a href="https://console.firebase.google.com" target="_blank" rel="noopener" class="ext-link">
-          Apri console
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-        </a>
+        <a href="https://console.firebase.google.com" target="_blank" rel="noopener" class="ext-link">Apri console<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
       </div>
-
       <div class="admin-group" style="margin-bottom:10px;">
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span class="step-badge">1</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text-primary);">Crea progetto Firebase</span>
-          </div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">
-            Vai su <a href="https://console.firebase.google.com" target="_blank" class="ext-link" style="font-size:11px;">console.firebase.google.com</a>,
-            crea un nuovo progetto (gratuito), poi aggiungi una <b>Web App</b> al progetto.
-          </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">1</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Crea progetto Firebase</span></div>
+          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Vai su <a href="https://console.firebase.google.com" target="_blank" class="ext-link" style="font-size:11px;">console.firebase.google.com</a>, crea progetto e aggiungi una Web App.</p>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span class="step-badge">2</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text-primary);">Abilita Cloud Messaging</span>
-          </div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">
-            Nel pannello Firebase → <b>Project Settings</b> → <b>Cloud Messaging</b>.
-            Genera una coppia di chiavi VAPID (<b>Web Push certificates</b>).
-          </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">2</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Abilita Cloud Messaging</span></div>
+          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><b>Project Settings</b> &#8594; <b>Cloud Messaging</b> &#8594; genera chiavi VAPID (Web Push certificates).</p>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span class="step-badge">3</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text-primary);">Copia le credenziali</span>
-          </div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">
-            <b>Project Settings</b> → <b>General</b> → sezione <b>Your apps</b> → <b>SDK setup and configuration</b> → copia i valori.
-          </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">3</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Copia le credenziali</span></div>
+          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><b>Project Settings</b> &#8594; <b>General</b> &#8594; <b>Your apps</b> &#8594; <b>SDK setup and configuration</b>.</p>
         </div>
       </div>
-
       <div class="admin-group">
         <div class="admin-row">
           <div class="fcm-grid">
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">API Key</label>
-              <input type="text" class="form-input" id="fcmApiKey"
-                placeholder="AIzaSy…" autocomplete="off"
-                style="font-size:11px;font-family:monospace;" />
-            </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">Project ID</label>
-              <input type="text" class="form-input" id="fcmProjectId"
-                placeholder="my-project-12345" autocomplete="off"
-                style="font-size:11px;" />
-            </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">Sender ID</label>
-              <input type="text" class="form-input" id="fcmSenderId"
-                placeholder="123456789012" autocomplete="off"
-                style="font-size:11px;font-family:monospace;" />
-            </div>
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label">App ID</label>
-              <input type="text" class="form-input" id="fcmAppId"
-                placeholder="1:123…:web:abc…" autocomplete="off"
-                style="font-size:11px;font-family:monospace;" />
-            </div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">API Key</label><input type="text" class="form-input" id="fcmApiKey" placeholder="AIzaSy..." autocomplete="off" style="font-size:11px;font-family:monospace;" /></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">Project ID</label><input type="text" class="form-input" id="fcmProjectId" placeholder="my-project-12345" autocomplete="off" style="font-size:11px;" /></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">Sender ID</label><input type="text" class="form-input" id="fcmSenderId" placeholder="123456789012" autocomplete="off" style="font-size:11px;font-family:monospace;" /></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">App ID</label><input type="text" class="form-input" id="fcmAppId" placeholder="1:123...:web:abc..." autocomplete="off" style="font-size:11px;font-family:monospace;" /></div>
           </div>
         </div>
         <div class="admin-row">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">VAPID Public Key (Web Push)</label>
-            <input type="text" class="form-input" id="fcmVapidKey"
-              placeholder="BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfck…"
-              autocomplete="off"
-              style="font-size:11px;font-family:monospace;" />
-            <span class="form-hint">Dalla sezione Web Push certificates in Project Settings → Cloud Messaging</span>
+            <input type="text" class="form-input" id="fcmVapidKey" placeholder="BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfck..." autocomplete="off" style="font-size:11px;font-family:monospace;" />
+            <span class="form-hint">Da Project Settings &#8594; Cloud Messaging &#8594; Web Push certificates</span>
           </div>
         </div>
         <div class="admin-row" style="display:flex;gap:8px;">
-          <button class="btn btn--primary" style="flex:1;" onclick="AdminApp.saveFCM()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-              <polyline points="17 21 17 13 7 13 7 21"/>
-            </svg>
-            Salva
-          </button>
-          <button class="btn btn--ghost" style="flex:1;" onclick="AdminApp.testFCM()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 01-3.46 0"/>
-            </svg>
-            Testa notifica
-          </button>
+          <button class="btn btn--primary" style="flex:1;" onclick="AdminApp.saveFCM()">Salva</button>
+          <button class="btn btn--ghost" style="flex:1;" onclick="AdminApp.testFCM()">Testa notifica</button>
         </div>
         <div class="test-result" id="fcmTestResult"></div>
       </div>
     </div>
 
-    <!-- ─── VERCEL ─── -->
+    <!-- VERCEL -->
     <div class="admin-section">
       <div class="section-header">
         <span class="section-title">Deployment — Vercel</span>
-        <a href="https://vercel.com" target="_blank" rel="noopener" class="ext-link">
-          Apri dashboard
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-        </a>
+        <a href="https://vercel.com" target="_blank" rel="noopener" class="ext-link">Apri dashboard<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>
       </div>
       <div class="admin-group">
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span class="step-badge">1</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text-primary);">Push su GitHub</span>
-          </div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">
-            Carica la cartella del progetto su un repository GitHub (pubblico o privato).
-          </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">1</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Push su GitHub</span></div>
+          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Carica la cartella del progetto su un repository GitHub.</p>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span class="step-badge">2</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text-primary);">Importa su Vercel</span>
-          </div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">
-            Su <a href="https://vercel.com" target="_blank" class="ext-link" style="font-size:11px;">vercel.com</a> →
-            <b>Add New Project</b> → seleziona il repository GitHub →
-            framework: <b>Other</b> → deploy. WeGo non richiede build.
-          </p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">2</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Importa su Vercel</span></div>
+          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><a href="https://vercel.com" target="_blank" class="ext-link" style="font-size:11px;">vercel.com</a> &#8594; <b>Add New Project</b> &#8594; seleziona il repo &#8594; framework: <b>Other</b> &#8594; deploy.</p>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span class="step-badge">3</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text-primary);">Configura il dominio</span>
-          </div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">
-            Vercel assegna automaticamente un URL <code style="font-size:10px;background:var(--bg-input);padding:1px 5px;border-radius:4px;">*.vercel.app</code>.
-            Per un dominio custom: <b>Project Settings</b> → <b>Domains</b>.
-            Le PWA richiedono HTTPS — Vercel lo fornisce automaticamente.
-          </p>
-        </div>
-        <div class="admin-row">
-          <div style="font-size:11px;color:var(--text-muted);line-height:1.5;">
-            <b style="color:var(--text-secondary);">Nota:</b> il file <code style="font-size:10px;background:var(--bg-input);padding:1px 5px;border-radius:4px;">vercel.json</code>
-            con i headers PWA viene generato automaticamente dal pulsante sotto.
-          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">3</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Configura il dominio</span></div>
+          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Vercel assegna un URL <code style="font-size:10px;background:var(--bg-input);padding:1px 4px;border-radius:3px;">*.vercel.app</code>. Le PWA richiedono HTTPS — fornito automaticamente.</p>
         </div>
         <div class="admin-row">
           <button class="btn btn--ghost btn--full" onclick="AdminApp.downloadVercelJson()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Scarica vercel.json
           </button>
         </div>
       </div>
     </div>
 
-    <!-- ─── ABOUT ─── -->
+    <!-- ABOUT -->
     <div class="admin-about">
       <div class="admin-about__logo">WG</div>
       <div class="admin-about__title">WeGo</div>
-      <div class="admin-about__ver">Versione 1.3 — Pannello Amministratore</div>
+      <div class="admin-about__ver">Versione 1.4 — Pannello Amministratore</div>
       <div class="admin-about__sep"></div>
       <div class="admin-about__dev">Sviluppato da</div>
       <div class="admin-about__name">Ivo Taffarel</div>
       <a class="admin-about__mail" href="mailto:ivotaffarel@gmail.com">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-          <polyline points="22,6 12,13 2,6"/>
-        </svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         ivotaffarel@gmail.com
       </a>
     </div>
+    <div class="dev-contact">Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></div>
 
   </main>
 </div>
@@ -455,112 +297,91 @@
 <script src="/js/supabase.js"></script>
 <script>
 const AdminApp = {
-
   async init() {
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
-
-    // Carica credenziali salvate
     AdminApp._loadSavedCredentials();
-
-    // Controlla stato
     AdminApp._checkStatus();
-
-    // Popola SQL
     AdminApp._renderSQL();
   },
 
-  // ─── CREDENZIALI SALVATE ────────────────────────────────
   _loadSavedCredentials() {
     const set = (id, key) => {
       const val = Utils.getConfig(key, '');
       const el  = document.getElementById(id);
       if (el && val) el.value = val;
     };
-    set('supabaseUrl',   'supabase_url');
-    set('supabaseKey',   'supabase_anon_key');
-    set('fcmApiKey',     'fcm_api_key');
-    set('fcmProjectId',  'fcm_project_id');
-    set('fcmSenderId',   'fcm_sender_id');
-    set('fcmAppId',      'fcm_app_id');
-    set('fcmVapidKey',   'fcm_vapid_key');
+    set('supabaseUrl',  'supabase_url');
+    set('supabaseKey',  'supabase_anon_key');
+    set('fcmApiKey',    'fcm_api_key');
+    set('fcmProjectId', 'fcm_project_id');
+    set('fcmSenderId',  'fcm_sender_id');
+    set('fcmAppId',     'fcm_app_id');
+    set('fcmVapidKey',  'fcm_vapid_key');
   },
 
-  // ─── STATUS ─────────────────────────────────────────────
   async _checkStatus() {
     // Supabase
     const sbOk = SupabaseClient.isConfigured();
-    AdminApp._setStatus('statusSupabase', sbOk ? 'ok' : 'error',
-      sbOk ? 'Configurato' : 'Non configurato');
+    AdminApp._setStatus('statusSupabase', sbOk ? 'ok' : 'error', sbOk ? 'Configurato' : 'Non configurato');
 
     // FCM
     const fcmOk = !!(Utils.getConfig('fcm_api_key') && Utils.getConfig('fcm_vapid_key'));
-    AdminApp._setStatus('statusFCM', fcmOk ? 'ok' : 'error',
-      fcmOk ? 'Configurato' : 'Non configurato');
+    AdminApp._setStatus('statusFCM', fcmOk ? 'ok' : 'error', fcmOk ? 'Configurato' : 'Non configurato');
 
-    // Service Worker
+    // SW
     if ('serviceWorker' in navigator) {
       try {
         const reg = await navigator.serviceWorker.getRegistration('/');
         AdminApp._setStatus('statusSW', reg ? 'ok' : 'warn',
-          reg ? `Attivo (${reg.scope})` : 'Non registrato');
-      } catch {
-        AdminApp._setStatus('statusSW', 'error', 'Errore');
-      }
+          reg ? 'Attivo (' + reg.scope + ')' : 'Non registrato — apri prima la app');
+      } catch { AdminApp._setStatus('statusSW', 'error', 'Errore verifica SW'); }
     } else {
-      AdminApp._setStatus('statusSW', 'error', 'Non supportato');
+      AdminApp._setStatus('statusSW', 'error', 'Non supportato da questo browser');
+    }
+
+    // Permesso notifiche
+    if ('Notification' in window) {
+      const perm = Notification.permission;
+      if (perm === 'granted')       AdminApp._setStatus('statusNotif', 'ok',    'Concesso');
+      else if (perm === 'denied')   AdminApp._setStatus('statusNotif', 'error', 'Bloccato — sblocca dalle impostazioni browser');
+      else                          AdminApp._setStatus('statusNotif', 'warn',  'Non ancora richiesto');
+    } else {
+      AdminApp._setStatus('statusNotif', 'error', 'Non supportato');
     }
 
     // IndexedDB
     try {
       const req = indexedDB.open('wego_db');
-      req.onsuccess = () => {
-        AdminApp._setStatus('statusDB', 'ok', 'Disponibile');
-        req.result.close();
-      };
-      req.onerror = () => AdminApp._setStatus('statusDB', 'error', 'Errore');
-    } catch {
-      AdminApp._setStatus('statusDB', 'error', 'Non supportato');
-    }
+      req.onsuccess = () => { AdminApp._setStatus('statusDB', 'ok', 'Disponibile'); req.result.close(); };
+      req.onerror  = () => AdminApp._setStatus('statusDB', 'error', 'Errore apertura');
+    } catch { AdminApp._setStatus('statusDB', 'error', 'Non supportato'); }
   },
 
   _setStatus(id, type, text) {
     const el = document.getElementById(id);
     if (!el) return;
-    el.className = `status-dot ${type}`;
-    const textEl = el.querySelector('span:last-child') ||
-                   document.getElementById(id + 'Text');
+    el.className = 'status-dot ' + type;
+    const textEl = document.getElementById(id + 'Text');
     if (textEl) textEl.textContent = text;
   },
 
-  // ─── SQL ────────────────────────────────────────────────
   _renderSQL() {
     const raw = SupabaseClient.SQL_SCHEMA;
-    // Syntax highlight minimo
     const highlighted = raw
-      .replace(/--[^\n]*/g, m => `<span class="cm">${m}</span>`)
-      .replace(/\b(CREATE|TABLE|INDEX|IF|NOT|EXISTS|ON|DELETE|CASCADE|DEFAULT|PRIMARY|KEY|REFERENCES|UNIQUE|GRANT|SELECT|INSERT|UPDATE|TO|ALTER|ENABLE|ROW|LEVEL|SECURITY)\b/g,
-        m => `<span class="kw">${m}</span>`)
-      .replace(/'[^']*'/g, m => `<span class="st">${m}</span>`)
-      .replace(/\b(uuid_generate_v4|NOW)\b/g, m => `<span class="fn">${m}</span>`);
+      .replace(/--[^\n]*/g, m => '<span class="cm">' + m + '</span>')
+      .replace(/\b(CREATE|TABLE|INDEX|IF|NOT|EXISTS|ON|DELETE|CASCADE|DEFAULT|PRIMARY|KEY|REFERENCES|UNIQUE|GRANT|SELECT|INSERT|UPDATE|TO|ALTER|ENABLE|ROW|LEVEL|SECURITY)\b/g, m => '<span class="kw">' + m + '</span>')
+      .replace(/'[^']*'/g, m => '<span class="st">' + m + '</span>')
+      .replace(/\b(uuid_generate_v4|NOW)\b/g, m => '<span class="fn">' + m + '</span>');
     document.getElementById('sqlBlock').innerHTML = highlighted;
   },
 
-  copySQL() {
-    Utils.copyToClipboard(SupabaseClient.SQL_SCHEMA);
-  },
+  copySQL() { Utils.copyToClipboard(SupabaseClient.SQL_SCHEMA); },
 
-  // ─── SALVA SUPABASE ─────────────────────────────────────
   saveSupabase() {
     const url = document.getElementById('supabaseUrl').value.trim();
     const key = document.getElementById('supabaseKey').value.trim();
-
-    if (!url || !url.startsWith('https://')) {
-      Utils.toast('URL non valido — deve iniziare con https://', 'error'); return;
-    }
-    if (!key || key.length < 20) {
-      Utils.toast('Anon key non valida', 'error'); return;
-    }
-
+    if (!url || !url.startsWith('https://')) { Utils.toast('URL non valido — deve iniziare con https://', 'error'); return; }
+    if (!key || key.length < 20)             { Utils.toast('Anon key non valida', 'error'); return; }
     Utils.setConfig('supabase_url',      url);
     Utils.setConfig('supabase_anon_key', key);
     Utils.toast('Credenziali Supabase salvate', 'success');
@@ -568,42 +389,20 @@ const AdminApp = {
   },
 
   async testSupabase() {
-    const resultEl = document.getElementById('supabaseTestResult');
-    resultEl.style.display = 'block';
-    resultEl.className     = 'test-result';
-    resultEl.textContent   = 'Test in corso…';
-
+    const el = document.getElementById('supabaseTestResult');
+    el.style.display = 'block'; el.className = 'test-result'; el.textContent = 'Test in corso...';
     AdminApp.saveSupabase();
-    if (!SupabaseClient.isConfigured()) {
-      resultEl.className   = 'test-result error';
-      resultEl.textContent = '✗ Credenziali non configurate';
-      return;
-    }
-
+    if (!SupabaseClient.isConfigured()) { el.className = 'test-result error'; el.textContent = 'Credenziali non configurate'; return; }
     try {
       const url = Utils.getConfig('supabase_url');
       const key = Utils.getConfig('supabase_anon_key');
-      const res = await fetch(`${url}/rest/v1/sp_events?limit=1`, {
-        headers: { apikey: key, Authorization: `Bearer ${key}` }
-      });
-
-      if (res.ok || res.status === 200) {
-        resultEl.className   = 'test-result ok';
-        resultEl.textContent = `✓ Connessione riuscita — Supabase risponde (HTTP ${res.status})`;
-      } else if (res.status === 404) {
-        resultEl.className   = 'test-result error';
-        resultEl.textContent = '✗ Tabelle non trovate — esegui lo schema SQL prima';
-      } else {
-        resultEl.className   = 'test-result error';
-        resultEl.textContent = `✗ Errore HTTP ${res.status} — verifica le credenziali`;
-      }
-    } catch (e) {
-      resultEl.className   = 'test-result error';
-      resultEl.textContent = `✗ Connessione fallita: ${e.message}`;
-    }
+      const res = await fetch(url + '/rest/v1/sp_events?limit=1', { headers: { apikey: key, Authorization: 'Bearer ' + key } });
+      if (res.ok) { el.className = 'test-result ok'; el.textContent = 'Connessione riuscita (HTTP ' + res.status + ')'; }
+      else if (res.status === 404) { el.className = 'test-result error'; el.textContent = 'Tabelle non trovate — esegui lo schema SQL prima'; }
+      else { const body = await res.text().catch(() => ''); el.className = 'test-result error'; el.textContent = 'Errore HTTP ' + res.status + ' — ' + (body.slice(0,120) || 'verifica le credenziali'); }
+    } catch(e) { el.className = 'test-result error'; el.textContent = 'Connessione fallita: ' + e.message; }
   },
 
-  // ─── SALVA FCM ──────────────────────────────────────────
   saveFCM() {
     const fields = {
       fcm_api_key:    document.getElementById('fcmApiKey').value.trim(),
@@ -612,95 +411,142 @@ const AdminApp = {
       fcm_app_id:     document.getElementById('fcmAppId').value.trim(),
       fcm_vapid_key:  document.getElementById('fcmVapidKey').value.trim()
     };
-
-    const missing = Object.entries(fields).filter(([, v]) => !v).map(([k]) => k);
-    if (missing.length > 0) {
-      Utils.toast(`Compila tutti i campi FCM`, 'error'); return;
-    }
-
-    Object.entries(fields).forEach(([k, v]) => Utils.setConfig(k, v));
+    const missing = Object.entries(fields).filter(([,v]) => !v);
+    if (missing.length) { Utils.toast('Compila tutti i campi FCM', 'error'); return; }
+    Object.entries(fields).forEach(([k,v]) => Utils.setConfig(k, v));
     Utils.toast('Credenziali FCM salvate', 'success');
     AdminApp._checkStatus();
   },
 
+  // ── TEST FCM con diagnostica step-by-step ──────────────
   async testFCM() {
-    const resultEl = document.getElementById('fcmTestResult');
-    resultEl.style.display = 'block';
+    const el = document.getElementById('fcmTestResult');
+    el.style.display = 'block'; el.className = 'test-result'; el.innerHTML = '<em style="opacity:0.6;font-size:11px;">Analisi in corso...</em>';
 
-    if (!Utils.getConfig('fcm_vapid_key')) {
-      resultEl.className   = 'test-result error';
-      resultEl.textContent = '✗ Configura prima le credenziali FCM';
-      return;
+    const steps = [];
+    const add = (icon, cls, text) => steps.push('<div class="diag-step diag-step--' + cls + '"><span class="diag-step__icon">' + icon + '</span><span class="diag-step__text">' + text + '</span></div>');
+    const render = (cls) => { el.className = 'test-result ' + cls; el.innerHTML = steps.join(''); };
+
+    // 1. API Notification
+    if (!('Notification' in window)) { add('✗','err','Notifiche non supportate da questo browser'); render('error'); return; }
+    add('✓','ok','API Notification disponibile');
+
+    // 2. Service Worker supportato
+    if (!('serviceWorker' in navigator)) { add('✗','err','Service Worker non supportato — usa Chrome o Edge'); render('error'); return; }
+    add('✓','ok','Service Worker supportato');
+
+    // 3. HTTPS check
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      add('✗','err','Le notifiche push richiedono HTTPS. In locale usa http://localhost, non un IP di rete.');
+      render('error'); return;
+    }
+    add('✓','ok','Protocollo HTTPS (o localhost) — OK');
+
+    // 4. SW registrato (tenta registrazione se assente)
+    let swReg = null;
+    try { swReg = await navigator.serviceWorker.getRegistration('/'); } catch(e) { add('✗','err','Errore verifica SW: ' + e.message); render('error'); return; }
+    if (!swReg) {
+      add('⚠','warn','SW non registrato — tentativo di registrazione...');
+      try { swReg = await navigator.serviceWorker.register('/sw.js', { scope: '/' }); await navigator.serviceWorker.ready; add('✓','ok','SW registrato con successo'); }
+      catch(e) { add('✗','err','Registrazione SW fallita: ' + e.message + '. Apri prima la app principale (/index.html) e riprova.'); render('error'); return; }
+    } else {
+      add('✓','ok','SW registrato (scope: ' + swReg.scope + ', stato: ' + (swReg.active ? swReg.active.state : 'installing') + ')');
     }
 
-    if (!('Notification' in window)) {
-      resultEl.className   = 'test-result error';
-      resultEl.textContent = '✗ Notifiche non supportate su questo browser';
-      return;
+    // 5. Permesso notifiche
+    let perm = Notification.permission;
+    if (perm === 'denied') { add('✗','err','Permesso notifiche BLOCCATO. Vai nelle impostazioni del browser → Privacy → Notifiche → rimuovi il blocco per questo sito, poi ricarica.'); render('error'); return; }
+    if (perm === 'default') {
+      add('⚠','warn','Permesso non ancora concesso — apertura richiesta...');
+      render('warn');
+      try { perm = await Notification.requestPermission(); } catch(e) { add('✗','err','Errore richiesta permesso: ' + e.message); render('error'); return; }
     }
+    if (perm !== 'granted') { add('✗','err','Permesso negato (stato: "' + perm + '"). Sblocca le notifiche nelle impostazioni del browser.'); render('error'); return; }
+    add('✓','ok','Permesso notifiche: concesso');
 
-    const perm = await Notification.requestPermission();
-    if (perm !== 'granted') {
-      resultEl.className   = 'test-result error';
-      resultEl.textContent = '✗ Permesso notifiche negato';
-      return;
-    }
+    // 6. Push API
+    if (!('PushManager' in window)) { add('✗','err','Push API non disponibile — usa Chrome, Edge o Firefox recente'); render('error'); return; }
+    add('✓','ok','Push API disponibile');
 
-    // Notifica di test locale
-    const reg = await navigator.serviceWorker.getRegistration('/');
-    if (reg) {
-      await reg.showNotification('WeGo — Test notifica', {
-        body:    'Le notifiche push funzionano correttamente!',
+    // 7. VAPID key
+    const vapidKey = Utils.getConfig('fcm_vapid_key');
+    if (!vapidKey) add('⚠','warn','VAPID key non configurata — la notifica di test sarà solo locale');
+    else add('✓','ok','VAPID key configurata (' + vapidKey.slice(0,12) + '...)');
+
+    // 8. Invia notifica di test
+    try {
+      const readyReg = await navigator.serviceWorker.ready;
+      await readyReg.showNotification('WeGo — Test notifica', {
+        body:    'Le notifiche funzionano correttamente!',
         icon:    '/icons/icon-192.png',
         badge:   '/icons/icon-72.png',
-        vibrate: [100, 50, 100]
+        vibrate: [100, 50, 100],
+        tag:     'wego-admin-test'
       });
-      resultEl.className   = 'test-result ok';
-      resultEl.textContent = '✓ Notifica di test inviata correttamente';
-    } else {
-      resultEl.className   = 'test-result error';
-      resultEl.textContent = '✗ Service Worker non registrato — ricarica l\'app prima';
+      add('✓','ok','Notifica di test inviata — controlla le notifiche del dispositivo');
+      render('ok');
+    } catch(e) {
+      add('✗','err','Errore invio notifica: ' + e.message);
+      if (e.name === 'NotAllowedError') add('⚠','warn','Il browser ha bloccato la notifica. Verifica che le notifiche non siano disabilitate a livello di sistema.');
+      render('error');
     }
+
+    AdminApp._checkStatus();
   },
 
-  // ─── VERCEL.JSON ────────────────────────────────────────
+  // ── EXPORT / IMPORT CONFIG ─────────────────────────────
+  exportConfig() {
+    const cfg = Utils.getAllConfig();
+    const keys = ['supabase_url','supabase_anon_key','fcm_api_key','fcm_project_id','fcm_sender_id','fcm_app_id','fcm_vapid_key','theme','currency'];
+    const out = { _wego_config_version: '1.4', _exported_at: new Date().toISOString(), _note: 'WeGo config — conserva in modo sicuro' };
+    keys.forEach(k => { if (cfg[k]) out[k] = cfg[k]; });
+    const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'wego-config-' + new Date().toISOString().slice(0,10) + '.json'; a.click();
+    URL.revokeObjectURL(url);
+    Utils.toast('Configurazione esportata', 'success');
+  },
+
+  importConfig() { document.getElementById('configFileInput').click(); },
+
+  _onConfigFileSelected(input) {
+    const file = input.files[0]; if (!file) return;
+    const el = document.getElementById('configImportResult');
+    el.style.display = 'block'; el.className = 'test-result'; el.textContent = 'Importazione in corso...';
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (!data._wego_config_version) throw new Error('File non valido — non e\' una configurazione WeGo');
+        const keys = ['supabase_url','supabase_anon_key','fcm_api_key','fcm_project_id','fcm_sender_id','fcm_app_id','fcm_vapid_key','theme','currency'];
+        let count = 0;
+        keys.forEach(k => { if (data[k]) { Utils.setConfig(k, data[k]); count++; } });
+        AdminApp._loadSavedCredentials();
+        AdminApp._checkStatus();
+        el.className = 'test-result ok';
+        el.textContent = 'Importate ' + count + ' impostazioni da "' + file.name + '" (esportato il ' + (data._exported_at || '?').slice(0,10) + ')';
+        Utils.toast('Configurazione importata!', 'success');
+      } catch(e) { el.className = 'test-result error'; el.textContent = 'Errore importazione: ' + e.message; }
+      input.value = '';
+    };
+    reader.onerror = () => { el.className = 'test-result error'; el.textContent = 'Errore lettura file'; input.value = ''; };
+    reader.readAsText(file);
+  },
+
   downloadVercelJson() {
     const config = {
       headers: [
-        {
-          source: '/sw.js',
-          headers: [
-            { key: 'Cache-Control',             value: 'public, max-age=0, must-revalidate' },
-            { key: 'Service-Worker-Allowed',    value: '/' }
-          ]
-        },
-        {
-          source: '/(.*)',
-          headers: [
-            { key: 'X-Content-Type-Options',    value: 'nosniff' },
-            { key: 'X-Frame-Options',           value: 'DENY' },
-            { key: 'X-XSS-Protection',          value: '1; mode=block' },
-            { key: 'Referrer-Policy',           value: 'strict-origin-when-cross-origin' },
-            { key: 'Permissions-Policy',        value: 'geolocation=(self), camera=(self), notifications=(self)' }
-          ]
-        }
+        { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }, { key: 'Service-Worker-Allowed', value: '/' }] },
+        { source: '/(.*)', headers: [{ key: 'X-Content-Type-Options', value: 'nosniff' }, { key: 'X-Frame-Options', value: 'DENY' }, { key: 'X-XSS-Protection', value: '1; mode=block' }, { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' }, { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(self), notifications=(self)' }] }
       ],
       rewrites: [
-        { source: '/',            destination: '/index.html' },
-        { source: '/evento',      destination: '/evento.html' },
-        { source: '/spesa',       destination: '/spesa.html' },
-        { source: '/riepilogo',   destination: '/riepilogo.html' },
-        { source: '/impostazioni',destination: '/impostazioni.html' }
+        { source: '/', destination: '/index.html' }, { source: '/evento', destination: '/evento.html' },
+        { source: '/spesa', destination: '/spesa.html' }, { source: '/riepilogo', destination: '/riepilogo.html' },
+        { source: '/impostazioni', destination: '/impostazioni.html' }
       ]
     };
-
     const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = 'vercel.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'vercel.json'; a.click(); URL.revokeObjectURL(url);
     Utils.toast('vercel.json scaricato', 'success');
   }
 };
