@@ -162,6 +162,35 @@
       </div>
     </div>
 
+    <!-- DIAGNOSTICA SYNC -->
+    <div class="admin-section">
+      <div class="section-header"><span class="section-title">Diagnostica sincronizzazione</span></div>
+      <div class="admin-group">
+        <div class="admin-row">
+          <p class="config-note">Verifica che gli eventi siano effettivamente su Supabase e che un utente su altro dispositivo possa trovarli con il codice.</p>
+        </div>
+        <div class="admin-row" style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn--ghost" style="flex:1;min-width:140px;" onclick="AdminApp.testSyncRead()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Conta eventi su DB
+          </button>
+          <button class="btn btn--ghost" style="flex:1;min-width:140px;" onclick="AdminApp.testEventCode()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            Cerca per codice
+          </button>
+        </div>
+        <div class="admin-row" id="syncCodeRow" style="display:none;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" class="form-input" id="syncTestCode" placeholder="ABC-123456" maxlength="12"
+              style="text-transform:uppercase;letter-spacing:2px;font-weight:700;text-align:center;flex:1;"
+              oninput="this.value=this.value.toUpperCase()" />
+            <button class="btn btn--primary btn--sm" onclick="AdminApp._doTestCode()">Cerca</button>
+          </div>
+        </div>
+        <div class="test-result" id="syncTestResult"></div>
+      </div>
+    </div>
+
     <!-- SUPABASE -->
     <div class="admin-section">
       <div class="section-header">
@@ -531,6 +560,113 @@ const AdminApp = {
     };
     reader.onerror = () => { el.className = 'test-result error'; el.textContent = 'Errore lettura file'; input.value = ''; };
     reader.readAsText(file);
+  },
+
+  // ── DIAGNOSTICA SYNC ───────────────────────────────────
+  async testSyncRead() {
+    const el = document.getElementById('syncTestResult');
+    document.getElementById('syncCodeRow').style.display = 'none';
+    el.style.display = 'block'; el.className = 'test-result'; el.textContent = 'Connessione a Supabase in corso...';
+
+    if (!SupabaseClient.isConfigured()) {
+      el.className = 'test-result error'; el.textContent = 'Supabase non configurato — salva prima le credenziali.'; return;
+    }
+    if (!navigator.onLine) {
+      el.className = 'test-result error'; el.textContent = 'Nessuna connessione Internet.'; return;
+    }
+
+    const url = Utils.getConfig('supabase_url');
+    const key = Utils.getConfig('supabase_anon_key');
+
+    try {
+      // Conta eventi
+      const resEv = await fetch(url + '/rest/v1/sp_events?select=id,code,title,created_at&order=created_at.desc&limit=5', {
+        headers: { apikey: key, Authorization: 'Bearer ' + key }
+      });
+      if (!resEv.ok) { const t = await resEv.text(); el.className='test-result error'; el.textContent='Errore HTTP ' + resEv.status + ': ' + t.slice(0,120); return; }
+      const events = await resEv.json();
+
+      // Conta totale
+      const resCnt = await fetch(url + '/rest/v1/sp_events?select=id', {
+        headers: { apikey: key, Authorization: 'Bearer ' + key, Prefer: 'count=exact' }
+      });
+      const total = resCnt.headers.get('content-range')?.split('/')[1] || '?';
+
+      if (!Array.isArray(events) || events.length === 0) {
+        el.className = 'test-result warn';
+        el.innerHTML = '<b>Nessun evento trovato su Supabase.</b><br>Se hai creato eventi, controlla che la sincronizzazione sia avvenuta (icona sync in app) e che le credenziali siano corrette.';
+        return;
+      }
+
+      const rows = events.map(e =>
+        '<div style="padding:3px 0;font-size:11px;border-bottom:1px solid rgba(255,255,255,0.07);">' +
+        '<b>' + e.code + '</b> — ' + (e.title || '?') + ' <span style="opacity:0.5;">(' + (e.created_at||'').slice(0,10) + ')</span>' +
+        '</div>'
+      ).join('');
+
+      el.className = 'test-result ok';
+      el.innerHTML = '<b>Connessione OK — ' + total + ' eventi totali su Supabase.</b><br>Ultimi ' + events.length + ':<br>' + rows +
+        '<div style="margin-top:8px;font-size:11px;opacity:0.7;">Se un utente non trova un evento, usa il pulsante "Cerca per codice" per verificare.</div>';
+
+    } catch(e) {
+      el.className = 'test-result error'; el.textContent = 'Errore connessione: ' + e.message;
+    }
+  },
+
+  testEventCode() {
+    const el = document.getElementById('syncTestResult');
+    el.style.display = 'none';
+    const row = document.getElementById('syncCodeRow');
+    row.style.display = row.style.display === 'none' ? '' : 'none';
+    if (row.style.display !== 'none') setTimeout(() => document.getElementById('syncTestCode').focus(), 100);
+  },
+
+  async _doTestCode() {
+    const code = document.getElementById('syncTestCode').value.trim().toUpperCase();
+    const el   = document.getElementById('syncTestResult');
+    el.style.display = 'block'; el.className = 'test-result'; el.textContent = 'Ricerca "' + code + '" su Supabase...';
+
+    if (!code || code.length < 3) { el.className='test-result error'; el.textContent='Inserisci un codice valido (es. ABC-123456)'; return; }
+    if (!SupabaseClient.isConfigured()) { el.className='test-result error'; el.textContent='Supabase non configurato.'; return; }
+
+    const url = Utils.getConfig('supabase_url');
+    const key = Utils.getConfig('supabase_anon_key');
+
+    try {
+      const res = await fetch(url + '/rest/v1/sp_events?code=eq.' + encodeURIComponent(code) + '&select=*', {
+        headers: { apikey: key, Authorization: 'Bearer ' + key }
+      });
+      if (!res.ok) { const t=await res.text(); el.className='test-result error'; el.textContent='Errore HTTP '+res.status+': '+t.slice(0,100); return; }
+      const data = await res.json();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        el.className = 'test-result error';
+        el.innerHTML = '<b>Evento "' + code + '" NON trovato su Supabase.</b><br>' +
+          'Possibili cause:<br>' +
+          '&#8226; La sincronizzazione non &egrave; ancora avvenuta (tocca l\'icona sync sull\'app del creatore)<br>' +
+          '&#8226; Il creatore non aveva connessione quando ha creato l\'evento<br>' +
+          '&#8226; Credenziali Supabase diverse tra i dispositivi';
+        return;
+      }
+
+      const ev = data[0];
+      // Prendi anche gli utenti
+      const resU = await fetch(url + '/rest/v1/sp_users?event_id=eq.' + ev.id + '&select=name,active&order=created_at.asc', {
+        headers: { apikey: key, Authorization: 'Bearer ' + key }
+      });
+      const users = resU.ok ? await resU.json() : [];
+
+      el.className = 'test-result ok';
+      el.innerHTML = '<b>Evento trovato su Supabase!</b><br>' +
+        'Titolo: <b>' + (ev.title||'?') + '</b><br>' +
+        'Codice: <b>' + ev.code + '</b><br>' +
+        'Creato da: ' + (ev.created_by||'?') + ' il ' + (ev.created_at||'').slice(0,10) + '<br>' +
+        'Partecipanti (' + users.length + '): ' + users.map(u => u.name).join(', ') + '<br>' +
+        '<div style="margin-top:6px;font-size:11px;color:var(--green);">&#10003; Un altro utente potr&agrave; trovare questo evento inserendo il codice.</div>';
+
+    } catch(e) {
+      el.className = 'test-result error'; el.textContent = 'Errore: ' + e.message;
+    }
   },
 
   downloadVercelJson() {
