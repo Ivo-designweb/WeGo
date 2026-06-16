@@ -267,8 +267,8 @@ const App = {
     document.getElementById('inviteNewName').value    = '';
     App._pendingPhoto = null;
 
-    // Precompila nickname dal localStorage (impostazioni o sessione precedente)
-    const savedNick = Utils.getConfig('nickname', '');
+    // Precompila nickname: prima da impostazioni (default_nickname), poi da ultimo uso (nickname)
+    const savedNick = Utils.getConfig('default_nickname', '') || Utils.getConfig('nickname', '');
     document.getElementById('newEventNickname').value = savedNick;
 
     // Inizializza lista invitati
@@ -385,7 +385,8 @@ const App = {
 
       if (Utils.isOnline()) Sync.push().catch(() => {});
 
-      // Salva nickname per riutilizzo futuro
+      // Salva nickname per riutilizzo futuro (sia con la chiave usata da impostazioni che quella legacy)
+      Utils.setConfig('default_nickname', nickname);
       Utils.setConfig('nickname', nickname);
 
       App.closeModal('modalCreateEvent');
@@ -480,12 +481,26 @@ const App = {
       const localEvents = await DB.events.getAll();
       event = localEvents.find(e => e.code === code);
 
-      // Cerca su Supabase se non trovato
+      // Cerca su Supabase se non trovato localmente
       if (!event && Utils.isOnline()) {
-        const remote = await SupabaseClient.getEventByCode(code);
-        if (remote) {
-          event = await DB.events.save(remote.event);
-          for (const u of remote.users) await DB.users.save(u);
+        if (!SupabaseClient.isConfigured()) {
+          Utils.toast('Supabase non configurato — impossibile cercare online', 'error');
+        } else {
+          try {
+            // Cerca evento per codice
+            const remoteEvent = await SupabaseClient.events.findByCode(code);
+            if (remoteEvent) {
+              event = await DB.events.save({ ...remoteEvent, synced: true });
+              // Scarica anche gli utenti dell'evento
+              const remoteUsers = await SupabaseClient.users.getByEvent(remoteEvent.id);
+              if (Array.isArray(remoteUsers)) {
+                for (const u of remoteUsers) await DB.users.save({ ...u, synced: true });
+              }
+            }
+          } catch(e) {
+            console.warn('[App] joinEvent Supabase error:', e);
+            Utils.toast('Errore connessione Supabase: ' + e.message, 'error');
+          }
         }
       }
 
