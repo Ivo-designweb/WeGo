@@ -89,6 +89,14 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// ─── MESSAGE (da pagina → SW) ─────────────────────────────
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    console.log('[SW] SKIP_WAITING ricevuto — installazione immediata');
+    self.skipWaiting();
+  }
+});
+
 // ─── BACKGROUND SYNC ──────────────────────────────────────────
 self.addEventListener('sync', (event) => {
   console.log('[SW] Background sync:', event.tag);

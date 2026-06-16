@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v1.2</title>
+  <title>Impostazioni — WeGo v1.3</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/css/style.css" />
@@ -320,6 +320,46 @@
       </div>
     </div>
 
+    <!-- ─── SEZIONE: AGGIORNAMENTO APP ─── -->
+    <div class="settings-section">
+      <div class="section-header"><span class="section-title">Aggiornamento app</span></div>
+      <div class="settings-group">
+
+        <div class="settings-row settings-row--static">
+          <div class="settings-row__icon" style="background:#6366F1;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 12v-1a8 8 0 0114.93-4M20 12v1a8 8 0 01-14.93 4"/>
+              <polyline points="20 4 20 8 16 8"/><polyline points="4 20 4 16 8 16"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Versione installata</div>
+            <div class="settings-row__value" id="swVersionLabel">Verifica…</div>
+          </div>
+          <div class="settings-row__right">
+            <button class="btn btn--ghost btn--sm" onclick="SettingsApp.checkUpdate()">Controlla</button>
+          </div>
+        </div>
+
+        <div class="settings-row" onclick="SettingsApp.forceUpdate()">
+          <div class="settings-row__icon" style="background:#6366F1;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="1 4 1 10 7 10"/>
+              <path d="M3.51 15a9 9 0 102.13-9.36L1 10"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Forza aggiornamento</div>
+            <div class="settings-row__value">Pulisce la cache e scarica l'ultima versione da Vercel</div>
+          </div>
+          <div class="settings-row__right settings-row__chevron">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- ─── SEZIONE: ABOUT ─── -->
     <div class="settings-section">
       <div class="section-header"><span class="section-title">Informazioni</span></div>
@@ -327,7 +367,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 1.2</div>
+        <div class="about-ver">Versione 1.3</div>
 
         <div class="about-div"></div>
 
@@ -415,6 +455,112 @@ const SettingsApp = {
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
     await DB.open();
     SettingsApp._renderAll();
+    SettingsApp._renderSWVersion();
+  },
+
+  // ─── VERSIONE SW ────────────────────────────────────────
+  async _renderSWVersion() {
+    const el = document.getElementById('swVersionLabel');
+    if (!el) return;
+    if (!('serviceWorker' in navigator)) {
+      el.textContent = 'Service Worker non supportato';
+      return;
+    }
+    try {
+      const reg = await navigator.serviceWorker.getRegistration('/');
+      if (reg && reg.active) {
+        // Estrai versione dal SW: il nome cache è "wego-vX.X"
+        // Lo leggiamo dai caches disponibili
+        const keys = await caches.keys();
+        const wegoCache = keys.find(k => k.startsWith('wego-'));
+        el.textContent = wegoCache ? wegoCache : 'Attivo (versione sconosciuta)';
+      } else {
+        el.textContent = 'Non ancora installato';
+      }
+    } catch(e) {
+      el.textContent = 'Errore lettura versione';
+    }
+  },
+
+  // ─── FORZA AGGIORNAMENTO ────────────────────────────────
+  async forceUpdate() {
+    if (!confirm(
+      'Forzare l\'aggiornamento dell\'app?\n\n' +
+      'Verranno cancellate tutte le cache del browser e l\'app verrà ricaricata dalla versione più recente su Vercel.\n\n' +
+      'I dati locali (eventi, spese) NON vengono cancellati.'
+    )) return;
+
+    const btn = document.querySelector('[onclick="SettingsApp.forceUpdate()"]');
+    if (btn) {
+      btn.style.opacity = '0.5';
+      btn.style.pointerEvents = 'none';
+    }
+
+    Utils.toast('Pulizia cache in corso…', 'info', 3000);
+
+    try {
+      // 1. Cancella tutte le cache del Service Worker
+      const cacheKeys = await caches.keys();
+      await Promise.all(cacheKeys.map(key => caches.delete(key)));
+      console.log('[Update] Cache cancellate:', cacheKeys);
+
+      // 2. Forza aggiornamento del Service Worker
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration('/');
+        if (reg) {
+          await reg.update();
+          // Manda messaggio al SW per saltare waiting
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+        }
+      }
+
+      // 3. Ricarica forzata dal server (bypass cache browser)
+      Utils.toast('Cache pulita! Ricarico…', 'success', 2000);
+      setTimeout(() => {
+        window.location.href = window.location.href.split('?')[0] +
+          '?nocache=' + Date.now();
+      }, 1500);
+
+    } catch(e) {
+      Utils.toast('Errore aggiornamento: ' + e.message, 'error');
+      if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
+    }
+  },
+
+  // ─── CONTROLLA AGGIORNAMENTI ────────────────────────────
+  async checkUpdate() {
+    const el = document.getElementById('swVersionLabel');
+    Utils.toast('Controllo aggiornamenti…', 'info', 2000);
+
+    try {
+      if (!('serviceWorker' in navigator)) {
+        Utils.toast('Service Worker non supportato', 'error'); return;
+      }
+
+      const reg = await navigator.serviceWorker.getRegistration('/');
+      if (!reg) {
+        Utils.toast('Service Worker non registrato — apri prima la app dalla home', 'error'); return;
+      }
+
+      // Forza controllo aggiornamento SW
+      await reg.update();
+
+      if (reg.waiting) {
+        // C'è un nuovo SW in attesa
+        Utils.toast('Aggiornamento disponibile! Usa "Forza aggiornamento" per installarlo.', 'info', 5000);
+        if (el) el.textContent += ' — ⚠ Aggiornamento disponibile';
+      } else if (reg.installing) {
+        Utils.toast('Aggiornamento in installazione…', 'info', 3000);
+      } else {
+        Utils.toast('App aggiornata all\'ultima versione ✓', 'success', 3000);
+        // Rileggi la versione cache
+        await SettingsApp._renderSWVersion();
+      }
+    } catch(e) {
+      Utils.toast('Errore controllo: ' + e.message, 'error');
+    }
   },
 
   _renderAll() {
