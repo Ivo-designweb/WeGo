@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v1.0
+// WeGo — app.js v1.6
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -8,40 +8,46 @@ const App = {
   // ─── STATO ────────────────────────────────────────────────
   _events:       [],
   _pendingPhoto: null,
+  _invitees:     [],   // lista nomi partecipanti aggiuntivi nel modal crea evento
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v1.0 init');
+    console.log('[App] WeGo v1.6 init');
 
-    // Applica tema salvato
-    const theme = Utils.getConfig('theme', 'dark');
-    Utils.applyTheme(theme);
-
-    // Registra Service Worker
+    Utils.applyTheme(Utils.getConfig('theme', 'dark'));
     await App._registerSW();
-
-    // Inizializza DB
     await DB.open();
 
-    // Carica eventi
-    await App.loadEvents();
+    // ── Redirect automatico all'ultimo evento aperto ──────
+    const lastEventId = localStorage.getItem('wego_last_event_id');
+    if (lastEventId) {
+      // Verifica che l'evento esista ancora localmente
+      try {
+        const ev = await DB.events.getById(lastEventId);
+        if (ev) {
+          window.location.href = `/evento.html?id=${lastEventId}`;
+          return; // interrompi init, stiamo navigando via
+        } else {
+          localStorage.removeItem('wego_last_event_id');
+        }
+      } catch(e) {
+        localStorage.removeItem('wego_last_event_id');
+      }
+    }
 
-    // Monitor connessione
+    await App.loadEvents();
     App._initNetworkMonitor();
 
-    // Sync all'avvio se online
     if (Utils.isOnline()) {
       App._syncQuiet();
     }
 
-    // Gestione notifiche click (dal SW)
     navigator.serviceWorker?.addEventListener('message', (e) => {
       if (e.data?.type === 'NOTIFICATION_CLICK' || e.data?.type === 'BACKGROUND_SYNC') {
         App._syncQuiet();
       }
     });
 
-    // Check aggiornamento SW
     App._checkSWUpdate();
   },
 
@@ -63,7 +69,6 @@ const App = {
       const newWorker = window._swRegistration.installing;
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          // Nuova versione disponibile
           Utils.toast('Aggiornamento disponibile — ricarica la pagina', 'info', 6000);
         }
       });
@@ -72,19 +77,12 @@ const App = {
 
   // ─── NETWORK MONITOR ──────────────────────────────────────
   _initNetworkMonitor() {
-    const indicator = document.getElementById('connectionIndicator');
-
+    const dot = document.getElementById('connDot');
     const update = () => {
       const online = Utils.isOnline();
-      if (indicator) {
-        indicator.style.background = online ? 'var(--accent-green)' : 'var(--accent-red)';
-        indicator.title = online ? 'Connesso' : 'Offline';
-      }
-      if (online) {
-        App._syncQuiet();
-      }
+      if (dot) dot.style.background = online ? 'var(--green)' : 'var(--red)';
+      if (online) App._syncQuiet();
     };
-
     window.addEventListener('online',  update);
     window.addEventListener('offline', update);
     update();
@@ -94,9 +92,8 @@ const App = {
   async loadEvents() {
     try {
       App._events = await DB.events.getAll();
-      // Ordina per data più recente
       App._events.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-      App._render();
+      await App._render();
     } catch (e) {
       console.error('[App] loadEvents error:', e);
       Utils.toast('Errore nel caricamento degli eventi', 'error');
@@ -104,7 +101,7 @@ const App = {
   },
 
   // ─── RENDER ───────────────────────────────────────────────
-  _render() {
+  async _render() {
     const hasEvents = App._events.length > 0;
 
     if (!hasEvents) {
@@ -116,15 +113,11 @@ const App = {
     Utils.hide('welcomeScreen');
     Utils.show('eventsScreen');
 
-    // Aggiorna contatore
     const countEl = document.getElementById('eventsCount');
     if (countEl) countEl.textContent = `${App._events.length} event${App._events.length === 1 ? 'o' : 'i'}`;
 
-    // Nickname corrente (prende il primo evento attivo)
     App._renderCurrentUser();
-
-    // Lista eventi
-    App._renderEventList();
+    await App._renderEventListAsync();
   },
 
   _renderCurrentUser() {
@@ -143,71 +136,6 @@ const App = {
     }
   },
 
-  _renderEventList() {
-    const container = document.getElementById('eventsList');
-    if (!container) return;
-
-    if (App._events.length === 0) {
-      container.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state__icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-              <circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 00-3-3.87"/>
-              <path d="M16 3.13a4 4 0 010 7.75"/>
-            </svg>
-          </div>
-          <p class="empty-state__title">Nessun evento</p>
-          <p class="empty-state__desc">Crea un nuovo evento o unisciti a uno esistente con il codice condiviso.</p>
-        </div>`;
-      return;
-    }
-
-    container.innerHTML = App._events.map(ev => App._eventCardHtml(ev)).join('');
-  },
-
-  async _eventCardHtml(ev) {
-    const session = DB.sessions.get(ev.id);
-    const userName = session?.userName;
-    const userIdx  = userName ? Utils.avatarColorIndex(userName) : 0;
-
-    // Conta spese non sincronizzate
-    const allExp   = await DB.expenses.getByEvent(ev.id);
-    const expCount = allExp.filter(e => !e.deleted).length;
-    const unsynced = allExp.filter(e => !e.synced && !e.deleted).length;
-
-    return `
-    <div class="card card--interactive" style="margin-bottom:10px;" onclick="App.openEvent('${Utils.escapeHtml(ev.id)}')">
-      <div style="display:flex;align-items:flex-start;gap:12px;">
-        ${ev.photo
-          ? `<div style="width:48px;height:48px;border-radius:var(--radius-md);background:url(${ev.photo}) center/cover;flex-shrink:0;"></div>`
-          : `<div style="width:48px;height:48px;border-radius:var(--radius-md);background:var(--bg-input);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text-muted);">
-               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                 <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                 <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
-               </svg>
-             </div>`
-        }
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">
-            <span style="font-size:16px;font-weight:700;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${Utils.escapeHtml(ev.title)}</span>
-            ${unsynced > 0 ? `<span class="badge badge--amber">${unsynced} da sync</span>` : ''}
-          </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <code style="font-size:11px;color:var(--accent-blue);background:rgba(59,130,246,0.1);padding:2px 7px;border-radius:4px;font-weight:700;letter-spacing:1px;">${Utils.escapeHtml(ev.code)}</code>
-            <span class="text-sm text-muted">${expCount} spes${expCount === 1 ? 'a' : 'e'}</span>
-            <span class="text-sm text-muted">· ${Utils.timeAgo(ev.updated_at)}</span>
-          </div>
-        </div>
-        ${userName
-          ? `<div class="avatar avatar-${userIdx} avatar--sm" title="Sei ${userName}">${Utils.initials(userName)}</div>`
-          : ''}
-      </div>
-    </div>`;
-  },
-
-  // ─── CARICA EVENTO HTML (con promise rendering) ────────────
   async _renderEventListAsync() {
     const container = document.getElementById('eventsList');
     if (!container) return;
@@ -231,66 +159,182 @@ const App = {
     container.innerHTML = cards.join('');
   },
 
-  // Override render per usare async
-  async _render() {
-    const hasEvents = App._events.length > 0;
+  async _eventCardHtml(ev) {
+    const session  = DB.sessions.get(ev.id);
+    const userName = session?.userName;
+    const userIdx  = userName ? Utils.avatarColorIndex(userName) : 0;
 
-    if (!hasEvents) {
-      Utils.show('welcomeScreen');
-      Utils.hide('eventsScreen');
-      return;
-    }
+    // Carica utenti per contatori
+    let users = [];
+    let connectedCount = 0;
+    try {
+      users = await DB.users.getByEvent(ev.id);
+      // "Connessi" = utenti che hanno una sessione associata (hanno fatto join)
+      const sessions = DB.sessions.getAll();
+      connectedCount = users.filter(u => {
+        return Object.values(sessions).some(s => s.userId === u.id);
+      }).length;
+    } catch(e) {}
 
-    Utils.hide('welcomeScreen');
-    Utils.show('eventsScreen');
+    const totalUsers = users.length;
 
-    const countEl = document.getElementById('eventsCount');
-    if (countEl) countEl.textContent = `${App._events.length} event${App._events.length === 1 ? 'o' : 'i'}`;
+    // Foto thumb
+    const thumbHtml = ev.photo
+      ? `<img src="${ev.photo}" alt="" />`
+      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+           <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+           <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+         </svg>`;
 
-    App._renderCurrentUser();
-    await App._renderEventListAsync();
+    // Avatar piccoli
+    const avatarsHtml = users.slice(0, 4).map(u => {
+      const idx = Utils.avatarColorIndex(u.name);
+      return `<div class="avatar avatar-${idx}" title="${Utils.escapeHtml(u.name)}">${Utils.initials(u.name)}</div>`;
+    }).join('');
+
+    const syncBadge = ev.synced === false
+      ? `<span class="ev-badge-amber">da sync</span>` : '';
+
+    return `
+    <div class="ev-card" onclick="App.openEvent('${ev.id}')">
+      <div class="ev-card__top">
+        <div class="ev-card__thumb">${thumbHtml}</div>
+        <div class="ev-card__info">
+          <div class="ev-card__title">${Utils.escapeHtml(ev.title)}</div>
+          <div class="ev-card__meta">
+            <span class="ev-code">${ev.code}</span>
+            ${syncBadge}
+            <span class="ev-meta-txt">· ${Utils.timeAgo(ev.updated_at)}</span>
+          </div>
+        </div>
+        ${userName
+          ? `<div class="avatar avatar-${userIdx} avatar--sm" title="Sei ${userName}">${Utils.initials(userName)}</div>`
+          : ''}
+      </div>
+      <div class="ev-card__bottom">
+        <div class="ev-stat">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+          </svg>
+          <span class="ev-stat__val">${totalUsers}</span> partecipanti
+        </div>
+        <div class="ev-stat" style="margin-left:12px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+          <span class="ev-stat__val">${connectedCount}</span> connessi
+        </div>
+        <div class="ev-avatars">${avatarsHtml}</div>
+      </div>
+    </div>`;
   },
 
   // ─── NAVIGAZIONE ──────────────────────────────────────────
   openEvent(eventId) {
+    localStorage.setItem('wego_last_event_id', eventId);
     window.location.href = `/evento.html?id=${eventId}`;
   },
 
   goToActiveRiepilogo(e) {
     e.preventDefault();
-    if (App._events.length === 0) {
-      Utils.toast('Nessun evento attivo', 'info');
-      return;
-    }
+    if (App._events.length === 0) { Utils.toast('Nessun evento attivo', 'info'); return; }
     if (App._events.length === 1) {
       window.location.href = `/riepilogo.html?event=${App._events[0].id}`;
       return;
     }
-    // Se ci sono più eventi, apre il primo o mostra selezione
     window.location.href = `/riepilogo.html?event=${App._events[0].id}`;
+  },
+
+  changeUser() {
+    Utils.toast('Apri un evento per cambiare utente', 'info');
   },
 
   // ─── MODAL HELPERS ────────────────────────────────────────
   openModal(id) {
-    const modal = document.getElementById(id);
-    if (modal) modal.classList.add('open');
+    document.getElementById(id)?.classList.add('open');
   },
-
   closeModal(id) {
-    const modal = document.getElementById(id);
-    if (modal) modal.classList.remove('open');
+    document.getElementById(id)?.classList.remove('open');
   },
 
   // ─── CREA EVENTO ──────────────────────────────────────────
   showCreateEvent() {
-    document.getElementById('newEventTitle').value = '';
-    document.getElementById('newEventDesc').value  = '';
-    document.getElementById('newEventNickname').value = '';
-    document.getElementById('newEventPhotoName').textContent = 'Nessuna foto';
+    document.getElementById('newEventTitle').value    = '';
+    document.getElementById('newEventDesc').value     = '';
+    document.getElementById('newEventPhotoName').textContent = 'Nessuna';
+    document.getElementById('inviteNewName').value    = '';
     App._pendingPhoto = null;
-    App.closeModal('modalJoinEvent');
+
+    // Precompila nickname dal localStorage (impostazioni o sessione precedente)
+    const savedNick = Utils.getConfig('nickname', '');
+    document.getElementById('newEventNickname').value = savedNick;
+
+    // Inizializza lista invitati
+    App._invitees = [];
+    App._renderInviteList();
+
     App.openModal('modalCreateEvent');
     setTimeout(() => document.getElementById('newEventTitle').focus(), 300);
+  },
+
+  // ── Gestione lista invitati ──────────────────────────────
+  addInvitee() {
+    const input = document.getElementById('inviteNewName');
+    const name  = input.value.trim();
+    if (!name) return;
+
+    // Evita duplicati (case-insensitive)
+    const nickname = document.getElementById('newEventNickname').value.trim();
+    const allNames = [nickname, ...App._invitees].map(n => n.toLowerCase());
+    if (allNames.includes(name.toLowerCase())) {
+      Utils.toast('Nome già presente', 'error');
+      return;
+    }
+
+    App._invitees.push(name);
+    input.value = '';
+    App._renderInviteList();
+    input.focus();
+  },
+
+  removeInvitee(idx) {
+    App._invitees.splice(idx, 1);
+    App._renderInviteList();
+  },
+
+  _renderInviteList() {
+    const container = document.getElementById('inviteList');
+    if (!container) return;
+
+    const nickname = document.getElementById('newEventNickname').value.trim() || '(tu)';
+    const allPeople = [{ name: nickname, isCreator: true }, ...App._invitees.map(n => ({ name: n, isCreator: false }))];
+
+    container.innerHTML = allPeople.map((p, i) => `
+      <div class="invite-item">
+        <div class="invite-item__name">${Utils.escapeHtml(p.name)}</div>
+        ${p.isCreator ? `<span class="invite-item__badge">Tu (creatore)</span>` : `
+          <button class="btn btn--icon" onclick="App.removeInvitee(${i - 1})" title="Rimuovi"
+            style="width:22px;height:22px;color:var(--text-muted);">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        `}
+        <button class="invite-item__share" onclick="App.shareViaWhatsApp('${Utils.escapeHtml(p.name).replace(/'/g,"\\'")}', null)"
+          title="Condividi via WhatsApp">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+          </svg>
+        </button>
+      </div>
+    `).join('');
+  },
+
+  // Aggiorna il nome del creatore nella lista quando cambia il campo nickname
+  _syncCreatorInList() {
+    App._renderInviteList();
   },
 
   pickEventPhoto() {
@@ -313,230 +357,203 @@ const App = {
     const desc     = document.getElementById('newEventDesc').value.trim();
     const nickname = document.getElementById('newEventNickname').value.trim();
 
-    if (!Utils.required(title, 'Titolo evento')) return;
-    if (!Utils.required(nickname, 'Nickname')) return;
+    if (!Utils.required(title,    'Titolo evento')) return;
+    if (!Utils.required(nickname, 'Nickname'))      return;
 
     const btn = document.querySelector('#modalCreateEvent .btn--primary');
-    btn.disabled = true;
+    btn.disabled    = true;
     btn.textContent = 'Creazione…';
 
     try {
-      // Salva evento in locale
       const event = await DB.events.save({
         title,
         description: desc,
-        photo: App._pendingPhoto,
-        created_by: nickname
+        photo:       App._pendingPhoto,
+        created_by:  nickname
       });
 
       // Crea utente creatore
-      const user = await DB.users.save({
-        event_id: event.id,
-        name:     nickname
-      });
+      const creator = await DB.users.save({ event_id: event.id, name: nickname });
+      DB.sessions.set(event.id, creator.id, creator.name);
 
-      // Associa device a questo utente
-      DB.sessions.set(event.id, user.id, user.name);
-
-      // Accoda per sync
-      await DB.pending.add({
-        type:    'create_event',
-        payload: { event, user }
-      });
-
-      // Sync se online
-      if (Utils.isOnline()) {
-        Sync.push().catch(() => {});
+      // Crea gli utenti aggiuntivi (invitati)
+      for (const invName of App._invitees) {
+        await DB.users.save({ event_id: event.id, name: invName });
       }
 
+      await DB.pending.add({ type: 'create_event', payload: { event, user: creator } });
+
+      if (Utils.isOnline()) Sync.push().catch(() => {});
+
+      // Salva nickname per riutilizzo futuro
+      Utils.setConfig('nickname', nickname);
+
       App.closeModal('modalCreateEvent');
-      await App.loadEvents();
+
+      // Salva come ultimo evento e naviga direttamente
+      localStorage.setItem('wego_last_event_id', event.id);
 
       Utils.toast(`Evento "${title}" creato!`, 'success');
 
-      // Mostra codice da condividere
+      // Mostra codice poi naviga
       setTimeout(() => {
-        App._showShareCode(event.code, event.title);
+        App._showShareCode(event.code, event.title, event.id);
       }, 400);
 
     } catch (e) {
       console.error('[App] createEvent error:', e);
       Utils.toast('Errore nella creazione evento', 'error');
     } finally {
-      btn.disabled = false;
+      btn.disabled    = false;
       btn.textContent = 'Crea evento';
     }
   },
 
-  _showShareCode(code, title) {
-    const msg = `Entra in "${title}" su WeGo con il codice:\n\n${code}`;
-    if (confirm(`Evento creato! Codice: ${code}\n\nVuoi condividere il codice con i partecipanti?`)) {
-      Utils.share({ title: 'WeGo — Unisciti all\'evento', text: msg });
+  _showShareCode(code, title, eventId) {
+    const msg = `Entra in "${title}" su WeGo!\n\nCodice: ${code}\n\nApri WeGo e tocca "Unisciti a un evento".`;
+    if (confirm(`Evento creato! ✅\n\nCodice: ${code}\n\nVuoi condividere il codice ora?`)) {
+      if (navigator.share) {
+        navigator.share({ title: 'WeGo — ' + title, text: msg }).catch(() => {});
+      } else {
+        Utils.copyToClipboard(code);
+      }
+    }
+    // Naviga all'evento
+    if (eventId) {
+      setTimeout(() => { window.location.href = `/evento.html?id=${eventId}`; }, 600);
     }
   },
 
-  // ─── UNISCITI A EVENTO ────────────────────────────────────
+  // ─── CONDIVIDI VIA WHATSAPP ───────────────────────────────
+  shareViaWhatsApp(personName, eventCode) {
+    // Se non abbiamo ancora il codice (siamo nel modal pre-creazione), usiamo solo il messaggio generico
+    if (!eventCode) {
+      // Cerca se c'è già un evento in corso (dopo la creazione)
+      const lastId = localStorage.getItem('wego_last_event_id');
+      if (lastId) {
+        DB.events.getById(lastId).then(ev => {
+          if (ev) App._sendWhatsApp(personName, ev.code, ev.title);
+        });
+      } else {
+        Utils.toast('Crea prima l\'evento per ottenere il codice', 'info');
+      }
+      return;
+    }
+    App._sendWhatsApp(personName, eventCode, '');
+  },
+
+  _sendWhatsApp(personName, code, title) {
+    const msg = title
+      ? `Ciao ${personName}! Ti invito su WeGo per "${title}".\n\nCodice: *${code}*\n\nApri WeGo e tocca "Unisciti a un evento".`
+      : `Ciao ${personName}! Ti invito su WeGo.\n\nCodice: *${code}*\n\nApri WeGo e tocca "Unisciti a un evento".`;
+    const url = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  },
+
+  // Metodo pubblico per condividere da card evento (dopo creazione)
+  shareEventToWhatsApp(eventId, personName) {
+    DB.events.getById(eventId).then(ev => {
+      if (ev) App._sendWhatsApp(personName, ev.code, ev.title);
+    });
+  },
+
+  // ─── UNISCITI ─────────────────────────────────────────────
   showJoinEvent() {
     document.getElementById('joinEventCode').value = '';
-    Utils.hide('joinEventResult');
-    App.closeModal('modalCreateEvent');
+    document.getElementById('joinEventResult').classList.add('hidden');
     App.openModal('modalJoinEvent');
     setTimeout(() => document.getElementById('joinEventCode').focus(), 300);
   },
 
   async joinEvent() {
     const code = document.getElementById('joinEventCode').value.trim().toUpperCase();
-    if (!code) {
-      Utils.toast('Inserisci il codice evento', 'error');
-      return;
-    }
+    if (!code) { Utils.toast('Inserisci il codice evento', 'error'); return; }
 
     const btn = document.querySelector('#modalJoinEvent .btn--primary');
-    btn.disabled = true;
+    btn.disabled    = true;
     btn.textContent = 'Ricerca…';
 
     try {
-      // Prima cerca in locale
-      let event = await DB.events.getByCode(code);
+      let event = null;
 
-      // Se non trovato, cerca su Supabase
+      // Cerca in locale
+      const localEvents = await DB.events.getAll();
+      event = localEvents.find(e => e.code === code);
+
+      // Cerca su Supabase se non trovato
       if (!event && Utils.isOnline()) {
-        event = await Sync.findEventByCode(code);
-        if (event) {
-          // Scarica evento e utenti
-          await Sync.pullEvent(event.id);
-          event = await DB.events.getByCode(code);
+        const remote = await SupabaseClient.getEventByCode(code);
+        if (remote) {
+          event = await DB.events.save(remote.event);
+          for (const u of remote.users) await DB.users.save(u);
         }
       }
 
       if (!event) {
-        Utils.toast('Evento non trovato. Controlla il codice.', 'error');
-        Utils.hide('joinEventResult');
+        Utils.toast('Evento non trovato', 'error');
         return;
       }
 
-      // Carica utenti evento
+      // Mostra info evento e selezione utente
       const users = await DB.users.getByEvent(event.id);
-
-      // Mostra risultato
       const infoEl = document.getElementById('joinEventInfo');
       infoEl.innerHTML = `
-        <div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">${Utils.escapeHtml(event.title)}</div>
-        <div style="font-size:13px;color:var(--text-muted);">${users.length} partecipant${users.length === 1 ? 'e' : 'i'}</div>
-      `;
+        <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">${Utils.escapeHtml(event.title)}</div>
+        <div style="font-size:11px;color:var(--text-muted);">${users.length} partecipanti · Codice: ${event.code}</div>`;
 
       const select = document.getElementById('joinUserSelect');
-      select.innerHTML = '<option value="">— seleziona il tuo nome —</option>';
-      users.forEach(u => {
-        const opt = document.createElement('option');
-        opt.value = u.id;
-        opt.textContent = u.name;
-        select.appendChild(opt);
-      });
+      select.innerHTML = `<option value="">— seleziona —</option>` +
+        users.map(u => `<option value="${u.id}">${Utils.escapeHtml(u.name)}</option>`).join('');
 
-      // Salva eventId per il confirm
-      select.dataset.eventId = event.id;
-
-      Utils.show('joinEventResult');
+      // Salva evento per il confirm
+      App._joiningEvent = event;
+      document.getElementById('joinEventResult').classList.remove('hidden');
 
     } catch (e) {
       console.error('[App] joinEvent error:', e);
       Utils.toast('Errore nella ricerca', 'error');
     } finally {
-      btn.disabled = false;
+      btn.disabled    = false;
       btn.textContent = 'Cerca evento';
     }
   },
 
-  async confirmJoinEvent() {
+  async confirmJoin() {
     const select  = document.getElementById('joinUserSelect');
     const userId  = select.value;
-    const eventId = select.dataset.eventId;
+    const userName = select.options[select.selectedIndex]?.text;
 
-    if (!userId) {
-      Utils.toast('Seleziona il tuo nome', 'error');
-      return;
-    }
+    if (!userId) { Utils.toast('Seleziona chi sei', 'error'); return; }
 
-    const user = await DB.users.getById(userId);
-    if (!user) return;
+    const event = App._joiningEvent;
+    DB.sessions.set(event.id, userId, userName);
+    localStorage.setItem('wego_last_event_id', event.id);
 
-    DB.sessions.set(eventId, userId, user.name);
     App.closeModal('modalJoinEvent');
-    await App.loadEvents();
-    Utils.toast(`Benvenuto, ${user.name}!`, 'success');
-  },
+    Utils.toast(`Benvenuto, ${userName}!`, 'success');
 
-  // ─── CAMBIO UTENTE ────────────────────────────────────────
-  async changeUser() {
-    const sessions = DB.sessions.getAll();
-    const list = document.getElementById('chooseUserList');
-    list.innerHTML = '';
-
-    for (const [eventId, session] of Object.entries(sessions)) {
-      const event   = await DB.events.getById(eventId);
-      const users   = await DB.users.getByEvent(eventId);
-      if (!event) continue;
-
-      const header = document.createElement('div');
-      header.style.cssText = 'font-size:12px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin:16px 0 8px;';
-      header.textContent = event.title;
-      list.appendChild(header);
-
-      users.forEach(u => {
-        const btn = document.createElement('button');
-        const idx = Utils.avatarColorIndex(u.name);
-        const isActive = session.userId === u.id;
-        btn.className = 'btn btn--ghost btn--full';
-        btn.style.cssText = `display:flex;align-items:center;gap:10px;justify-content:flex-start;margin-bottom:6px;${isActive ? 'border-color:var(--accent-blue);color:var(--accent-blue);' : ''}`;
-        btn.innerHTML = `
-          <div class="avatar avatar-${idx} avatar--sm">${Utils.initials(u.name)}</div>
-          <span>${Utils.escapeHtml(u.name)}</span>
-          ${isActive ? '<svg style="margin-left:auto;width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-        `;
-        btn.onclick = () => {
-          DB.sessions.set(eventId, u.id, u.name);
-          App.closeModal('modalChooseUser');
-          App._renderCurrentUser();
-          Utils.toast(`Ora sei ${u.name}`, 'success', 2000);
-        };
-        list.appendChild(btn);
-      });
-    }
-
-    App.openModal('modalChooseUser');
+    setTimeout(() => { window.location.href = `/evento.html?id=${event.id}`; }, 400);
   },
 
   // ─── SYNC ─────────────────────────────────────────────────
   async syncNow() {
     const btn = document.getElementById('syncBtn');
-    if (btn) {
-      btn.style.animation = 'spin 0.8s linear infinite';
-      btn.disabled = true;
-    }
-
+    if (btn) btn.style.animation = 'spin 0.8s linear infinite';
     try {
-      if (!Utils.isOnline()) {
-        Utils.toast('Nessuna connessione internet', 'error');
-        return;
-      }
+      if (!Utils.isOnline()) { Utils.toast('Nessuna connessione', 'error'); return; }
       await Sync.push();
       await Sync.pull();
       await App.loadEvents();
-      Utils.toast('Sincronizzazione completata', 'success');
+      Utils.toast('Sincronizzato', 'success', 2000);
     } catch (e) {
-      Utils.toast('Errore di sincronizzazione', 'error');
+      Utils.toast('Errore sync', 'error');
     } finally {
-      if (btn) {
-        btn.style.animation = '';
-        btn.disabled = false;
-      }
+      if (btn) btn.style.animation = '';
     }
   },
 
   async _syncQuiet() {
     try {
-      if (!Utils.isOnline()) return;
       await Sync.push();
       await Sync.pull();
       await App.loadEvents();
@@ -546,5 +563,4 @@ const App = {
   }
 };
 
-// Esporta globale
 window.App = App;

@@ -1,24 +1,23 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v1.0
+// WeGo — evento.js v1.6
 // Logica pagina dettaglio evento
 // ═══════════════════════════════════════════════════════════════
 
 const EventoApp = {
 
   // ─── STATO ────────────────────────────────────────────────
-  _eventId:    null,
-  _event:      null,
-  _users:      [],
-  _expenses:   [],
-  _payments:   [],
-  _currentTab: 'spese',
+  _eventId:       null,
+  _event:         null,
+  _users:         [],
+  _expenses:      [],
+  _payments:      [],
+  _currentTab:    'spese',
   _currentUserId: null,
-  _balances:   {},
-  _menuOpen:   false,
+  _balances:      {},
+  _menuOpen:      false,
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    // Leggi ID evento dalla URL
     const params = new URLSearchParams(window.location.search);
     EventoApp._eventId = params.get('id');
 
@@ -28,27 +27,24 @@ const EventoApp = {
       return;
     }
 
-    // Applica tema
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
 
-    // Registra SW
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 
     await DB.open();
 
-    // Carica dati
+    // Salva come ultimo evento aperto
+    localStorage.setItem('wego_last_event_id', EventoApp._eventId);
+
     await EventoApp.loadAll();
 
-    // Sessione utente corrente
     const session = DB.sessions.get(EventoApp._eventId);
     EventoApp._currentUserId = session?.userId || null;
 
-    // Network monitor
     EventoApp._initNetwork();
 
-    // Sync al caricamento
     if (Utils.isOnline()) EventoApp._syncQuiet();
 
     // Chiudi menu al click fuori
@@ -64,8 +60,7 @@ const EventoApp = {
   _initNetwork() {
     const ind = document.getElementById('connectionIndicator');
     const update = () => {
-      if (ind) ind.style.background = Utils.isOnline()
-        ? 'var(--accent-green)' : 'var(--accent-red)';
+      if (ind) ind.style.background = Utils.isOnline() ? 'var(--green)' : 'var(--red)';
       if (Utils.isOnline()) EventoApp._syncQuiet();
     };
     window.addEventListener('online',  update);
@@ -96,7 +91,6 @@ const EventoApp = {
       EventoApp._expenses,
       EventoApp._users
     );
-    // Sottrai pagamenti già effettuati
     for (const pay of EventoApp._payments) {
       EventoApp._balances[pay.from_user] = (EventoApp._balances[pay.from_user] || 0) + pay.amount;
       EventoApp._balances[pay.to_user]   = (EventoApp._balances[pay.to_user]   || 0) - pay.amount;
@@ -114,48 +108,50 @@ const EventoApp = {
     if (!ev) return;
 
     document.title = `${ev.title} — WeGo`;
-    const titleEl = document.getElementById('headerTitle');
+
+    // Header compatto: foto + titolo + codice
+    const titleEl = document.getElementById('headerEventTitle');
+    const codeEl  = document.getElementById('headerEventCodeText');
+    const photoEl = document.getElementById('headerEventPhoto');
+
     if (titleEl) titleEl.textContent = ev.title;
+    if (codeEl)  codeEl.textContent  = ev.code;
 
-    document.getElementById('eventTitle').textContent = ev.title;
-    document.getElementById('eventCodeText').textContent = ev.code;
-
-    // Foto
-    const photoEl = document.getElementById('eventPhoto');
     if (ev.photo && photoEl) {
-      photoEl.innerHTML = `<img src="${ev.photo}" alt="Foto evento" />`;
+      photoEl.innerHTML = `<img src="${ev.photo}" alt="" />`;
     }
+
+    // Mostra bottone elimina solo al creatore
+    const session = DB.sessions.get(EventoApp._eventId);
+    const currentUserName = session?.userName || '';
+    const isCreator = ev.created_by && currentUserName &&
+                      ev.created_by.toLowerCase() === currentUserName.toLowerCase();
+
+    const deleteBtn = document.getElementById('ctxDeleteBtn');
+    if (deleteBtn) deleteBtn.style.display = isCreator ? '' : 'none';
 
     // Contatori tab
     const active = EventoApp._expenses.filter(e => !e.deleted);
-    document.getElementById('tabSpeseCount').textContent =
-      active.length ? `(${active.length})` : '';
-    document.getElementById('tabPartCount').textContent =
-      EventoApp._users.length ? `(${EventoApp._users.length})` : '';
+    const countSpeseEl = document.getElementById('tabSpeseCount');
+    const countPartEl  = document.getElementById('tabPartCount');
+    if (countSpeseEl) countSpeseEl.textContent = active.length ? `(${active.length})` : '';
+    if (countPartEl)  countPartEl.textContent  = EventoApp._users.length ? `(${EventoApp._users.length})` : '';
   },
 
   // ─── SWITCH TAB ───────────────────────────────────────────
   switchTab(tab) {
     EventoApp._currentTab = tab;
+
     ['spese', 'partecipanti', 'saldi'].forEach(t => {
-      document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`)?.classList.toggle('active', t === tab);
-      document.getElementById(`panel${t.charAt(0).toUpperCase() + t.slice(1)}`)
-        && (document.getElementById(`panel${t.charAt(0).toUpperCase() + t.slice(1)}`).style.display = t === tab ? '' : 'none');
+      const cap = t.charAt(0).toUpperCase() + t.slice(1);
+      const btn   = document.getElementById(`tab${cap}`);
+      const panel = document.getElementById(`panel${cap}`);
+      if (btn)   btn.classList.toggle('active', t === tab);
+      if (panel) panel.style.display = t === tab ? '' : 'none';
     });
 
-    // Aggiusta nomi panel (capitalizzazione custom)
-    document.getElementById('panelSpese').style.display          = tab === 'spese' ? '' : 'none';
-    document.getElementById('panelPartecipanti').style.display   = tab === 'partecipanti' ? '' : 'none';
-    document.getElementById('panelSaldi').style.display          = tab === 'saldi' ? '' : 'none';
-    document.getElementById('tabSpese').classList.toggle('active',        tab === 'spese');
-    document.getElementById('tabPartecipanti').classList.toggle('active', tab === 'partecipanti');
-    document.getElementById('tabSaldi').classList.toggle('active',        tab === 'saldi');
-
-    // FAB: nascondi su saldi/partecipanti (o adatta)
     const fab = document.getElementById('fabBtn');
-    if (fab) {
-      fab.style.display = tab === 'spese' ? '' : 'none';
-    }
+    if (fab) fab.style.display = tab === 'spese' ? '' : 'none';
 
     EventoApp._renderTab(tab);
   },
@@ -170,257 +166,189 @@ const EventoApp = {
   _renderSpese() {
     const expenses = EventoApp._expenses;
     const users    = EventoApp._users;
+    const currency = EventoApp._event?.currency || 'EUR';
 
-    // Summary
-    const totale = expenses.reduce((s, e) => s + parseFloat(e.amount), 0);
+    const totale = expenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
     const count  = expenses.length;
-    document.getElementById('summaryTotal').textContent = Utils.formatAmount(totale);
+
+    document.getElementById('summaryTotal').textContent = Utils.formatAmount(totale, currency);
     document.getElementById('summaryCount').textContent = count;
     document.getElementById('summaryAvg').textContent   =
-      count > 0 ? Utils.formatAmount(totale / count) : '—';
+      count > 0 && users.length > 0
+        ? Utils.formatAmount(totale / users.length, currency)
+        : '—';
 
-    // La mia quota
-    if (EventoApp._currentUserId) {
-      const myBalance = EventoApp._balances[EventoApp._currentUserId] || 0;
-      const banner = document.getElementById('myShareBanner');
-      const text   = document.getElementById('myShareText');
-      if (banner && text) {
-        banner.style.display = '';
-        if (myBalance > 0.01) {
-          text.style.color  = 'var(--accent-green)';
-          text.textContent  = `Devi ricevere ${Utils.formatAmount(myBalance)}`;
-        } else if (myBalance < -0.01) {
-          text.style.color  = 'var(--accent-red)';
-          text.textContent  = `Devi pagare ${Utils.formatAmount(Math.abs(myBalance))}`;
-        } else {
-          text.style.color  = 'var(--text-muted)';
-          text.textContent  = 'Sei in pareggio';
-        }
-      }
+    // Quota personale
+    const myQuotaEl   = document.getElementById('myQuota');
+    const myQuotaText = document.getElementById('myQuotaText');
+    if (EventoApp._currentUserId && myQuotaEl) {
+      const myBal = EventoApp._balances[EventoApp._currentUserId] || 0;
+      myQuotaText.textContent = myBal >= 0
+        ? `Sei in credito di ${Utils.formatAmount(myBal, currency)}`
+        : `Devi ${Utils.formatAmount(Math.abs(myBal), currency)}`;
+      myQuotaEl.style.display = '';
     }
-
-    // Lista spese raggruppate per data
-    const container = document.getElementById('expensesList');
-    const emptyEl   = document.getElementById('expensesEmpty');
-
-    if (expenses.length === 0) {
-      container.innerHTML = '';
-      emptyEl.style.display = '';
-      return;
-    }
-    emptyEl.style.display = 'none';
 
     // Raggruppa per data
-    const groups = {};
-    expenses.forEach(e => {
-      const d = e.date || Utils.today();
-      if (!groups[d]) groups[d] = [];
-      groups[d].push(e);
-    });
+    const container = document.getElementById('expenseList');
+    if (!container) return;
 
-    const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
-    const usersMap    = Object.fromEntries(users.map(u => [u.id, u]));
+    if (expenses.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="padding:30px 0;">
+          <p class="empty-state__title">Nessuna spesa</p>
+          <p class="empty-state__desc">Tocca + per aggiungere la prima spesa.</p>
+        </div>`;
+      return;
+    }
+
+    const grouped = {};
+    for (const exp of expenses) {
+      const day = exp.date || Utils.formatDate(exp.created_at);
+      if (!grouped[day]) grouped[day] = [];
+      grouped[day].push(exp);
+    }
+
+    const userMap = {};
+    users.forEach(u => { userMap[u.id] = u; });
 
     let html = '';
-    for (const date of sortedDates) {
-      const label = EventoApp._formatGroupDate(date);
-      html += `<div class="date-group">
-        <div class="date-group__label">${label}</div>
-        ${groups[date].map(e => EventoApp._expenseItemHtml(e, usersMap)).join('')}
-      </div>`;
-    }
+    for (const [day, exps] of Object.entries(grouped).sort((a, b) => b[0].localeCompare(a[0]))) {
+      html += `<div class="exp-group-date">${Utils.formatDateLabel(day)}</div>`;
+      for (const exp of exps) {
+        const payer    = userMap[exp.paid_by];
+        const payerIdx = payer ? Utils.avatarColorIndex(payer.name) : 0;
+        const payerInit = payer ? Utils.initials(payer.name) : '?';
+        const isMyExp  = exp.paid_by === EventoApp._currentUserId;
+        const syncBadge = exp.synced === false ? `<span class="exp-badge exp-badge--sync">sync</span>` : '';
+        const photoBadge = exp.has_photo ? `<span class="exp-badge">📷</span>` : '';
+        const gpsBadge   = exp.location_lat ? `<span class="exp-badge">📍</span>` : '';
+        const methodBadge = exp.payment_method ? `<span class="exp-badge">${Utils.escapeHtml(exp.payment_method)}</span>` : '';
+        const transferBadge = exp.type === 'transfer' ? `<span class="exp-badge">trasferimento</span>` : '';
 
+        html += `
+          <div class="exp-item" onclick="EventoApp.showExpenseDetail('${exp.id}')">
+            <div class="exp-avatar">
+              <div class="avatar avatar-${payerIdx} avatar--sm" title="${payer ? Utils.escapeHtml(payer.name) : '?'}">${payerInit}</div>
+            </div>
+            <div class="exp-info">
+              <div class="exp-title">${Utils.escapeHtml(exp.title)}</div>
+              <div class="exp-meta">
+                ${payer ? `<span class="exp-meta-txt">${Utils.escapeHtml(payer.name)}</span>` : ''}
+                ${transferBadge}${photoBadge}${gpsBadge}${methodBadge}${syncBadge}
+              </div>
+            </div>
+            <div class="exp-amount">
+              <div class="exp-amount__val">${Utils.formatAmount(parseFloat(exp.amount || 0), currency)}</div>
+              ${isMyExp ? `<div class="exp-amount__lbl" style="color:var(--green);">tu</div>` : ''}
+            </div>
+          </div>`;
+      }
+    }
     container.innerHTML = html;
-  },
-
-  _formatGroupDate(dateStr) {
-    const d     = new Date(dateStr + 'T00:00:00');
-    const today = new Date(); today.setHours(0,0,0,0);
-    const yest  = new Date(today); yest.setDate(yest.getDate() - 1);
-    if (d.getTime() === today.getTime()) return 'Oggi';
-    if (d.getTime() === yest.getTime())  return 'Ieri';
-    return d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
-  },
-
-  _expenseItemHtml(e, usersMap) {
-    const payer     = usersMap[e.paid_by];
-    const payerName = payer?.name || 'Sconosciuto';
-    const payerIdx  = payer ? Utils.avatarColorIndex(payer.name) : 0;
-    const isTransfer = e.type === 'transfer';
-    const isMine    = e.paid_by === EventoApp._currentUserId;
-
-    // Partecipanti (solo spese normali)
-    let participantsHtml = '';
-    if (!isTransfer && e.participants?.length > 0) {
-      const names = e.participants
-        .slice(0, 3)
-        .map(uid => usersMap[uid]?.name || '?')
-        .join(', ');
-      const extra = e.participants.length > 3 ? ` +${e.participants.length - 3}` : '';
-      participantsHtml = `<span class="text-sm text-muted">÷ ${names}${extra}</span>`;
-    }
-
-    // Transfer
-    let transferHtml = '';
-    if (isTransfer) {
-      const toUser = usersMap[e.paid_for];
-      transferHtml = `<span class="badge badge--purple">→ ${Utils.escapeHtml(toUser?.name || '?')}</span>`;
-    }
-
-    return `
-    <div class="expense-item ${isTransfer ? 'transfer' : ''}"
-         onclick="EventoApp.showExpenseDetail('${e.id}')">
-      <div class="expense-item__row1">
-        <div>
-          ${isTransfer
-            ? `<span class="badge badge--purple" style="margin-bottom:4px;display:inline-flex;">Movimento cassa</span><br>`
-            : ''}
-          <span class="expense-item__title">${Utils.escapeHtml(e.title)}</span>
-        </div>
-        <span class="expense-item__amount">${Utils.formatAmount(e.amount)}</span>
-      </div>
-      <div class="expense-item__row2">
-        <div class="avatar avatar-${payerIdx} avatar--sm" title="${Utils.escapeHtml(payerName)}">${Utils.initials(payerName)}</div>
-        <span class="text-sm" style="color:${isMine ? 'var(--accent-blue)' : 'var(--text-muted)'}">
-          ${isMine ? 'Tu' : Utils.escapeHtml(payerName)}
-        </span>
-        ${PaymentMethods.badgeHtml(e.payment_method)}
-        ${e.has_photo ? `<span class="photo-indicator" title="Foto scontrino disponibile">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
-          </svg>
-        </span>` : ''}
-        ${e.location?.address ? `<span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px;">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-          </svg>
-          ${Utils.escapeHtml(e.location.address.split(',')[0])}
-        </span>` : ''}
-        ${participantsHtml}
-        ${transferHtml}
-      </div>
-    </div>`;
   },
 
   // ─── RENDER PARTECIPANTI ──────────────────────────────────
   _renderPartecipanti() {
-    const users   = EventoApp._users;
-    const session = DB.sessions.get(EventoApp._eventId);
-
-    // Utente corrente
-    const curUser = users.find(u => u.id === session?.userId);
-    const curIdx  = curUser ? Utils.avatarColorIndex(curUser.name) : 0;
-    const curAv   = document.getElementById('currentUserAv');
-    const curName = document.getElementById('currentUserCardName');
-    if (curUser && curAv && curName) {
-      curAv.className   = `avatar avatar-${curIdx}`;
-      curAv.textContent = Utils.initials(curUser.name);
-      curName.textContent = curUser.name;
-    }
-
-    // Lista utenti
-    const container = document.getElementById('usersList');
+    const container = document.getElementById('partecipantiList');
     if (!container) return;
 
-    const usersMap = Object.fromEntries(users.map(u => [u.id, u]));
+    const currency = EventoApp._event?.currency || 'EUR';
+    const sessions = DB.sessions.getAll();
 
-    container.innerHTML = users.map(u => {
-      const idx        = Utils.avatarColorIndex(u.name);
-      const isMe       = u.id === session?.userId;
-      const expCount   = EventoApp._expenses.filter(e =>
-        e.paid_by === u.id || (e.participants || []).includes(u.id)
-      ).length;
-      const paidTotal  = EventoApp._expenses
-        .filter(e => e.paid_by === u.id && e.type !== 'transfer')
-        .reduce((s, e) => s + parseFloat(e.amount), 0);
+    let html = '';
+    for (const user of EventoApp._users) {
+      const idx       = Utils.avatarColorIndex(user.name);
+      const bal       = EventoApp._balances[user.id] || 0;
+      const balColor  = bal > 0 ? 'var(--green)' : bal < 0 ? 'var(--red)' : 'var(--text-muted)';
+      const balText   = bal > 0
+        ? `+${Utils.formatAmount(bal, currency)}`
+        : Utils.formatAmount(bal, currency);
+      const isMe      = user.id === EventoApp._currentUserId;
+      const hasJoined = Object.values(sessions).some(s => s.userId === user.id);
 
-      return `
-      <div class="user-card" style="${isMe ? 'border-color:var(--accent-blue);' : ''}">
-        <div class="avatar avatar-${idx}">${Utils.initials(u.name)}</div>
-        <div class="user-card__info">
-          <div class="user-card__name">
-            ${Utils.escapeHtml(u.name)}
-            ${isMe ? '<span class="badge badge--blue" style="margin-left:6px;">Tu</span>' : ''}
+      html += `
+        <div class="part-item" ${isMe ? 'style="background:rgba(59,130,246,0.05);border-radius:8px;padding:10px 8px;"' : ''}>
+          <div class="avatar avatar-${idx}">${Utils.initials(user.name)}</div>
+          <div class="part-info">
+            <div class="part-name">
+              ${Utils.escapeHtml(user.name)}
+              ${isMe ? '<span style="font-size:9px;font-weight:700;color:var(--accent);background:rgba(59,130,246,0.1);padding:1px 5px;border-radius:999px;margin-left:5px;">Tu</span>' : ''}
+            </div>
+            <div class="part-sub">
+              ${hasJoined ? '● Connesso' : '○ Non ancora connesso'}
+              <button onclick="EventoApp.shareInviteWhatsApp('${Utils.escapeHtml(user.name).replace(/'/g,"\\'")}');event.stopPropagation();"
+                style="margin-left:8px;background:#25D366;border:none;border-radius:4px;padding:1px 6px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:#fff;">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="white">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                Invita
+              </button>
+            </div>
           </div>
-          <div class="user-card__meta">
-            ${expCount} spese · Pagato ${Utils.formatAmount(paidTotal)}
-          </div>
-        </div>
-        <div class="user-card__balance">
-          <span style="color:${(EventoApp._balances[u.id]||0) >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">
-            ${(EventoApp._balances[u.id]||0) >= 0 ? '+' : ''}${Utils.formatAmount(EventoApp._balances[u.id]||0)}
-          </span>
-        </div>
-      </div>`;
-    }).join('');
+          <div class="part-balance" style="color:${balColor};">${balText}</div>
+        </div>`;
+    }
+
+    container.innerHTML = html || '<p style="color:var(--text-muted);font-size:13px;padding:16px 0;">Nessun partecipante.</p>';
   },
 
   // ─── RENDER SALDI ─────────────────────────────────────────
   _renderSaldi() {
-    const users     = EventoApp._users;
-    const balances  = EventoApp._balances;
-    const usersMap  = Object.fromEntries(users.map(u => [u.id, u.name]));
+    const currency = EventoApp._event?.currency || 'EUR';
+    const users    = EventoApp._users;
+    const balances = EventoApp._balances;
 
-    // Saldo per persona
-    const balContainer = document.getElementById('balancesList');
-    balContainer.innerHTML = users.map(u => {
-      const bal = balances[u.id] || 0;
-      const idx = Utils.avatarColorIndex(u.name);
-      const positive = bal > 0.01;
-      const negative = bal < -0.01;
+    // Lista saldi
+    const balContainer = document.getElementById('balanceList');
+    const sorted = [...users].sort((a, b) => (balances[b.id] || 0) - (balances[a.id] || 0));
+    const maxAbs = Math.max(...Object.values(balances).map(v => Math.abs(v)), 0.01);
 
-      return `
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);">
-        <div class="avatar avatar-${idx} avatar--sm">${Utils.initials(u.name)}</div>
-        <div style="flex:1;">
-          <div style="font-size:14px;font-weight:600;color:var(--text-primary);">${Utils.escapeHtml(u.name)}</div>
-          <div style="font-size:11px;color:var(--text-muted);">
-            ${positive ? 'deve ricevere' : negative ? 'deve pagare' : 'in pareggio'}
+    let balHtml = '';
+    for (const u of sorted) {
+      const bal   = balances[u.id] || 0;
+      const color = bal > 0 ? 'var(--green)' : bal < 0 ? 'var(--red)' : 'var(--text-muted)';
+      const pct   = Math.round((Math.abs(bal) / maxAbs) * 100);
+      const idx   = Utils.avatarColorIndex(u.name);
+      balHtml += `
+        <div class="balance-item">
+          <div class="avatar avatar-${idx} avatar--sm">${Utils.initials(u.name)}</div>
+          <div class="balance-info">
+            <div class="balance-name">${Utils.escapeHtml(u.name)}</div>
+            <div class="balance-bar-wrap">
+              <div class="balance-bar" style="width:${pct}%;background:${color};"></div>
+            </div>
           </div>
-        </div>
-        <div style="font-size:16px;font-weight:800;color:${positive ? 'var(--accent-green)' : negative ? 'var(--accent-red)' : 'var(--text-muted)'};">
-          ${positive ? '+' : ''}${Utils.formatAmount(bal)}
-        </div>
-      </div>`;
-    }).join('');
+          <div class="balance-val" style="color:${color};">
+            ${bal > 0 ? '+' : ''}${Utils.formatAmount(bal, currency)}
+          </div>
+        </div>`;
+    }
+    if (balContainer) balContainer.innerHTML = balHtml;
 
     // Transazioni minime
-    const txContainer = document.getElementById('transactionsList');
-    const transactions = Utils.calculateMinimalTransactions(balances, usersMap);
+    const txnContainer = document.getElementById('transactionsList');
+    const userNames = {};
+    users.forEach(u => { userNames[u.id] = u.name; });
+    const txns = Utils.calculateMinimalTransactions(balances, userNames);
 
-    if (transactions.length === 0) {
-      txContainer.innerHTML = `
-        <div style="text-align:center;padding:20px;color:var(--accent-green);font-weight:600;">
-          ✓ Tutti i conti sono in pareggio!
-        </div>`;
-    } else {
-      txContainer.innerHTML = transactions.map(tx => {
-        const fromIdx = Utils.avatarColorIndex(tx.fromName);
-        const toIdx   = Utils.avatarColorIndex(tx.toName);
-        const isMyDebt = tx.from === EventoApp._currentUserId;
-
-        return `
-        <div class="card" style="margin-bottom:8px;${isMyDebt ? 'border-color:var(--accent-red);' : ''}">
-          <div style="display:flex;align-items:center;gap:10px;">
-            <div class="avatar avatar-${fromIdx} avatar--sm">${Utils.initials(tx.fromName)}</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;color:var(--text-muted);">deve pagare a</div>
-              <div style="font-size:15px;font-weight:700;color:var(--text-primary);">
-                ${Utils.escapeHtml(tx.fromName)} → ${Utils.escapeHtml(tx.toName)}
+    if (txnContainer) {
+      if (txns.length === 0) {
+        txnContainer.innerHTML = `<p style="font-size:12px;color:var(--text-muted);padding:8px 0;">Tutto in pareggio! 🎉</p>`;
+      } else {
+        txnContainer.innerHTML = txns.map(t => {
+          const isMe = t.from === EventoApp._currentUserId || t.to === EventoApp._currentUserId;
+          return `
+            <div class="txn-item" ${isMe ? 'style="background:rgba(59,130,246,0.05);border-radius:8px;padding:10px 8px;"' : ''}>
+              <div class="txn-text">
+                <b>${Utils.escapeHtml(userNames[t.from] || t.from)}</b>
+                → <b>${Utils.escapeHtml(userNames[t.to] || t.to)}</b>
+                ${isMe ? '<span style="font-size:9px;font-weight:700;color:var(--accent);"> (Tu)</span>' : ''}
               </div>
-            </div>
-            <div class="avatar avatar-${toIdx} avatar--sm">${Utils.initials(tx.toName)}</div>
-          </div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
-            <span style="font-size:20px;font-weight:800;color:var(--accent-red);">${Utils.formatAmount(tx.amount)}</span>
-            <button class="btn btn--success btn--sm" onclick="EventoApp.showSettlePayment('${tx.from}','${tx.to}',${tx.amount})">
-              Segna come pagato
-            </button>
-          </div>
-        </div>`;
-      }).join('');
+              <div class="txn-amount">${Utils.formatAmount(t.amount, currency)}</div>
+            </div>`;
+        }).join('');
+      }
     }
 
     // Pagamenti effettuati
@@ -428,33 +356,40 @@ const EventoApp = {
     const settledEmpty     = document.getElementById('settledEmpty');
     const payments = EventoApp._payments;
 
-    if (payments.length === 0) {
-      settledContainer.innerHTML = '';
-      settledEmpty.style.display = '';
-    } else {
-      settledEmpty.style.display = 'none';
-      settledContainer.innerHTML = payments.map(p => {
-        const fromU = usersMap[p.from_user] || '?';
-        const toU   = usersMap[p.to_user]   || '?';
-        const fromIdx = Utils.avatarColorIndex(fromU);
-        const toIdx   = Utils.avatarColorIndex(toU);
-        return `
-        <div style="display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border);">
-          <div class="avatar avatar-${fromIdx} avatar--sm">${Utils.initials(fromU)}</div>
-          <div style="flex:1;">
-            <div style="font-size:14px;font-weight:600;color:var(--text-primary);">
-              ${Utils.escapeHtml(fromU)} → ${Utils.escapeHtml(toU)}
-            </div>
-            <div style="font-size:11px;color:var(--text-muted);">
-              ${Utils.formatDate(p.date)} · ${PaymentMethods.getById(p.method).label}
-              ${p.note ? ` · ${Utils.escapeHtml(p.note)}` : ''}
-            </div>
-          </div>
-          <span style="font-size:15px;font-weight:700;color:var(--accent-green);">
-            ${Utils.formatAmount(p.amount)}
-          </span>
-        </div>`;
-      }).join('');
+    if (settledContainer) {
+      if (payments.length === 0) {
+        settledContainer.innerHTML = '';
+        if (settledEmpty) settledEmpty.style.display = '';
+      } else {
+        if (settledEmpty) settledEmpty.style.display = 'none';
+        settledContainer.innerHTML = payments.map(p => {
+          const fromName = userNames[p.from_user] || '?';
+          const toName   = userNames[p.to_user]   || '?';
+          return `
+            <div class="settled-item">
+              <div class="settled-info">
+                <div class="settled-text"><b>${Utils.escapeHtml(fromName)}</b> → <b>${Utils.escapeHtml(toName)}</b></div>
+                <div class="settled-meta">${p.method ? Utils.escapeHtml(p.method) : ''}${p.note ? ' · ' + Utils.escapeHtml(p.note) : ''}</div>
+              </div>
+              <div class="settled-amount">${Utils.formatAmount(p.amount, currency)}</div>
+            </div>`;
+        }).join('');
+      }
+    }
+
+    // Bottone registra pagamento
+    const saldiPanel = document.getElementById('panelSaldi');
+    if (saldiPanel && !saldiPanel.querySelector('.btn--settle')) {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn--ghost btn--full btn--settle';
+      btn.style.marginTop = '16px';
+      btn.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Registra pagamento`;
+      btn.onclick = () => EventoApp.showSettlePayment();
+      saldiPanel.appendChild(btn);
     }
   },
 
@@ -463,127 +398,81 @@ const EventoApp = {
     const expense  = EventoApp._expenses.find(e => e.id === expenseId);
     if (!expense) return;
 
-    const usersMap = Object.fromEntries(EventoApp._users.map(u => [u.id, u]));
-    const payer    = usersMap[expense.paid_by];
-    const payerIdx = payer ? Utils.avatarColorIndex(payer.name) : 0;
-    const isTransfer = expense.type === 'transfer';
-    const toUser   = isTransfer ? usersMap[expense.paid_for] : null;
-    const canEdit  = expense.paid_by === EventoApp._currentUserId ||
-                     expense.created_by === EventoApp._currentUserId;
+    const users    = EventoApp._users;
+    const currency = EventoApp._event?.currency || 'EUR';
+    const userMap  = {};
+    users.forEach(u => { userMap[u.id] = u; });
 
-    // Foto locale
-    let photoHtml = '';
-    const photo   = await DB.photos.getByExpense(expenseId);
-    if (photo?.data) {
-      photoHtml = `
-        <div style="margin-bottom:16px;">
-          <img src="${photo.data}" alt="Scontrino"
-            style="width:100%;border-radius:var(--radius-md);max-height:220px;object-fit:cover;" />
-        </div>`;
-    }
+    const payer   = userMap[expense.paid_by];
+    const canEdit = expense.paid_by === EventoApp._currentUserId;
 
     // Partecipanti
-    let participantsHtml = '';
-    if (!isTransfer && expense.participants?.length > 0) {
-      const sharePerPerson = expense.amount / expense.participants.length;
-      participantsHtml = `
-        <div style="margin-top:16px;">
-          <div class="section-title" style="margin-bottom:8px;">Divisione</div>
-          ${expense.participants.map(uid => {
-            const u = usersMap[uid];
+    const partIds   = expense.participants || [];
+    const partNames = partIds.map(id => userMap[id]?.name || '?');
+    const quota     = partIds.length > 0 ? parseFloat(expense.amount) / partIds.length : 0;
+    const participantsHtml = partIds.length > 0 ? `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">
+          Diviso tra ${partIds.length} (${Utils.formatAmount(quota, currency)} cad.)
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px;">
+          ${partIds.map(id => {
+            const u = userMap[id];
             if (!u) return '';
             const idx = Utils.avatarColorIndex(u.name);
-            return `
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
-              <div class="avatar avatar-${idx} avatar--sm">${Utils.initials(u.name)}</div>
-              <span style="flex:1;font-size:14px;color:var(--text-primary);">${Utils.escapeHtml(u.name)}</span>
-              <span style="font-size:14px;font-weight:700;color:var(--text-primary);">${Utils.formatAmount(sharePerPerson)}</span>
-            </div>`;
+            return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--bg-input);padding:3px 8px;border-radius:999px;font-size:11px;">
+              <span class="avatar avatar-${idx}" style="width:16px;height:16px;font-size:7px;">${Utils.initials(u.name)}</span>
+              ${Utils.escapeHtml(u.name)}
+            </span>`;
           }).join('')}
-        </div>`;
-    }
+        </div>
+      </div>` : '';
 
     const content = document.getElementById('expenseDetailContent');
     content.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
-        <div>
-          ${isTransfer
-            ? `<span class="badge badge--purple" style="margin-bottom:8px;display:inline-flex;">Movimento cassa</span><br>`
-            : ''}
-          <h2 style="font-size:20px;font-weight:800;color:var(--text-primary);letter-spacing:-0.4px;">
-            ${Utils.escapeHtml(expense.title)}
-          </h2>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:17px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">${Utils.escapeHtml(expense.title)}</div>
+        <div style="font-size:26px;font-weight:800;color:var(--text-primary);letter-spacing:-0.5px;margin-bottom:8px;">
+          ${Utils.formatAmount(parseFloat(expense.amount || 0), currency)}
         </div>
-        <span style="font-size:24px;font-weight:800;color:var(--text-primary);letter-spacing:-0.5px;">
-          ${Utils.formatAmount(expense.amount)}
-        </span>
+        <div style="font-size:12px;color:var(--text-muted);">
+          Pagato da <b>${payer ? Utils.escapeHtml(payer.name) : '?'}</b>
+          · ${expense.date || Utils.formatDate(expense.created_at)}
+          ${expense.payment_method ? ' · ' + Utils.escapeHtml(expense.payment_method) : ''}
+        </div>
       </div>
 
-      ${photoHtml}
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
-        <div style="background:var(--bg-input);border-radius:var(--radius-md);padding:10px;">
-          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Data</div>
-          <div style="font-size:14px;font-weight:600;color:var(--text-primary);">${Utils.formatDate(expense.date)}</div>
-        </div>
-        <div style="background:var(--bg-input);border-radius:var(--radius-md);padding:10px;">
-          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Metodo</div>
-          <div style="font-size:14px;font-weight:600;color:var(--text-primary);">${PaymentMethods.getById(expense.payment_method).label}</div>
-        </div>
-        <div style="background:var(--bg-input);border-radius:var(--radius-md);padding:10px;">
-          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">
-            ${isTransfer ? 'Da' : 'Pagato da'}
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <div class="avatar avatar-${payerIdx} avatar--sm">${Utils.initials(payer?.name || '?')}</div>
-            <span style="font-size:14px;font-weight:600;color:var(--text-primary);">${Utils.escapeHtml(payer?.name || '?')}</span>
-          </div>
-        </div>
-        ${isTransfer && toUser ? `
-        <div style="background:var(--bg-input);border-radius:var(--radius-md);padding:10px;">
-          <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">A</div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <div class="avatar avatar-${Utils.avatarColorIndex(toUser.name)} avatar--sm">${Utils.initials(toUser.name)}</div>
-            <span style="font-size:14px;font-weight:600;color:var(--text-primary);">${Utils.escapeHtml(toUser.name)}</span>
-          </div>
-        </div>` : ''}
-      </div>
-
-      ${expense.location ? `
+      ${expense.location_lat ? `
       <div style="margin-bottom:12px;">
-        <a href="${Utils.mapsUrl(expense.location.lat, expense.location.lng, expense.location.address)}"
+        <a href="${Utils.mapsUrl(expense.location_lat, expense.location_lng, expense.location_address)}"
            target="_blank" rel="noopener"
-           style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg-input);border-radius:var(--radius-md);color:var(--accent-blue);text-decoration:none;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+           style="display:flex;align-items:center;gap:8px;padding:10px;background:var(--bg-input);border-radius:var(--r-md);color:var(--accent);text-decoration:none;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
           </svg>
-          <span style="font-size:13px;font-weight:600;">${Utils.escapeHtml(expense.location.address || 'Vedi posizione')}</span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:auto;">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
+          <span style="font-size:12px;font-weight:600;">${Utils.escapeHtml(expense.location_address || 'Vedi posizione')}</span>
         </a>
       </div>` : ''}
 
       ${expense.notes ? `
-      <div style="margin-bottom:12px;padding:10px;background:var(--bg-input);border-radius:var(--radius-md);">
+      <div style="margin-bottom:12px;padding:10px;background:var(--bg-input);border-radius:var(--r-md);">
         <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;">Note</div>
-        <div style="font-size:14px;color:var(--text-primary);">${Utils.escapeHtml(expense.notes)}</div>
+        <div style="font-size:13px;color:var(--text-primary);">${Utils.escapeHtml(expense.notes)}</div>
       </div>` : ''}
 
       ${participantsHtml}
 
       ${canEdit ? `
-      <div style="display:flex;gap:10px;margin-top:20px;">
+      <div style="display:flex;gap:10px;margin-top:16px;">
         <button class="btn btn--ghost" style="flex:1;" onclick="EventoApp.editExpense('${expense.id}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
           Modifica
         </button>
         <button class="btn btn--danger" style="flex:1;" onclick="EventoApp.deleteExpense('${expense.id}')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
           </svg>
@@ -595,7 +484,7 @@ const EventoApp = {
     EventoApp.openModal('modalExpenseDetail');
   },
 
-  // ─── NUOVA SPESA ──────────────────────────────────────────
+  // ─── NUOVA / MODIFICA SPESA ───────────────────────────────
   newExpense() {
     window.location.href = `/spesa.html?event=${EventoApp._eventId}`;
   },
@@ -607,14 +496,19 @@ const EventoApp = {
 
   async deleteExpense(expenseId) {
     if (!confirm('Eliminare questa spesa?')) return;
-    await DB.expenses.delete(expenseId);
     EventoApp.closeModal('modalExpenseDetail');
-    await EventoApp.loadAll();
-    Utils.toast('Spesa eliminata', 'success');
-    if (Utils.isOnline()) Sync.push().catch(() => {});
+    try {
+      await DB.expenses.softDelete(expenseId);
+      await DB.pending.add({ type: 'delete_expense', payload: { id: expenseId, event_id: EventoApp._eventId } });
+      if (Utils.isOnline()) Sync.push().catch(() => {});
+      await EventoApp.loadAll();
+      Utils.toast('Spesa eliminata', 'success');
+    } catch (e) {
+      Utils.toast('Errore eliminazione', 'error');
+    }
   },
 
-  // ─── AGGIUNGI UTENTE ──────────────────────────────────────
+  // ─── AGGIUNGI PARTECIPANTE ────────────────────────────────
   showAddUser() {
     EventoApp.closeEventMenu();
     document.getElementById('newUserName').value = '';
@@ -626,63 +520,42 @@ const EventoApp = {
     const name = document.getElementById('newUserName').value.trim();
     if (!Utils.required(name, 'Nome')) return;
 
-    // Controlla duplicati
     const exists = EventoApp._users.some(u => u.name.toLowerCase() === name.toLowerCase());
-    if (exists) { Utils.toast('Partecipante già presente', 'error'); return; }
+    if (exists) { Utils.toast('Nome già presente', 'error'); return; }
 
-    const user = await DB.users.save({ event_id: EventoApp._eventId, name });
-    await DB.pending.add({ type: 'create_user', payload: { user } });
-
-    EventoApp.closeModal('modalAddUser');
-    await EventoApp.loadAll();
-    Utils.toast(`${name} aggiunto`, 'success');
-    if (Utils.isOnline()) Sync.push().catch(() => {});
-  },
-
-  // ─── CAMBIA UTENTE CORRENTE ───────────────────────────────
-  changeCurrentUser() {
-    const users = EventoApp._users;
-    const list  = document.getElementById('switchUserList');
-    list.innerHTML = users.map(u => {
-      const idx    = Utils.avatarColorIndex(u.name);
-      const isMe   = u.id === EventoApp._currentUserId;
-      return `
-      <button class="btn btn--ghost btn--full" style="display:flex;align-items:center;gap:10px;justify-content:flex-start;margin-bottom:6px;${isMe ? 'border-color:var(--accent-blue);color:var(--accent-blue);' : ''}"
-        onclick="EventoApp.setCurrentUser('${u.id}','${Utils.escapeHtml(u.name)}')">
-        <div class="avatar avatar-${idx} avatar--sm">${Utils.initials(u.name)}</div>
-        <span>${Utils.escapeHtml(u.name)}</span>
-        ${isMe ? '<svg style="margin-left:auto;width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-      </button>`;
-    }).join('');
-    EventoApp.openModal('modalSwitchUser');
-  },
-
-  setCurrentUser(userId, userName) {
-    EventoApp._currentUserId = userId;
-    DB.sessions.set(EventoApp._eventId, userId, userName);
-    EventoApp.closeModal('modalSwitchUser');
-    EventoApp._calcBalances();
-    EventoApp._renderAll();
-    Utils.toast(`Ora sei ${userName}`, 'success', 2000);
+    try {
+      const user = await DB.users.save({ event_id: EventoApp._eventId, name });
+      await DB.pending.add({ type: 'create_user', payload: { user } });
+      if (Utils.isOnline()) Sync.push().catch(() => {});
+      EventoApp.closeModal('modalAddUser');
+      await EventoApp.loadAll();
+      Utils.toast(`${name} aggiunto!`, 'success');
+    } catch (e) {
+      Utils.toast('Errore aggiunta partecipante', 'error');
+    }
   },
 
   // ─── REGISTRA PAGAMENTO ───────────────────────────────────
-  showSettlePayment(fromId = null, toId = null, amount = null) {
+  showSettlePayment(fromId, toId, amount) {
     const users = EventoApp._users;
-    const methods = PaymentMethods.getEnabled();
+    const methods = PaymentsModule.getEnabled();
 
-    const fromSel   = document.getElementById('settleFrom');
-    const toSel     = document.getElementById('settleTo');
-    const methodSel = document.getElementById('settleMethod');
-    const amtInput  = document.getElementById('settleAmount');
-    const noteInput = document.getElementById('settleNote');
+    const fromSel = document.getElementById('settleFrom');
+    const toSel   = document.getElementById('settleTo');
+    const methSel = document.getElementById('settleMethod');
 
-    fromSel.innerHTML   = users.map(u => `<option value="${u.id}" ${u.id === fromId ? 'selected' : ''}>${Utils.escapeHtml(u.name)}</option>`).join('');
-    toSel.innerHTML     = users.map(u => `<option value="${u.id}" ${u.id === toId ? 'selected' : ''}>${Utils.escapeHtml(u.name)}</option>`).join('');
-    methodSel.innerHTML = methods.map(m => `<option value="${m.id}">${Utils.escapeHtml(m.label)}</option>`).join('');
+    fromSel.innerHTML = users.map(u =>
+      `<option value="${u.id}" ${u.id === fromId ? 'selected' : ''}>${Utils.escapeHtml(u.name)}</option>`
+    ).join('');
+    toSel.innerHTML = users.map(u =>
+      `<option value="${u.id}" ${u.id === toId ? 'selected' : ''}>${Utils.escapeHtml(u.name)}</option>`
+    ).join('');
+    methSel.innerHTML = methods.map(m =>
+      `<option value="${m}">${m}</option>`
+    ).join('');
 
-    if (amount) amtInput.value = amount.toFixed(2);
-    noteInput.value = '';
+    if (amount) document.getElementById('settleAmount').value = amount.toFixed(2);
+    document.getElementById('settleNote').value = '';
 
     EventoApp.openModal('modalSettlePayment');
   },
@@ -690,87 +563,134 @@ const EventoApp = {
   async confirmSettlePayment() {
     const fromId = document.getElementById('settleFrom').value;
     const toId   = document.getElementById('settleTo').value;
-    const amount = Utils.parseAmount(document.getElementById('settleAmount').value);
+    const amount = parseFloat(document.getElementById('settleAmount').value);
     const method = document.getElementById('settleMethod').value;
     const note   = document.getElementById('settleNote').value.trim();
 
-    if (fromId === toId) { Utils.toast('Mittente e destinatario devono essere diversi', 'error'); return; }
-    if (amount <= 0)     { Utils.toast('Inserisci un importo valido', 'error'); return; }
+    if (!fromId || !toId)     { Utils.toast('Seleziona utenti', 'error'); return; }
+    if (fromId === toId)      { Utils.toast('Mittente e destinatario uguali', 'error'); return; }
+    if (!amount || amount <= 0) { Utils.toast('Importo non valido', 'error'); return; }
 
-    await DB.payments.save({
-      event_id:  EventoApp._eventId,
-      from_user: fromId,
-      to_user:   toId,
-      amount,
-      method,
-      note,
-      date: Utils.today()
-    });
-
-    EventoApp.closeModal('modalSettlePayment');
-    await EventoApp.loadAll();
-    Utils.toast('Pagamento registrato', 'success');
-    if (Utils.isOnline()) Sync.push().catch(() => {});
-
-    // Notifica
-    const fromUser = EventoApp._users.find(u => u.id === fromId);
-    const toUser   = EventoApp._users.find(u => u.id === toId);
-    Notifications.notifySettled(fromUser?.name || '?', toUser?.name || '?', amount, EventoApp._event?.title || '');
+    try {
+      const payment = await DB.payments.save({
+        event_id:  EventoApp._eventId,
+        from_user: fromId,
+        to_user:   toId,
+        amount,
+        method,
+        note,
+        date: Utils.today()
+      });
+      await DB.pending.add({ type: 'create_payment', payload: { payment } });
+      if (Utils.isOnline()) Sync.push().catch(() => {});
+      EventoApp.closeModal('modalSettlePayment');
+      await EventoApp.loadAll();
+      Utils.toast('Pagamento registrato!', 'success');
+    } catch (e) {
+      Utils.toast('Errore registrazione pagamento', 'error');
+    }
   },
 
-  // ─── CONDIVIDI CODICE ─────────────────────────────────────
+  // ─── CONDIVIDI ────────────────────────────────────────────
+  async copyCode() {
+    const code = EventoApp._event?.code;
+    if (code) await Utils.copyToClipboard(code);
+  },
+
   shareEventCode() {
     EventoApp.closeEventMenu();
-    const code = EventoApp._event?.code;
-    const title = EventoApp._event?.title;
-    Utils.share({
-      title: `WeGo — ${title}`,
-      text:  `Unisciti all'evento "${title}" su WeGo con il codice: ${code}`
-    });
+    const ev  = EventoApp._event;
+    if (!ev) return;
+    const msg = `Entra in "${ev.title}" su WeGo!\n\nCodice: ${ev.code}\n\nApri WeGo e tocca "Unisciti a un evento".`;
+    if (navigator.share) {
+      navigator.share({ title: 'WeGo — ' + ev.title, text: msg }).catch(() => {});
+    } else {
+      Utils.copyToClipboard(ev.code);
+    }
   },
 
-  copyCode() {
-    Utils.copyToClipboard(EventoApp._event?.code || '');
+  shareViaWhatsApp() {
+    EventoApp.closeEventMenu();
+    const ev = EventoApp._event;
+    if (!ev) return;
+    const msg = `Entra in "${ev.title}" su WeGo!\n\nCodice: *${ev.code}*\n\nApri WeGo e tocca "Unisciti a un evento".`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   },
 
-  // ─── MENU EVENTO ──────────────────────────────────────────
-  toggleEventMenu() {
+  shareInviteWhatsApp(personName) {
+    const ev = EventoApp._event;
+    if (!ev) return;
+    const msg = `Ciao ${personName}! Ti invito su WeGo per "${ev.title}".\n\nCodice: *${ev.code}*\n\nApri WeGo e tocca "Unisciti a un evento".`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  },
+
+  // ─── MENU ─────────────────────────────────────────────────
+  toggleMenu() {
     const menu = document.getElementById('eventMenu');
     EventoApp._menuOpen = !EventoApp._menuOpen;
     menu.style.display = EventoApp._menuOpen ? 'block' : 'none';
   },
 
   closeEventMenu() {
-    document.getElementById('eventMenu').style.display = 'none';
+    const menu = document.getElementById('eventMenu');
+    if (menu) menu.style.display = 'none';
     EventoApp._menuOpen = false;
   },
 
-  // ─── ELIMINA EVENTO ───────────────────────────────────────
+  // ─── ELIMINA EVENTO (solo creatore) ───────────────────────
   confirmDeleteEvent() {
     EventoApp.closeEventMenu();
-    if (!confirm(`Eliminare l'evento "${EventoApp._event?.title}"?\nTutti i dati locali verranno rimossi.`)) return;
+    const ev = EventoApp._event;
+    if (!ev) return;
+
+    // Doppia verifica lato JS
+    const session = DB.sessions.get(EventoApp._eventId);
+    const currentUserName = session?.userName || '';
+    const isCreator = ev.created_by && currentUserName &&
+                      ev.created_by.toLowerCase() === currentUserName.toLowerCase();
+
+    if (!isCreator) {
+      Utils.toast('Solo il creatore può eliminare l\'evento', 'error');
+      return;
+    }
+
+    if (!confirm(
+      `⚠️ Eliminare l'evento "${ev.title}"?\n\n` +
+      `Tutti i dati (spese, partecipanti, pagamenti) verranno rimossi dal dispositivo.\n\n` +
+      `Questa operazione non può essere annullata.`
+    )) return;
+
     EventoApp._doDeleteEvent();
   },
 
   async _doDeleteEvent() {
-    await DB.events.delete(EventoApp._eventId);
-    DB.sessions.remove(EventoApp._eventId);
-    Utils.toast('Evento eliminato', 'success');
-    setTimeout(() => { window.location.href = '/index.html'; }, 800);
+    try {
+      await DB.events.delete(EventoApp._eventId);
+      DB.sessions.remove(EventoApp._eventId);
+      localStorage.removeItem('wego_last_event_id');
+      Utils.toast('Evento eliminato', 'success');
+      setTimeout(() => { window.location.href = '/index.html'; }, 800);
+    } catch(e) {
+      Utils.toast('Errore eliminazione', 'error');
+    }
   },
 
   // ─── NAVIGAZIONE ──────────────────────────────────────────
+  goHome(e) {
+    if (e) e.preventDefault();
+    // Pulisce il last event così index.html mostra la lista
+    localStorage.removeItem('wego_last_event_id');
+    window.location.href = '/index.html';
+  },
+
   goToRiepilogo() {
+    EventoApp.closeEventMenu();
     window.location.href = `/riepilogo.html?event=${EventoApp._eventId}`;
   },
 
   // ─── MODAL ────────────────────────────────────────────────
-  openModal(id) {
-    document.getElementById(id)?.classList.add('open');
-  },
-  closeModal(id) {
-    document.getElementById(id)?.classList.remove('open');
-  },
+  openModal(id)  { document.getElementById(id)?.classList.add('open'); },
+  closeModal(id) { document.getElementById(id)?.classList.remove('open'); },
 
   // ─── SYNC ─────────────────────────────────────────────────
   async syncNow() {
