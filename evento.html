@@ -6,41 +6,44 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo</title>
+  <title>Evento — WeGo v1.6</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/css/style.css" />
   <style>
-    /* ─── HERO ─── */
-    .ev-hero {
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border);
-      padding: 10px 14px 0;
+    /* ─── HEADER COMPATTO CON FOTO+TITOLO+CODICE ─── */
+    .ev-header-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
     }
-    .ev-hero__row {
-      display: flex; align-items: center;
-      gap: 10px; padding-bottom: 12px;
-    }
-    .ev-hero__photo {
-      width: 40px; height: 40px;
-      border-radius: var(--r-md);
+    .ev-header-photo {
+      width: 28px; height: 28px;
+      border-radius: 6px;
       background: var(--bg-input);
       flex-shrink: 0; overflow: hidden;
       display: flex; align-items: center; justify-content: center;
       color: var(--text-muted);
     }
-    .ev-hero__photo img { width: 100%; height: 100%; object-fit: cover; }
-    .ev-hero__title {
-      font-size: 15px; font-weight: 700;
-      color: var(--text-primary); line-height: 1.25;
+    .ev-header-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .ev-header-title {
+      font-size: 14px; font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 130px;
     }
-    .ev-hero__code {
-      display: inline-flex; align-items: center; gap: 4px;
-      margin-top: 3px; font-size: 11px; font-weight: 700;
-      letter-spacing: 1.2px; color: var(--accent);
+    .ev-header-code {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 9.5px; font-weight: 700;
+      letter-spacing: 1px; color: var(--accent);
       background: rgba(59,130,246,0.09);
-      padding: 2px 7px; border-radius: var(--r-full);
-      cursor: pointer; border: none;
+      padding: 2px 6px; border-radius: var(--r-full);
+      cursor: pointer; border: none; flex-shrink: 0;
+      font-family: monospace;
+      white-space: nowrap;
     }
+    .ev-header-code:active { opacity: 0.7; }
 
     /* ─── TABS ─── */
     .tab-bar {
@@ -63,118 +66,177 @@
     .summary-row {
       display: flex; gap: 1px;
       background: var(--border);
-      border-radius: var(--r-md);
-      overflow: hidden; margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
     }
     .summary-row__item {
-      flex: 1; background: var(--bg-card);
-      padding: 10px 8px; text-align: center;
+      flex: 1; background: var(--bg-secondary);
+      padding: 9px 8px; text-align: center;
     }
     .summary-row__val {
       font-size: 14px; font-weight: 700;
-      color: var(--text-primary); letter-spacing: -0.2px;
+      color: var(--text-primary); letter-spacing: -0.3px;
     }
     .summary-row__lbl {
-      font-size: 9.5px; font-weight: 600;
-      color: var(--text-muted); text-transform: uppercase;
-      letter-spacing: 0.4px; margin-top: 1px;
+      font-size: 9px; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;
+      margin-top: 1px;
     }
 
-    /* ─── EXPENSE ROW ─── */
-    .exp-row {
-      display: flex; align-items: flex-start;
-      gap: 8px; padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-      cursor: pointer; -webkit-tap-highlight-color: transparent;
-      transition: opacity var(--ease);
+    /* ─── MY QUOTA ─── */
+    .my-quota {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(59,130,246,0.08);
+      border-bottom: 1px solid rgba(59,130,246,0.15);
+      padding: 8px 14px; font-size: 12px; color: var(--text-secondary);
     }
-    .exp-row:last-child { border-bottom: none; }
-    .exp-row:active     { opacity: 0.65; }
-    .exp-row.transfer   { padding-left: 3px; border-left: 2px solid var(--purple); }
-    .exp-row__main      { flex: 1; min-width: 0; }
-    .exp-row__title     { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .exp-row__meta      { display: flex; align-items: center; gap: 5px; margin-top: 3px; flex-wrap: wrap; }
-    .exp-row__amount    { font-size: 14px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px; white-space: nowrap; }
 
-    /* ─── DATE LABEL ─── */
-    .date-lbl {
+    /* ─── EXPENSE ITEM ─── */
+    .exp-group-date {
       font-size: 10px; font-weight: 700; color: var(--text-muted);
       text-transform: uppercase; letter-spacing: 0.5px;
       padding: 10px 0 4px;
     }
-
-    /* ─── USER ROW ─── */
-    .user-row {
-      display: flex; align-items: center;
-      gap: 10px; padding: 10px 0;
+    .exp-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 0;
       border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
-    .user-row:last-child { border-bottom: none; }
+    .exp-item:last-child { border-bottom: none; }
+    .exp-item:active { opacity: 0.7; }
+    .exp-avatar { flex-shrink: 0; }
+    .exp-info { flex: 1; min-width: 0; }
+    .exp-title {
+      font-size: 13px; font-weight: 600; color: var(--text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .exp-meta { display: flex; align-items: center; gap: 5px; margin-top: 2px; flex-wrap: wrap; }
+    .exp-meta-txt { font-size: 10px; color: var(--text-muted); }
+    .exp-badge {
+      font-size: 9px; font-weight: 700; padding: 1px 5px;
+      border-radius: 4px; background: var(--bg-input); color: var(--text-muted);
+    }
+    .exp-badge--sync { color: #D97706; background: rgba(245,158,11,0.12); }
+    .exp-amount { flex-shrink: 0; text-align: right; }
+    .exp-amount__val {
+      font-size: 14px; font-weight: 700; color: var(--text-primary);
+    }
+    .exp-amount__lbl { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+
+    /* ─── PARTECIPANTE ─── */
+    .part-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .part-item:last-child { border-bottom: none; }
+    .part-info { flex: 1; }
+    .part-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .part-sub  { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+    .part-balance { font-size: 13px; font-weight: 700; text-align: right; flex-shrink: 0; }
+
+    /* ─── SALDI ─── */
+    .balance-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .balance-item:last-child { border-bottom: none; }
+    .balance-info { flex: 1; }
+    .balance-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .balance-bar-wrap { height: 4px; background: var(--bg-input); border-radius: 2px; margin-top: 5px; }
+    .balance-bar { height: 100%; border-radius: 2px; transition: width 0.4s; }
+    .balance-val { font-size: 14px; font-weight: 700; text-align: right; flex-shrink: 0; }
+
+    .txn-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid var(--border);
+    }
+    .txn-item:last-child { border-bottom: none; }
+    .txn-text { flex: 1; font-size: 13px; color: var(--text-primary); line-height: 1.4; }
+    .txn-amount { font-size: 14px; font-weight: 700; color: var(--text-primary); flex-shrink: 0; }
 
     /* ─── CONTEXT MENU ─── */
     .ctx-menu {
-      position: fixed; top: calc(var(--nav-h) + 2px); right: 12px;
-      background: var(--bg-card);
-      border: 1px solid var(--border-strong);
-      border-radius: var(--r-lg);
-      box-shadow: var(--shadow-lg);
-      z-index: 150; min-width: 186px; overflow: hidden;
+      position: fixed; top: calc(var(--nav-h) + 4px); right: 10px;
+      background: var(--bg-card); border: 1px solid var(--border-strong);
+      border-radius: var(--r-lg); box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      z-index: 200; min-width: 190px;
       display: none;
+      overflow: hidden;
     }
     .ctx-item {
-      width: 100%; padding: 10px 13px;
-      background: none; border: none;
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 12px 14px;
+      background: none; border: none; border-bottom: 1px solid var(--border);
       font-family: var(--font); font-size: 13px; font-weight: 500;
-      color: var(--text-primary); cursor: pointer;
-      display: flex; align-items: center; gap: 8px;
-      transition: background var(--ease); text-align: left;
+      color: var(--text-primary); cursor: pointer; text-align: left;
+      -webkit-tap-highlight-color: transparent;
     }
-    .ctx-item:hover    { background: var(--bg-input); }
-    .ctx-item svg      { width: 14px; height: 14px; color: var(--text-muted); flex-shrink: 0; }
-    .ctx-item.danger   { color: var(--red); }
-    .ctx-item.danger svg { color: var(--red); }
-    .ctx-divider       { height: 1px; background: var(--border); }
+    .ctx-item:last-child { border-bottom: none; }
+    .ctx-item:active { background: var(--bg-secondary); }
+    .ctx-item svg { flex-shrink: 0; }
+    .ctx-item.danger { color: var(--red); }
+    .ctx-item.hidden { display: none; }
+    .ctx-divider { height: 1px; background: var(--border-strong); }
 
-    /* ─── MY QUOTA ─── */
-    .my-quota {
-      background: rgba(59,130,246,0.06);
-      border: 1px solid rgba(59,130,246,0.15);
-      border-radius: var(--r-md);
-      padding: 9px 11px;
-      display: flex; align-items: center; gap: 8px;
-      margin-bottom: 10px; font-size: 12px;
+    /* ─── SETTLED LIST ─── */
+    .settled-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid var(--border);
     }
-    .my-quota svg { width: 13px; height: 13px; color: var(--accent); flex-shrink: 0; }
+    .settled-item:last-child { border-bottom: none; }
+    .settled-info { flex: 1; }
+    .settled-text { font-size: 12px; color: var(--text-secondary); }
+    .settled-meta { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .settled-amount { font-size: 13px; font-weight: 700; color: var(--green); flex-shrink: 0; }
   </style>
 </head>
 <body>
 
 <div class="toast-container" id="toastContainer"></div>
 <div class="sync-bar hidden" id="syncBar">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>
-  <span id="syncBarText">Sincronizzazione…</span>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <path d="M21 12a9 9 0 11-6.219-8.56"/>
+  </svg>
+  <span>Sincronizzazione…</span>
 </div>
 
 <div class="app-shell">
 
-  <!-- HEADER -->
+  <!-- HEADER COMPATTO: ← [foto] Titolo · CODICE -->
   <header class="app-header">
-    <div class="app-header__logo">
-      <a href="/index.html" class="btn btn--icon" title="Indietro">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+    <div class="app-header__logo" style="flex:1;min-width:0;">
+      <a href="/index.html" class="btn btn--icon" title="Torna alla Home" onclick="EventoApp.goHome(event)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
       </a>
-      <span class="app-header__title" id="headerTitle">Evento</span>
+      <div class="ev-header-content">
+        <div class="ev-header-photo" id="headerEventPhoto">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+          </svg>
+        </div>
+        <span class="ev-header-title" id="headerEventTitle">Caricamento…</span>
+        <button class="ev-header-code" id="headerEventCode" onclick="EventoApp.copyCode()">
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+          <span id="headerEventCodeText">—</span>
+        </button>
+      </div>
     </div>
     <div class="app-header__actions">
-      <div id="connDot" style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;"></div>
+      <div id="connectionIndicator" style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;"></div>
       <button class="btn btn--icon" onclick="EventoApp.syncNow()" title="Sincronizza">
-        <svg id="syncIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg id="syncIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M4 12v-1a8 8 0 0114.93-4M20 12v1a8 8 0 01-14.93 4"/>
           <polyline points="20 4 20 8 16 8"/><polyline points="4 20 4 16 8 16"/>
         </svg>
       </button>
-      <button class="btn btn--icon" id="menuBtn" onclick="EventoApp.toggleMenu()" title="Opzioni">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <button class="btn btn--icon" id="eventMenuBtn" onclick="EventoApp.toggleMenu()" title="Opzioni">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="5" r="1" fill="currentColor"/>
           <circle cx="12" cy="12" r="1" fill="currentColor"/>
           <circle cx="12" cy="19" r="1" fill="currentColor"/>
@@ -184,57 +246,44 @@
   </header>
 
   <!-- CONTEXT MENU -->
-  <div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-menu" id="eventMenu">
     <button class="ctx-item" onclick="EventoApp.shareEventCode()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
         <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
       </svg>
       Condividi codice
     </button>
+    <button class="ctx-item" onclick="EventoApp.shareViaWhatsApp()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+      </svg>
+      Condividi su WhatsApp
+    </button>
     <button class="ctx-item" onclick="EventoApp.showAddUser()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
         <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
       </svg>
       Aggiungi partecipante
     </button>
     <button class="ctx-item" onclick="EventoApp.goToRiepilogo()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
         <line x1="3" y1="6" x2="3.01" y2="6"/>
       </svg>
       Riepilogo saldi
     </button>
     <div class="ctx-divider"></div>
-    <button class="ctx-item danger" onclick="EventoApp.confirmDeleteEvent()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <!-- Elimina evento: visibile solo al creatore (gestito da JS) -->
+    <button class="ctx-item danger" id="ctxDeleteBtn" onclick="EventoApp.confirmDeleteEvent()" style="display:none;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="3 6 5 6 21 6"/>
         <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+        <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
       </svg>
       Elimina evento
     </button>
-  </div>
-
-  <!-- HERO -->
-  <div class="ev-hero" id="eventHero">
-    <div class="ev-hero__row">
-      <div class="ev-hero__photo" id="eventPhoto">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-          <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
-        </svg>
-      </div>
-      <div style="flex:1;min-width:0;">
-        <div class="ev-hero__title" id="eventTitle">Caricamento…</div>
-        <button class="ev-hero__code" id="eventCode" onclick="EventoApp.copyCode()">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
-          </svg>
-          <span id="eventCodeText">—</span>
-        </button>
-      </div>
-    </div>
   </div>
 
   <!-- TAB BAR -->
@@ -255,7 +304,7 @@
     <!-- TAB SPESE -->
     <div id="panelSpese">
       <div class="my-quota" id="myQuota" style="display:none;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
         </svg>
         <span id="myQuotaText" style="font-weight:600;color:var(--text-primary);"></span>
@@ -272,54 +321,31 @@
         </div>
         <div class="summary-row__item">
           <div class="summary-row__val" id="summaryAvg">—</div>
-          <div class="summary-row__lbl">Media</div>
+          <div class="summary-row__lbl">Pro capite</div>
         </div>
       </div>
 
-      <div id="expensesList"></div>
-      <div id="expensesEmpty" class="empty-state" style="display:none;">
-        <p class="empty-state__title">Nessuna spesa</p>
-        <p class="empty-state__desc">Aggiungi la prima spesa con il pulsante + in basso.</p>
-      </div>
+      <div id="expenseList" style="padding:0 0 80px;"></div>
     </div>
 
     <!-- TAB PARTECIPANTI -->
     <div id="panelPartecipanti" style="display:none;">
-      <div class="section-header" style="margin-bottom:8px;">
-        <span class="section-title">Connesso come</span>
-      </div>
-      <div class="card" id="currentUserCard" style="border-color:var(--accent);margin-bottom:14px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <div class="avatar avatar-0" id="currentUserAv">?</div>
-          <div style="flex:1;">
-            <div style="font-size:14px;font-weight:600;" id="currentUserCardName">—</div>
-            <div class="text-xs text-muted">Questo dispositivo</div>
-          </div>
-          <button class="btn btn--ghost btn--sm" onclick="EventoApp.changeCurrentUser()">Cambia</button>
-        </div>
-      </div>
-
-      <div class="section-header">
-        <span class="section-title">Partecipanti</span>
-        <button class="btn btn--ghost btn--sm" onclick="EventoApp.showAddUser()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+      <div id="partecipantiList" style="padding:0 0 80px;"></div>
+      <div style="padding:4px 0 80px;">
+        <button class="btn btn--ghost btn--full" onclick="EventoApp.showAddUser()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          Aggiungi
+          Aggiungi partecipante
         </button>
       </div>
-      <div id="usersList"></div>
     </div>
 
     <!-- TAB SALDI -->
     <div id="panelSaldi" style="display:none;">
-      <div class="section-header"><span class="section-title">Saldo per persona</span></div>
-      <div id="balancesList" style="margin-bottom:20px;"></div>
+      <div id="balanceList" style="padding:0;"></div>
 
-      <div class="section-header">
-        <span class="section-title">Da saldare</span>
-        <span class="text-xs text-muted">transazioni minime</span>
-      </div>
+      <div class="section-header" style="margin-top:16px;"><span class="section-title">Transazioni minime</span></div>
       <div id="transactionsList" style="margin-bottom:20px;"></div>
 
       <div class="section-header"><span class="section-title">Già pagato</span></div>
@@ -338,7 +364,7 @@
   </button>
 
   <nav class="bottom-nav">
-    <a href="/index.html" class="bottom-nav__item">
+    <a href="/index.html" class="bottom-nav__item" onclick="EventoApp.goHome(event)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
         <polyline points="9 22 9 12 15 12 15 22"/>
