@@ -1,6 +1,6 @@
-// SplitPay Service Worker v1.1
-const APP_VERSION = '1.1';
-const CACHE_NAME = `splitpay-v${APP_VERSION}`;
+// WeGo Service Worker v1.4
+const APP_VERSION = '1.4';
+const CACHE_NAME = `wego-v${APP_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
 // File da mettere in cache al primo avvio
@@ -21,12 +21,14 @@ const STATIC_ASSETS = [
   '/js/notifications.js',
   '/js/supabase.js',
   '/js/evento.js',
-  '/js/spesa.js'
+  '/js/spesa.js',
+  '/admin.html',
+  '/js/riepilogo.js'
 ];
 
 // ─── INSTALL ───────────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log(`[SW] Installing SplitPay v${APP_VERSION}`);
+  console.log(`[SW] Installing WeGo v${APP_VERSION}`);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -40,12 +42,12 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ──────────────────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log(`[SW] Activating SplitPay v${APP_VERSION}`);
+  console.log(`[SW] Activating WeGo v${APP_VERSION}`);
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name.startsWith('splitpay-') && name !== CACHE_NAME)
+          .filter((name) => name.startsWith('wego-') && name !== CACHE_NAME)
           .map((name) => {
             console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
@@ -105,11 +107,11 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('push', (event) => {
   console.log('[SW] Push received');
   let data = {
-    title: 'SplitPay',
+    title: 'WeGo',
     body: 'Hai una nuova notifica',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-72.png',
-    tag: 'splitpay-notification',
+    tag: 'wego-notification',
     data: {}
   };
 
@@ -169,7 +171,7 @@ self.addEventListener('notificationclick', (event) => {
 // ─── BACKGROUND SYNC ───────────────────────────────────────────────────────
 self.addEventListener('sync', (event) => {
   console.log('[SW] Background sync:', event.tag);
-  if (event.tag === 'splitpay-sync') {
+  if (event.tag === 'wego-sync') {
     event.waitUntil(doBackgroundSync());
   }
 });

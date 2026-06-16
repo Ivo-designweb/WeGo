@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F172A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Spesa — WeGo</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    /* ─── IMPORTO HERO ─── */
+    .amount-hero {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 16px 16px;
+      text-align: center;
+    }
+    .amount-hero__lbl {
+      font-size: 10px; font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      margin-bottom: 6px;
+    }
+    .amount-hero__wrap {
+      display: flex; align-items: baseline;
+      justify-content: center; gap: 4px;
+    }
+    .amount-hero__cur {
+      font-size: 22px; font-weight: 600;
+      color: var(--text-muted); line-height: 1;
+    }
+    .amount-hero__input {
+      font-size: 38px; font-weight: 800;
+      color: var(--text-primary); letter-spacing: -1px;
+      background: none; border: none; outline: none;
+      width: 190px; text-align: center;
+      font-family: var(--font); -webkit-appearance: none;
+      line-height: 1;
+    }
+    .amount-hero__input::placeholder { color: var(--border-strong); }
+
+    /* ─── TYPE TOGGLE ─── */
+    .type-row {
+      display: flex; gap: 6px; padding: 10px 14px 0;
+    }
+    .type-btn {
+      flex: 1; height: 32px; padding: 0 8px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border-strong);
+      background: var(--bg-input);
+      color: var(--text-muted);
+      font-family: var(--font); font-size: 12px; font-weight: 600;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      transition: all var(--ease);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .type-btn svg { width: 13px; height: 13px; }
+    .type-btn.active {
+      border-color: var(--accent);
+      background: rgba(59,130,246,0.09);
+      color: var(--accent);
+    }
+    .type-btn.active-transfer {
+      border-color: var(--purple);
+      background: rgba(139,92,246,0.09);
+      color: var(--purple);
+    }
+
+    /* ─── FORM CARD ─── */
+    .form-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+    .form-card-title {
+      font-size: 10px; font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      margin-bottom: 10px;
+    }
+
+    /* ─── PARTICIPANTS ─── */
+    .part-grid {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+    }
+
+    /* ─── LOCATION BAR ─── */
+    .loc-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 11px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-md);
+      cursor: pointer;
+      transition: border-color var(--ease);
+    }
+    .loc-bar:hover { border-color: var(--accent); }
+    .loc-bar svg   { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; }
+    .loc-bar__text { flex: 1; font-size: 13px; color: var(--text-primary); }
+    .loc-bar__text.ph { color: var(--text-muted); font-size: 12px; }
+
+    /* ─── PHOTO PREVIEW ─── */
+    .photo-thumb {
+      width: 60px; height: 60px;
+      border-radius: var(--r-md); overflow: hidden;
+      position: relative; background: var(--bg-input);
+      flex-shrink: 0;
+    }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-thumb__rm {
+      position: absolute; top: 3px; right: 3px;
+      width: 18px; height: 18px;
+      background: rgba(0,0,0,0.7); border: none;
+      border-radius: 50%; color: #fff; font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; line-height: 1;
+    }
+  </style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="app-shell">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="app-header__logo">
+      <button class="btn btn--icon" onclick="SpesaApp.goBack()" title="Annulla">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      <span class="app-header__title" id="pageTitle">Nuova spesa</span>
+    </div>
+    <div class="app-header__actions">
+      <button class="btn btn--primary" id="saveBtn" onclick="SpesaApp.save()">Salva</button>
+    </div>
+  </header>
+
+  <!-- IMPORTO -->
+  <div class="amount-hero">
+    <div class="amount-hero__lbl">Importo</div>
+    <div class="amount-hero__wrap">
+      <span class="amount-hero__cur" id="currencySymbol">€</span>
+      <input type="number" class="amount-hero__input" id="expenseAmount"
+        placeholder="0,00" step="0.01" min="0" inputmode="decimal"
+        onfocus="this.select()" />
+    </div>
+  </div>
+
+  <!-- TIPO -->
+  <div class="type-row">
+    <button class="type-btn active" id="typeExpense" onclick="SpesaApp.setType('expense')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+      </svg>
+      Spesa
+    </button>
+    <button class="type-btn" id="typeTransfer" onclick="SpesaApp.setType('transfer')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+      Mov. cassa
+    </button>
+  </div>
+
+  <main class="page-content" style="padding-top:10px;">
+
+    <!-- INFO BASE -->
+    <div class="form-card">
+      <div class="form-card-title">Informazioni</div>
+      <div class="form-group">
+        <label class="form-label">Descrizione *</label>
+        <input type="text" class="form-input" id="expenseTitle"
+          placeholder="es. Cena al ristorante" maxlength="80" autocomplete="off" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Data *</label>
+          <input type="date" class="form-input" id="expenseDate" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Metodo</label>
+          <select class="form-select" id="expenseMethod"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGANTE + PARTECIPANTI -->
+    <div class="form-card" id="sectionExpense">
+      <div class="form-card-title">Chi paga · Chi partecipa</div>
+      <div class="form-group">
+        <label class="form-label">Pagato da *</label>
+        <select class="form-select" id="expensePaidBy"></select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label class="form-label" style="margin:0;">Divide tra *</label>
+          <div style="display:flex;gap:4px;">
+            <button class="btn btn--ghost btn--sm" onclick="SpesaApp.selectAllParticipants()">Tutti</button>
+            <button class="btn btn--ghost btn--sm" onclick="SpesaApp.deselectAllParticipants()">Nessuno</button>
+          </div>
+        </div>
+        <div class="part-grid" id="participantsGrid"></div>
+        <div id="sharePreview" style="margin-top:8px;font-size:11px;color:var(--text-muted);text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- TRASFERIMENTO -->
+    <div class="form-card" id="sectionTransfer" style="display:none;">
+      <div class="form-card-title">Trasferimento diretto</div>
+      <div class="form-group">
+        <label class="form-label">Da (chi paga) *</label>
+        <select class="form-select" id="transferFrom"></select>
+      </div>
+      <div class="form-group" style="margin-bottom:0;">
+        <label class="form-label">A (chi riceve) *</label>
+        <select class="form-select" id="transferTo"></select>
+      </div>
+    </div>
+
+    <!-- POSIZIONE -->
+    <div class="form-card">
+      <div class="form-card-title">Posizione GPS</div>
+      <div class="loc-bar" id="locationBar" onclick="SpesaApp.getLocation()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+        <span class="loc-bar__text ph" id="locationText">Tocca per rilevare posizione</span>
+        <button id="locationClear" style="display:none;background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px;"
+          onclick="SpesaApp.clearLocation(event)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- FOTO -->
+    <div class="form-card">
+      <div class="form-card-title">Foto scontrino</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="photoPreviewWrap" style="display:none;">
+          <div class="photo-thumb">
+            <img id="photoPreviewImg" src="" alt="Scontrino" />
+            <button class="photo-thumb__rm" onclick="SpesaApp.removePhoto()">×</button>
+          </div>
+        </div>
+        <button class="btn btn--ghost" onclick="SpesaApp.pickPhoto()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <span id="photoLabel">Aggiungi foto</span>
+        </button>
+        <input type="file" id="photoInput" accept="image/*" capture="environment"
+          style="display:none;" onchange="SpesaApp.onPhotoChange(this)" />
+      </div>
+    </div>
+
+    <!-- NOTE -->
+    <div class="form-card">
+      <div class="form-card-title">Note</div>
+      <textarea class="form-textarea" id="expenseNotes"
+        placeholder="Note aggiuntive…" style="min-height:62px;margin-bottom:0;"></textarea>
+    </div>
+
+    <!-- SALVA (bottom) -->
+    <button class="btn btn--primary btn--full btn--xl" onclick="SpesaApp.save()" style="margin-top:6px;margin-bottom:28px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Salva spesa
+    </button>
+
+  </main>
+</div>
+
+<script src="/js/utils.js"></script>
+<script src="/js/db.js"></script>
+<script src="/js/supabase.js"></script>
+<script src="/js/sync.js"></script>
+<script src="/js/payments.js"></script>
+<script src="/js/spesa.js"></script>
+<script>document.addEventListener('DOMContentLoaded', () => SpesaApp.init());</script>
+</body>
+</html>

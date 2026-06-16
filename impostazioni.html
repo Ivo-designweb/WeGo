@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F172A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Impostazioni — WeGo v1.2</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <style>
+    .settings-section {
+      margin-bottom: 20px;
+    }
+    .settings-group {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      overflow: hidden;
+    }
+    .settings-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 13px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background var(--ease);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-row:active     { background: var(--bg-input); }
+    .settings-row--static    { cursor: default; }
+    .settings-row--static:active { background: transparent; }
+
+    .settings-row__icon {
+      width: 28px; height: 28px;
+      border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .settings-row__icon svg { width: 14px; height: 14px; color: #fff; }
+
+    .settings-row__body { flex: 1; min-width: 0; }
+    .settings-row__label {
+      font-size: 13px; font-weight: 500;
+      color: var(--text-primary);
+    }
+    .settings-row__value {
+      font-size: 11px; color: var(--text-muted);
+      margin-top: 1px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+
+    .settings-row__right {
+      display: flex; align-items: center; gap: 6px;
+      flex-shrink: 0;
+    }
+    .settings-row__chevron {
+      color: var(--text-muted);
+    }
+    .settings-row__chevron svg { width: 13px; height: 13px; }
+
+    /* Metodi pagamento list */
+    .method-item {
+      display: flex; align-items: center;
+      gap: 9px; padding: 9px 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    .method-item:last-child { border-bottom: none; }
+    .method-item__label { flex: 1; font-size: 13px; color: var(--text-primary); }
+
+    /* About box */
+    .about-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 16px 13px;
+      text-align: center;
+    }
+    .about-logo {
+      width: 44px; height: 44px;
+      background: var(--accent);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 800; color: #fff;
+      letter-spacing: -0.5px;
+      margin: 0 auto 10px;
+    }
+    .about-name  { font-size: 16px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px; }
+    .about-ver   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .about-div   { height: 1px; background: var(--border); margin: 12px 0; }
+    .about-dev   { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+    .about-mail  {
+      font-size: 13px; font-weight: 500;
+      color: var(--accent);
+      text-decoration: none;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .about-mail:hover { text-decoration: underline; }
+    .about-mail svg  { width: 13px; height: 13px; }
+  </style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="app-shell">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="app-header__logo">
+      <a href="/index.html" class="btn btn--icon" title="Indietro">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </a>
+      <div class="app-header__logo-mark">WG</div>
+      <span class="app-header__title">Impostazioni</span>
+    </div>
+  </header>
+
+  <main class="page-content">
+
+    <!-- ─── SEZIONE: ACCOUNT ─── -->
+    <div class="settings-section">
+      <div class="section-header"><span class="section-title">Account</span></div>
+      <div class="settings-group">
+
+        <div class="settings-row settings-row--static">
+          <div class="settings-row__icon" style="background:#3B82F6;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Nickname</div>
+            <div class="settings-row__value" id="displayNickname">Non impostato</div>
+          </div>
+          <div class="settings-row__right">
+            <button class="btn btn--ghost btn--sm" onclick="SettingsApp.editNickname()">Modifica</button>
+          </div>
+        </div>
+
+        <div class="settings-row settings-row--static">
+          <div class="settings-row__icon" style="background:#8B5CF6;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Device ID</div>
+            <div class="settings-row__value" id="displayDeviceId">—</div>
+          </div>
+          <div class="settings-row__right">
+            <button class="btn btn--ghost btn--sm" onclick="SettingsApp.copyDeviceId()">Copia</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── SEZIONE: ASPETTO ─── -->
+    <div class="settings-section">
+      <div class="section-header"><span class="section-title">Aspetto</span></div>
+      <div class="settings-group">
+
+        <div class="settings-row settings-row--static">
+          <div class="settings-row__icon" style="background:#0F172A;border:1px solid var(--border-strong);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Tema</div>
+            <div class="settings-row__value" id="displayTheme">Scuro</div>
+          </div>
+          <div class="settings-row__right">
+            <div style="display:flex;gap:4px;">
+              <button class="btn btn--ghost btn--sm" id="btnDark"  onclick="SettingsApp.setTheme('dark')">Scuro</button>
+              <button class="btn btn--ghost btn--sm" id="btnLight" onclick="SettingsApp.setTheme('light')">Chiaro</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── SEZIONE: VALUTA ─── -->
+    <div class="settings-section">
+      <div class="section-header"><span class="section-title">Valuta e regione</span></div>
+      <div class="settings-group">
+
+        <div class="settings-row settings-row--static">
+          <div class="settings-row__icon" style="background:#10B981;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Valuta predefinita</div>
+            <div class="settings-row__value" id="displayCurrency">Euro (€)</div>
+          </div>
+          <div class="settings-row__right">
+            <select class="form-select" id="currencySelect"
+              style="width:90px;height:28px;padding:0 24px 0 8px;font-size:12px;"
+              onchange="SettingsApp.setCurrency(this.value)">
+              <option value="EUR">EUR €</option>
+              <option value="USD">USD $</option>
+              <option value="GBP">GBP £</option>
+              <option value="CHF">CHF</option>
+              <option value="JPY">JPY ¥</option>
+            </select>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── SEZIONE: METODI PAGAMENTO ─── -->
+    <div class="settings-section">
+      <div class="section-header">
+        <span class="section-title">Metodi di pagamento</span>
+        <button class="btn btn--ghost btn--sm" onclick="SettingsApp.addPaymentMethod()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+          Aggiungi
+        </button>
+      </div>
+      <div class="settings-group" id="paymentMethodsList">
+        <!-- Generato da JS -->
+      </div>
+    </div>
+
+    <!-- ─── SEZIONE: NOTIFICHE ─── -->
+    <div class="settings-section">
+      <div class="section-header"><span class="section-title">Notifiche</span></div>
+      <div class="settings-group">
+
+        <div class="settings-row settings-row--static">
+          <div class="settings-row__icon" style="background:#F59E0B;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 01-3.46 0"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Notifiche push</div>
+            <div class="settings-row__value" id="notifStatus">Controllo stato…</div>
+          </div>
+          <div class="settings-row__right">
+            <button class="btn btn--ghost btn--sm" id="notifBtn" onclick="SettingsApp.toggleNotifications()">Abilita</button>
+          </div>
+        </div>
+
+        <div class="settings-row settings-row--static">
+          <div class="settings-row__icon" style="background:#EF4444;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 12v-1a8 8 0 0114.93-4M20 12v1a8 8 0 01-14.93 4"/>
+              <polyline points="20 4 20 8 16 8"/><polyline points="4 20 4 16 8 16"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Sincronizzazione automatica</div>
+            <div class="settings-row__value">All'apertura e in background</div>
+          </div>
+          <div class="settings-row__right">
+            <label class="toggle">
+              <input type="checkbox" id="autoSyncToggle" checked onchange="SettingsApp.setAutoSync(this.checked)" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── SEZIONE: DATI ─── -->
+    <div class="settings-section">
+      <div class="section-header"><span class="section-title">Dati e privacy</span></div>
+      <div class="settings-group">
+
+        <div class="settings-row" onclick="SettingsApp.exportData()">
+          <div class="settings-row__icon" style="background:#06B6D4;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Esporta dati locali</div>
+            <div class="settings-row__value">Scarica backup JSON</div>
+          </div>
+          <div class="settings-row__right settings-row__chevron">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+
+        <div class="settings-row" onclick="SettingsApp.clearLocalData()" style="color:var(--red);">
+          <div class="settings-row__icon" style="background:#EF4444;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label" style="color:var(--red);">Cancella dati locali</div>
+            <div class="settings-row__value">Rimuove tutti i dati dal dispositivo</div>
+          </div>
+          <div class="settings-row__right settings-row__chevron">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── SEZIONE: ABOUT ─── -->
+    <div class="settings-section">
+      <div class="section-header"><span class="section-title">Informazioni</span></div>
+
+      <div class="about-box">
+        <div class="about-logo">WG</div>
+        <div class="about-name">WeGo</div>
+        <div class="about-ver">Versione 1.2</div>
+
+        <div class="about-div"></div>
+
+        <div class="about-dev">Sviluppato da</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px;">Ivo Taffarel</div>
+        <a class="about-mail" href="mailto:ivotaffarel@gmail.com">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          ivotaffarel@gmail.com
+        </a>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <a href="/index.html" class="bottom-nav__item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      <span class="bottom-nav__label">Home</span>
+    </a>
+    <a href="#" class="bottom-nav__item" onclick="return false;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+        <line x1="8" y1="18" x2="21" y2="18"/>
+        <line x1="3" y1="6" x2="3.01" y2="6"/>
+      </svg>
+      <span class="bottom-nav__label">Riepilogo</span>
+    </a>
+    <a href="/impostazioni.html" class="bottom-nav__item active">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+      <span class="bottom-nav__label">Impostazioni</span>
+    </a>
+  </nav>
+
+</div>
+
+<!-- MODAL: MODIFICA NICKNAME -->
+<div class="modal-backdrop" id="modalNickname" onclick="SettingsApp.closeModal('modalNickname')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="bottom-sheet__handle"></div>
+    <h2 class="bottom-sheet__title">Il tuo nickname</h2>
+    <div class="form-group">
+      <label class="form-label">Nome visualizzato</label>
+      <input type="text" class="form-input" id="nicknameInput"
+        placeholder="es. Mario" maxlength="30"
+        onkeydown="if(event.key==='Enter') SettingsApp.saveNickname()" />
+      <span class="form-hint">Usato come nome predefinito quando crei un evento</span>
+    </div>
+    <button class="btn btn--primary btn--full btn--xl" onclick="SettingsApp.saveNickname()">Salva</button>
+  </div>
+</div>
+
+<!-- MODAL: AGGIUNGI METODO PAGAMENTO -->
+<div class="modal-backdrop" id="modalAddMethod" onclick="SettingsApp.closeModal('modalAddMethod')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="bottom-sheet__handle"></div>
+    <h2 class="bottom-sheet__title">Aggiungi metodo</h2>
+    <div class="form-group">
+      <label class="form-label">Nome metodo *</label>
+      <input type="text" class="form-input" id="newMethodName"
+        placeholder="es. Revolut" maxlength="30"
+        onkeydown="if(event.key==='Enter') SettingsApp.saveNewMethod()" />
+    </div>
+    <button class="btn btn--primary btn--full btn--xl" onclick="SettingsApp.saveNewMethod()">Aggiungi</button>
+  </div>
+</div>
+
+<script src="/js/utils.js"></script>
+<script src="/js/db.js"></script>
+<script src="/js/payments.js"></script>
+<script src="/js/notifications.js"></script>
+<script>
+const SettingsApp = {
+
+  async init() {
+    Utils.applyTheme(Utils.getConfig('theme', 'dark'));
+    await DB.open();
+    SettingsApp._renderAll();
+  },
+
+  _renderAll() {
+    // Nickname
+    const nick = Utils.getConfig('default_nickname', '');
+    document.getElementById('displayNickname').textContent = nick || 'Non impostato';
+
+    // Device ID
+    const devId = Utils.getDeviceId();
+    document.getElementById('displayDeviceId').textContent = devId.substring(0, 24) + '…';
+
+    // Tema
+    const theme = Utils.getConfig('theme', 'dark');
+    document.getElementById('displayTheme').textContent = theme === 'dark' ? 'Scuro' : 'Chiaro';
+    document.getElementById('btnDark').style.borderColor  = theme === 'dark'  ? 'var(--accent)' : '';
+    document.getElementById('btnDark').style.color        = theme === 'dark'  ? 'var(--accent)' : '';
+    document.getElementById('btnLight').style.borderColor = theme === 'light' ? 'var(--accent)' : '';
+    document.getElementById('btnLight').style.color       = theme === 'light' ? 'var(--accent)' : '';
+
+    // Valuta
+    const cur = Utils.getConfig('currency', 'EUR');
+    document.getElementById('currencySelect').value = cur;
+    const labels = { EUR:'Euro (€)', USD:'Dollaro ($)', GBP:'Sterlina (£)', CHF:'Franco svizzero', JPY:'Yen (¥)' };
+    document.getElementById('displayCurrency').textContent = labels[cur] || cur;
+
+    // Sync toggle
+    document.getElementById('autoSyncToggle').checked = Utils.getConfig('auto_sync', true);
+
+    // Notifiche
+    SettingsApp._renderNotifStatus();
+
+    // Metodi pagamento
+    SettingsApp._renderPaymentMethods();
+  },
+
+  // ─── TEMA ───────────────────────────────────────────────
+  setTheme(theme) {
+    Utils.setConfig('theme', theme);
+    Utils.applyTheme(theme);
+    SettingsApp._renderAll();
+    Utils.toast(`Tema ${theme === 'dark' ? 'scuro' : 'chiaro'} applicato`, 'success', 1500);
+  },
+
+  // ─── VALUTA ─────────────────────────────────────────────
+  setCurrency(cur) {
+    Utils.setConfig('currency', cur);
+    SettingsApp._renderAll();
+    Utils.toast('Valuta aggiornata', 'success', 1500);
+  },
+
+  // ─── NICKNAME ───────────────────────────────────────────
+  editNickname() {
+    const current = Utils.getConfig('default_nickname', '');
+    document.getElementById('nicknameInput').value = current;
+    SettingsApp.openModal('modalNickname');
+    setTimeout(() => document.getElementById('nicknameInput').focus(), 300);
+  },
+
+  saveNickname() {
+    const val = document.getElementById('nicknameInput').value.trim();
+    if (!val) { Utils.toast('Inserisci un nickname', 'error'); return; }
+    Utils.setConfig('default_nickname', val);
+    SettingsApp.closeModal('modalNickname');
+    SettingsApp._renderAll();
+    Utils.toast('Nickname salvato', 'success', 1500);
+  },
+
+  // ─── DEVICE ID ──────────────────────────────────────────
+  copyDeviceId() {
+    Utils.copyToClipboard(Utils.getDeviceId());
+  },
+
+  // ─── METODI PAGAMENTO ───────────────────────────────────
+  _renderPaymentMethods() {
+    const container = document.getElementById('paymentMethodsList');
+    const methods   = PaymentMethods.getAll();
+    container.innerHTML = methods.map(m => `
+      <div class="method-item">
+        <span class="method-item__label">${Utils.escapeHtml(m.label)}</span>
+        ${m.custom ? `<button class="btn btn--ghost btn--sm" style="color:var(--red);border-color:transparent;"
+          onclick="SettingsApp.removeMethod('${m.id}')">Rimuovi</button>` : ''}
+        <label class="toggle" style="margin-left:${m.custom ? '0' : 'auto'};">
+          <input type="checkbox" ${m.enabled ? 'checked' : ''}
+            onchange="SettingsApp.toggleMethod('${m.id}', this.checked)" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>`
+    ).join('');
+  },
+
+  toggleMethod(id, enabled) {
+    const all = PaymentMethods.getAll();
+    const m   = all.find(x => x.id === id);
+    if (m) { m.enabled = enabled; PaymentMethods.save(all); }
+    Utils.toast(`${enabled ? 'Abilitato' : 'Disabilitato'}`, 'success', 1200);
+  },
+
+  addPaymentMethod() {
+    document.getElementById('newMethodName').value = '';
+    SettingsApp.openModal('modalAddMethod');
+    setTimeout(() => document.getElementById('newMethodName').focus(), 300);
+  },
+
+  saveNewMethod() {
+    const name = document.getElementById('newMethodName').value.trim();
+    if (!name) { Utils.toast('Inserisci un nome', 'error'); return; }
+    const result = PaymentMethods.addCustom(name);
+    if (result) {
+      SettingsApp.closeModal('modalAddMethod');
+      SettingsApp._renderPaymentMethods();
+      Utils.toast(`"${name}" aggiunto`, 'success');
+    }
+  },
+
+  removeMethod(id) {
+    if (!confirm('Rimuovere questo metodo?')) return;
+    PaymentMethods.removeCustom(id);
+    SettingsApp._renderPaymentMethods();
+    Utils.toast('Metodo rimosso', 'success', 1500);
+  },
+
+  // ─── NOTIFICHE ──────────────────────────────────────────
+  _renderNotifStatus() {
+    const perm   = Notification?.permission || 'unknown';
+    const statusEl = document.getElementById('notifStatus');
+    const btnEl    = document.getElementById('notifBtn');
+    if (!('Notification' in window)) {
+      statusEl.textContent = 'Non supportate su questo browser';
+      btnEl.style.display  = 'none';
+      return;
+    }
+    if (perm === 'granted') {
+      statusEl.textContent = 'Attive';
+      statusEl.style.color = 'var(--green)';
+      btnEl.textContent    = 'Attive ✓';
+      btnEl.disabled       = true;
+    } else if (perm === 'denied') {
+      statusEl.textContent = 'Bloccate dal browser';
+      statusEl.style.color = 'var(--red)';
+      btnEl.textContent    = 'Sblocca nelle impostazioni';
+      btnEl.disabled       = true;
+    } else {
+      statusEl.textContent = 'Non ancora abilitate';
+      btnEl.textContent    = 'Abilita';
+      btnEl.disabled       = false;
+    }
+  },
+
+  async toggleNotifications() {
+    if (Notification.permission === 'granted') return;
+    const granted = await Notifications.requestPermission();
+    if (granted) Utils.toast('Notifiche attivate!', 'success');
+    SettingsApp._renderNotifStatus();
+  },
+
+  // ─── SYNC ───────────────────────────────────────────────
+  setAutoSync(val) {
+    Utils.setConfig('auto_sync', val);
+    Utils.toast(val ? 'Sync automatica attivata' : 'Sync automatica disattivata', 'info', 1500);
+  },
+
+  // ─── DATI ───────────────────────────────────────────────
+  async exportData() {
+    try {
+      const events   = await DB.events.getAll();
+      const cfg      = Utils.getAllConfig();
+      const payload  = { version: '1.2', exported_at: Utils.now(), config: cfg, events };
+      const blob     = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url      = URL.createObjectURL(blob);
+      const a        = document.createElement('a');
+      a.href         = url;
+      a.download     = `wego-backup-${Utils.today()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      Utils.toast('Backup scaricato', 'success');
+    } catch (e) {
+      Utils.toast('Errore esportazione', 'error');
+    }
+  },
+
+  async clearLocalData() {
+    if (!confirm('Cancellare tutti i dati locali?\nQuesta operazione non può essere annullata.')) return;
+    if (!confirm('Sei sicuro? Tutti gli eventi e le spese salvati localmente verranno rimossi.')) return;
+    try {
+      await DB.open();
+      localStorage.clear();
+      Utils.toast('Dati cancellati. Ricarica la pagina.', 'success', 4000);
+      setTimeout(() => window.location.reload(), 2000);
+    } catch (e) {
+      Utils.toast('Errore nella cancellazione', 'error');
+    }
+  },
+
+  // ─── MODAL ──────────────────────────────────────────────
+  openModal(id)  { document.getElementById(id)?.classList.add('open'); },
+  closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
+};
+
+document.addEventListener('DOMContentLoaded', () => SettingsApp.init());
+</script>
+
+</body>
+</html>

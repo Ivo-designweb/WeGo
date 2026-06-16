@@ -1,6 +1,6 @@
 {
-  "name": "SplitPay - Condividi le spese",
-  "short_name": "SplitPay",
+  "name": "WeGo - Condividi le spese",
+  "short_name": "WeGo",
   "description": "Condividi spese, info e posizione con il tuo gruppo",
   "start_url": "/",
   "display": "standalone",
