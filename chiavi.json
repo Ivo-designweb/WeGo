@@ -1,12 +1,12 @@
 {
   "_wego_config_version": "2.0",
-  "_exported_at": "2026-06-17T20:14:08.911Z",
-  "_note": "WeGo — configurazione centralizzata, caricare nella root del repo GitHub",
-  "supabase_url": "https://wwaomtfchpplmmxdpsqa.supabase.co",
-  "supabase_anon_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3YW9tdGZjaHBwbG1teGRwc3FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQ5MTIsImV4cCI6MjA5NzIwMDkxMn0.OyIYsrpg4yZQVxeG7gxA0KQRqM7q0MOc29AWaGNxhR8",
-  "fcm_api_key": "AIzaSyAV5CxzPZ63OR9YmEBOAYqJ5MoofuEGBOw",
-  "fcm_project_id": "wegoivo",
-  "fcm_sender_id": "809519426216",
-  "fcm_app_id": "1:809519426216:web:63f3effadf442b5d05709d",
-  "fcm_vapid_key": "BHIVBHA__RpHWxv7FgH3QImRhHSB7xoH2Pz1EGla-1GJ66VmxYdcQNKv3_Q3vhcXiXT2vYfJXfGDCi7TP4CDk8k"
+  "_note": "WeGo — configurazione centralizzata letta da tutti i device all'avvio dell'app. Generala da admin.html (sezione 'Configurazione centralizzata') e sostituisci questo file su GitHub. Non contenere mai valori finti in produzione.",
+  "_exported_at": null,
+  "supabase_url": "",
+  "supabase_anon_key": "",
+  "fcm_api_key": "",
+  "fcm_project_id": "",
+  "fcm_sender_id": "",
+  "fcm_app_id": "",
+  "fcm_vapid_key": ""
 }

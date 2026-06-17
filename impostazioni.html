@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v1.8</title>
+  <title>Impostazioni — WeGo v1.9</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/css/style.css" />
@@ -508,29 +508,42 @@ const SettingsApp = {
     Utils.toast('Pulizia cache in corso…', 'info', 3000);
 
     try {
-      // 1. Cancella tutte le cache del Service Worker
+      // 1. Cancella tutte le cache del Service Worker (Cache Storage API)
       const cacheKeys = await caches.keys();
       await Promise.all(cacheKeys.map(key => caches.delete(key)));
       console.log('[Update] Cache cancellate:', cacheKeys);
 
-      // 2. Forza aggiornamento del Service Worker
+      // 2. Disinstalla completamente ogni Service Worker registrato.
+      //    Non basta "aggiornare" quello vecchio: lo rimuoviamo del tutto
+      //    così la pagina riparte da zero senza nessun residuo in memoria.
       if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration('/');
-        if (reg) {
-          await reg.update();
-          // Manda messaggio al SW per saltare waiting
-          if (reg.waiting) {
-            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-        }
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+        console.log('[Update] Service Worker disinstallati:', regs.length);
       }
 
-      // 3. Ricarica forzata dal server (bypass cache browser)
-      Utils.toast('Cache pulita! Ricarico…', 'success', 2000);
+      Utils.toast('Cache pulita! Scarico l\'ultima versione da Vercel…', 'info', 2500);
+
+      // 3. Registra un Service Worker completamente nuovo. Il parametro
+      //    "?v=" nell'URL e l'opzione updateViaCache:'none' impediscono al
+      //    browser di riusare una copia in cache di sw.js: viene sempre
+      //    scaricato fresco dal server, e a cascata reinstalla in modalità
+      //    'reload' (vedi sw.js) tutti i file dell'app (html, css, js,
+      //    manifest) prendendo l'ultima versione pubblicata su Vercel.
+      if ('serviceWorker' in navigator) {
+        await navigator.serviceWorker.register('/sw.js?v=' + Date.now(), {
+          scope: '/',
+          updateViaCache: 'none'
+        });
+        await navigator.serviceWorker.ready;
+      }
+
+      // 4. Ricarica forzata dal server (bypass cache browser sulla pagina)
+      Utils.toast('Aggiornamento completato! Ricarico…', 'success', 2000);
       setTimeout(() => {
-        window.location.href = window.location.href.split('?')[0] +
+        window.location.href = window.location.pathname +
           '?nocache=' + Date.now();
-      }, 1500);
+      }, 1200);
 
     } catch(e) {
       Utils.toast('Errore aggiornamento: ' + e.message, 'error');

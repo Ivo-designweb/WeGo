@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v1.7
+// WeGo — sw.js v1.9
 // Service Worker — cache offline + background sync
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v1.7';
+const CACHE_NAME = 'wego-v1.9';
 
 const STATIC_ASSETS = [
   '/',
@@ -31,16 +31,33 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v1.7');
+  console.log('[SW] Install v1.9');
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
+      // così ogni nuova installazione del SW scarica i file davvero più
+      // recenti presenti su Vercel, invece di rischiare di prendere una
+      // copia stantia dalla cache disco del dispositivo.
+      await Promise.all(STATIC_ASSETS.map(async (url) => {
+        try {
+          const response = await fetch(url, { cache: 'reload' });
+          if (response && response.ok) {
+            await cache.put(url, response);
+          } else {
+            console.warn('[SW] Asset non disponibile:', url, response && response.status);
+          }
+        } catch (e) {
+          console.warn('[SW] Impossibile precaricare:', url, e);
+        }
+      }));
+    })
   );
   self.skipWaiting();
 });
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v1.7');
+  console.log('[SW] Activate v1.9');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
