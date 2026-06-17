@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v1.6</title>
+  <title>Evento — WeGo v1.8</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/css/style.css" />
   <style>
@@ -289,7 +289,7 @@
   <!-- TAB BAR -->
   <div class="tab-bar">
     <button class="tab-btn active" id="tabSpese" onclick="EventoApp.switchTab('spese')">
-      Spese <span id="tabSpeseCount" style="opacity:0.6;"></span>
+      Movimenti <span id="tabSpeseCount" style="opacity:0.6;"></span>
     </button>
     <button class="tab-btn" id="tabPartecipanti" onclick="EventoApp.switchTab('partecipanti')">
       Partecipanti <span id="tabPartCount" style="opacity:0.6;"></span>
@@ -410,19 +410,11 @@
   </div>
 </div>
 
-<!-- MODAL: DETTAGLIO SPESA -->
-<div class="modal-backdrop" id="modalExpenseDetail" onclick="EventoApp.closeModal('modalExpenseDetail')">
-  <div class="bottom-sheet" onclick="event.stopPropagation()">
-    <div class="bottom-sheet__handle"></div>
-    <div id="expenseDetailContent"></div>
-  </div>
-</div>
-
-<!-- MODAL: REGISTRA PAGAMENTO -->
+<!-- MODAL: REGISTRA / MODIFICA PAGAMENTO -->
 <div class="modal-backdrop" id="modalSettlePayment" onclick="EventoApp.closeModal('modalSettlePayment')">
   <div class="bottom-sheet" onclick="event.stopPropagation()">
     <div class="bottom-sheet__handle"></div>
-    <h2 class="bottom-sheet__title">Registra pagamento</h2>
+    <h2 class="bottom-sheet__title" id="settleTitle">Registra pagamento</h2>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="form-group" style="margin-bottom:0;">
         <label class="form-label">Da</label>
@@ -447,8 +439,15 @@
         <input type="text" class="form-input" id="settleNote" placeholder="Opzionale" />
       </div>
     </div>
-    <button class="btn btn--success btn--full btn--xl" onclick="EventoApp.confirmSettlePayment()" style="margin-top:14px;">
+    <button class="btn btn--success btn--full btn--xl" id="settleConfirmBtn" onclick="EventoApp.confirmSettlePayment()" style="margin-top:14px;">
       Conferma pagamento
+    </button>
+    <button class="btn btn--danger btn--full" id="settleDeleteBtn" onclick="EventoApp.deletePayment()" style="margin-top:8px;display:none;">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+      </svg>
+      Elimina pagamento
     </button>
   </div>
 </div>
