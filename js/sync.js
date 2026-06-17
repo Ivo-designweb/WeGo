@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v1.1
+// WeGo — sync.js v1.2
 // Gestione sincronizzazione bidirezionale con Supabase
 // ═══════════════════════════════════════════════════════════════
 
@@ -63,11 +63,22 @@ const Sync = {
   async _executePending(op) {
     const { type, payload } = op;
     switch (type) {
-      case 'create_event':
+      case 'create_event': {
         await SupabaseClient.events.create(payload.event);
-        await SupabaseClient.users.create(payload.user);
+        // Crea tutti gli utenti iniziali (creatore + eventuali invitati),
+        // uno alla volta e in ordine, SOLO dopo che l'evento esiste già su
+        // Supabase (altrimenti la foreign key event_id fallirebbe).
+        // payload.users è il formato attuale; payload.user è il fallback
+        // per compatibilità con operazioni pending salvate da versioni precedenti.
+        const initialUsers = Array.isArray(payload.users) && payload.users.length
+          ? payload.users
+          : [payload.user];
+        for (const u of initialUsers) {
+          await SupabaseClient.users.create(u);
+        }
         await DB.events.markSynced(payload.event.id);
         break;
+      }
       case 'update_event':
         await SupabaseClient.events.update(payload.event);
         break;

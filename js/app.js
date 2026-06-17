@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v1.7
+// WeGo — app.js v1.8
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -379,12 +379,23 @@ const App = {
       const creator = await DB.users.save({ event_id: event.id, name: nickname });
       DB.sessions.set(event.id, creator.id, creator.name);
 
-      // Crea gli utenti aggiuntivi (invitati)
+      // Crea gli utenti aggiuntivi (invitati). Vengono raccolti insieme al
+      // creatore nello stesso pending op 'create_event' (vedi sotto) invece
+      // che in pending separati: così la sincronizzazione li crea tutti in
+      // ordine garantito, dopo che l'evento esiste su Supabase. Prima questi
+      // utenti restavano solo nel database locale del creatore e non
+      // venivano mai inviati a Supabase: un altro device che si univa con
+      // il codice vedeva quindi solo il creatore.
+      const inviteeUsers = [];
       for (const invName of App._invitees) {
-        await DB.users.save({ event_id: event.id, name: invName });
+        const invitee = await DB.users.save({ event_id: event.id, name: invName });
+        inviteeUsers.push(invitee);
       }
 
-      await DB.pending.add({ type: 'create_event', payload: { event, user: creator } });
+      await DB.pending.add({
+        type: 'create_event',
+        payload: { event, user: creator, users: [creator, ...inviteeUsers] }
+      });
 
       if (Utils.isOnline()) Sync.push().catch(() => {});
 
