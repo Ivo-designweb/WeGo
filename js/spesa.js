@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v1.1
+// WeGo — spesa.js v1.2
 // Logica pagina inserimento / modifica spesa
 // ═══════════════════════════════════════════════════════════════
 
@@ -73,6 +73,8 @@ const SpesaApp = {
     // Modalità modifica
     if (SpesaApp._expenseId) {
       await SpesaApp._loadExistingExpense();
+      const delBtn = document.getElementById('deleteBtn');
+      if (delBtn) delBtn.style.display = '';
     }
 
     // Focus titolo
@@ -431,9 +433,14 @@ const SpesaApp = {
         await DB.photos.delete(SpesaApp._expenseId);
       }
 
-      // Sync in background se online
+      // Sincronizzazione automatica (push + pull) se online
       if (Utils.isOnline()) {
-        Sync.push().catch(() => {});
+        try {
+          await Sync.push();
+          await Sync.pullEvent(SpesaApp._eventId);
+        } catch (e) {
+          console.warn('[SpesaApp] sync dopo salvataggio:', e.message);
+        }
       }
 
       Utils.toast(
@@ -450,6 +457,37 @@ const SpesaApp = {
       Utils.toast('Errore nel salvataggio', 'error');
     } finally {
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salva'; }
+    }
+  },
+
+  // ─── ELIMINA MOVIMENTO ────────────────────────────────────
+  async deleteExpense() {
+    if (!SpesaApp._expenseId) return;
+    if (!confirm('Eliminare questo movimento?')) return;
+
+    const delBtn = document.getElementById('deleteBtn');
+    if (delBtn) { delBtn.disabled = true; }
+
+    try {
+      await DB.expenses.delete(SpesaApp._expenseId);   // soft-delete (synced=false)
+      await DB.photos.delete(SpesaApp._expenseId);
+
+      // Sincronizzazione automatica
+      if (Utils.isOnline()) {
+        try {
+          await Sync.push();
+          await Sync.pullEvent(SpesaApp._eventId);
+        } catch (e) {
+          console.warn('[SpesaApp] sync dopo eliminazione:', e.message);
+        }
+      }
+
+      Utils.toast('Movimento eliminato', 'success', 2000);
+      setTimeout(() => SpesaApp.goBack(), 400);
+    } catch (e) {
+      console.error('[SpesaApp] delete error:', e);
+      Utils.toast('Errore nell\'eliminazione', 'error');
+      if (delBtn) { delBtn.disabled = false; }
     }
   },
 

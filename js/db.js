@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — db.js v1.0
+// WeGo — db.js v1.1
 // Gestione dati locali con IndexedDB (offline-first)
 // ═══════════════════════════════════════════════════════════════
 
@@ -257,7 +257,12 @@ const DB = (() => {
   // ─── PAYMENTS (saldi saldati) ──────────────────────────────
   const payments = {
     async getByEvent(eventId) {
-      return getAll('payments', 'event_id', IDBKeyRange.only(eventId));
+      const all = await getAll('payments', 'event_id', IDBKeyRange.only(eventId));
+      return all.filter(p => !p.deleted);
+    },
+
+    async getById(id) {
+      return getOne('payments', id);
     },
 
     async save(payment) {
@@ -270,12 +275,24 @@ const DB = (() => {
         method:     payment.method || 'contanti',
         note:       payment.note || '',
         date:       payment.date || Utils.today(),
+        deleted:    payment.deleted || false,
         created_at: payment.created_at || Utils.now(),
         updated_at: Utils.now(),
         synced:     payment.synced || false
       };
       await put('payments', item);
       return item;
+    },
+
+    async delete(id) {
+      // Soft delete per mantenere coerenza offline
+      const pay = await getOne('payments', id);
+      if (pay) {
+        pay.deleted = true;
+        pay.synced  = false;
+        pay.updated_at = Utils.now();
+        await put('payments', pay);
+      }
     },
 
     async getUnsyced() {

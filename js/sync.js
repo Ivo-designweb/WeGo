@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v1.0
+// WeGo — sync.js v1.1
 // Gestione sincronizzazione bidirezionale con Supabase
 // ═══════════════════════════════════════════════════════════════
 
@@ -46,7 +46,7 @@ const Sync = {
       const unsyncedPay = await DB.payments.getUnsyced();
       for (const pay of unsyncedPay) {
         try {
-          await SupabaseClient.payments.create(pay);
+          await Sync._syncPayment(pay);
           pay.synced = true;
           await DB.payments.save(pay);
         } catch (e) {
@@ -90,6 +90,20 @@ const Sync = {
       await SupabaseClient.expenses.update(exp);
     } else {
       await SupabaseClient.expenses.create(exp);
+    }
+  },
+
+  async _syncPayment(pay) {
+    // Controlla se esiste su Supabase
+    const remote = await SupabaseClient.payments.getByEvent(pay.event_id);
+    const exists = Array.isArray(remote) && remote.some(r => r.id === pay.id);
+
+    if (pay.deleted) {
+      if (exists) await SupabaseClient.payments.delete(pay.id);
+    } else if (exists) {
+      await SupabaseClient.payments.update(pay);
+    } else {
+      await SupabaseClient.payments.create(pay);
     }
   },
 
@@ -166,7 +180,10 @@ const Sync = {
     const remotePay = await SupabaseClient.payments.getByEvent(eventId);
     if (Array.isArray(remotePay)) {
       for (const rp of remotePay) {
-        await DB.payments.save({ ...rp, synced: true });
+        const lp = await DB.payments.getById(rp.id);
+        if (!lp || new Date(rp.updated_at) > new Date(lp.updated_at)) {
+          await DB.payments.save({ ...(lp || {}), ...rp, synced: true });
+        }
       }
     }
   },

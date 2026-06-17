@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.0
+// WeGo — supabase.js v1.1
 // Client Supabase — lettura config da localStorage
 // ═══════════════════════════════════════════════════════════════
 
@@ -218,8 +218,29 @@ const SupabaseClient = (() => {
         method:     payment.method || 'contanti',
         note:       payment.note || '',
         date:       payment.date,
+        deleted:    payment.deleted || false,
         created_at: payment.created_at,
         updated_at: payment.updated_at
+      });
+    },
+
+    async update(payment) {
+      return request('PATCH', `sp_payments?id=eq.${payment.id}`, {
+        from_user:  payment.from_user,
+        to_user:    payment.to_user,
+        amount:     payment.amount,
+        method:     payment.method || 'contanti',
+        note:       payment.note || '',
+        date:       payment.date,
+        deleted:    payment.deleted || false,
+        updated_at: Utils.now()
+      });
+    },
+
+    async delete(id) {
+      return request('PATCH', `sp_payments?id=eq.${id}`, {
+        deleted:    true,
+        updated_at: Utils.now()
       });
     },
 
@@ -308,10 +329,14 @@ CREATE TABLE IF NOT EXISTS sp_payments (
   method      VARCHAR(30) DEFAULT 'contanti',
   note        TEXT DEFAULT '',
   date        DATE NOT NULL,
+  deleted     BOOLEAN DEFAULT FALSE,
   created_at  TIMESTAMPTZ DEFAULT NOW(),
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_sp_payments_event ON sp_payments(event_id);
+
+-- Per installazioni precedenti: aggiunge la colonna deleted se mancante
+ALTER TABLE sp_payments ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE;
 
 -- ROW LEVEL SECURITY (opzionale, abilita se vuoi sicurezza extra)
 -- ALTER TABLE sp_events   ENABLE ROW LEVEL SECURITY;
