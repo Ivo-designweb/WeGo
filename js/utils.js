@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — utils.js v1.1
+// WeGo — utils.js v1.2
 // Funzioni di utilità condivise da tutti i moduli
 // ═══════════════════════════════════════════════════════════════
 
@@ -137,6 +137,32 @@ const Utils = {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
+  },
+
+  /**
+   * Etichetta leggibile per un'intestazione di gruppo data
+   * (usata per raggruppare i movimenti per giorno in evento.html).
+   * Accetta sia date ISO 'YYYY-MM-DD' sia, come fallback, una stringa
+   * già formattata (in tal caso viene restituita invariata).
+   * Restituisce "Oggi", "Ieri" oppure la data estesa in italiano.
+   */
+  formatDateLabel(dateStr) {
+    if (!dateStr) return '—';
+
+    const isIso = /^\d{4}-\d{2}-\d{2}$/.test(dateStr);
+    const d = isIso ? new Date(dateStr + 'T00:00:00') : new Date(dateStr);
+
+    if (isNaN(d)) return dateStr; // già una stringa formattata: la mostriamo così com'è
+
+    const startOfDay = (date) => { const x = new Date(date); x.setHours(0, 0, 0, 0); return x; };
+    const today  = startOfDay(new Date());
+    const target = startOfDay(d);
+    const diffDays = Math.round((today - target) / 86400000);
+
+    if (diffDays === 0) return 'Oggi';
+    if (diffDays === 1) return 'Ieri';
+
+    return d.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
   },
 
   /**
