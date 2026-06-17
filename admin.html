@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
-  <title>Admin — WeGo v1.4</title>
+  <title>Admin — WeGo v1.5</title>
   <link rel="stylesheet" href="/css/style.css" />
   <style>
     .admin-section { margin-bottom: 22px; }
@@ -108,6 +108,10 @@
       <div class="section-header"><span class="section-title">Stato sistema</span></div>
       <div class="admin-group">
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:13px;color:var(--text-secondary);">chiavi.json (server)</span>
+          <span class="status-dot" id="statusRemoteConfig"><span class="status-dot__circle"></span><span id="statusRemoteConfigText">Verifica...</span></span>
+        </div>
+        <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:13px;color:var(--text-secondary);">Supabase</span>
           <span class="status-dot" id="statusSupabase"><span class="status-dot__circle"></span><span id="statusSupabaseText">Non configurato</span></span>
         </div>
@@ -130,33 +134,46 @@
       </div>
     </div>
 
-    <!-- BACKUP CONFIG -->
+    <!-- CONFIGURAZIONE CENTRALIZZATA — chiavi.json -->
     <div class="admin-section">
-      <div class="section-header"><span class="section-title">Backup configurazione</span></div>
+      <div class="section-header"><span class="section-title">Configurazione centralizzata — chiavi.json</span></div>
       <div class="admin-group">
         <div class="admin-row">
           <p class="config-note">
-            Le credenziali sono salvate nel <b>localStorage</b> del browser corrente e non sono disponibili su altri PC o browser.
-            Esporta un file <code style="font-size:10px;background:var(--bg-input);padding:1px 4px;border-radius:3px;">wego-config.json</code>
-            da importare su ogni nuovo dispositivo. Conservalo in modo sicuro — contiene le chiavi API.
+            Le credenziali Supabase e Firebase compilate qui sotto possono essere esportate in un unico file
+            <code style="font-size:10px;background:var(--bg-input);padding:1px 4px;border-radius:3px;">chiavi.json</code>.
+            Caricalo manualmente nella <b>root del repository GitHub</b> collegato a Vercel (sostituendo quello esistente):
+            ad ogni avvio, <b>tutti i device</b> che aprono l'app lo scaricano automaticamente e si configurano da soli,
+            senza bisogno di impostare nulla a mano su ciascun dispositivo.
+          </p>
+          <p class="config-note" style="margin-top:6px;">
+            Il pulsante <b>Salva</b> nelle sezioni qui sotto scrive invece una configurazione <b>solo su questo browser</b>,
+            usata come emergenza nel caso in cui questo device non riesca a raggiungere <code style="font-size:10px;background:var(--bg-input);padding:1px 4px;border-radius:3px;">chiavi.json</code> sul server.
           </p>
         </div>
         <div class="admin-row" style="display:flex;gap:8px;">
-          <button class="btn btn--primary" style="flex:1;" onclick="AdminApp.exportConfig()">
+          <button class="btn btn--primary" style="flex:1;" onclick="AdminApp.downloadChiaviJson()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
               <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Esporta config
+            Scarica chiavi.json
           </button>
-          <button class="btn btn--ghost" style="flex:1;" onclick="AdminApp.importConfig()">
+          <button class="btn btn--ghost" style="flex:1;" onclick="AdminApp.reloadRemoteConfig()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              <path d="M4 12v-1a8 8 0 0114.93-4M20 12v1a8 8 0 01-14.93 4"/>
+              <polyline points="20 4 20 8 16 8"/><polyline points="4 20 4 16 8 16"/>
             </svg>
-            Importa config
+            Ricarica da server
           </button>
-          <input type="file" id="configFileInput" accept=".json" style="display:none;" onchange="AdminApp._onConfigFileSelected(this)" />
+        </div>
+        <div class="admin-row">
+          <p class="config-note" style="margin-bottom:6px;">Configurazione locale di emergenza (solo questo browser) — backup/ripristino:</p>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn--ghost btn--sm" style="flex:1;" onclick="AdminApp.exportLocalConfig()">Esporta locale</button>
+            <button class="btn btn--ghost btn--sm" style="flex:1;" onclick="AdminApp.importConfig()">Importa locale</button>
+            <input type="file" id="configFileInput" accept=".json" style="display:none;" onchange="AdminApp._onConfigFileSelected(this)" />
+          </div>
         </div>
         <div class="test-result" id="configImportResult"></div>
       </div>
@@ -223,6 +240,9 @@
             <label class="form-label">Anon Public Key *</label>
             <input type="text" class="form-input" id="supabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." autocomplete="off" style="font-family:monospace;font-size:11px;" />
           </div>
+        </div>
+        <div class="admin-row">
+          <p class="config-note" style="margin-bottom:0;">"Salva" qui imposta solo una configurazione locale di emergenza per questo browser — per configurare tutti i device usa <b>chiavi.json</b> qui sopra.</p>
         </div>
         <div class="admin-row" style="display:flex;gap:8px;">
           <button class="btn btn--primary" style="flex:1;" onclick="AdminApp.saveSupabase()">Salva</button>
@@ -308,7 +328,7 @@
     <div class="admin-about">
       <div class="admin-about__logo">WG</div>
       <div class="admin-about__title">WeGo</div>
-      <div class="admin-about__ver">Versione 1.4 — Pannello Amministratore</div>
+      <div class="admin-about__ver">Versione 1.5 — Pannello Amministratore</div>
       <div class="admin-about__sep"></div>
       <div class="admin-about__dev">Sviluppato da</div>
       <div class="admin-about__name">Ivo Taffarel</div>
@@ -328,9 +348,30 @@
 const AdminApp = {
   async init() {
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
+    // Carica chiavi.json dal server (sovrascrive sempre supabase/fcm locali se presente)
+    await AdminApp.reloadRemoteConfig(true);
     AdminApp._loadSavedCredentials();
     AdminApp._checkStatus();
     AdminApp._renderSQL();
+  },
+
+  // ── CONFIGURAZIONE CENTRALIZZATA (chiavi.json) ─────────
+  async reloadRemoteConfig(silent = false) {
+    const ok = await Utils.loadRemoteConfig();
+    const info = Utils._remoteConfigInfo;
+    if (info.status === 'loaded') {
+      AdminApp._setStatus('statusRemoteConfig', 'ok', 'Trovato' + (info.exportedAt ? ' (' + info.exportedAt.slice(0,10) + ')' : ''));
+    } else if (info.status === 'missing') {
+      AdminApp._setStatus('statusRemoteConfig', 'warn', 'Non ancora caricato su GitHub');
+    } else {
+      AdminApp._setStatus('statusRemoteConfig', 'error', 'Errore di lettura');
+    }
+    AdminApp._loadSavedCredentials();
+    AdminApp._checkStatus();
+    if (!silent) {
+      Utils.toast(ok ? 'chiavi.json ricaricato dal server' : 'chiavi.json non disponibile sul server', ok ? 'success' : 'error');
+    }
+    return ok;
   },
 
   _loadSavedCredentials() {
@@ -523,17 +564,33 @@ const AdminApp = {
     AdminApp._checkStatus();
   },
 
-  // ── EXPORT / IMPORT CONFIG ─────────────────────────────
-  exportConfig() {
+  // ── chiavi.json — file da caricare su GitHub (tutti i device) ──
+  downloadChiaviJson() {
     const cfg = Utils.getAllConfig();
-    const keys = ['supabase_url','supabase_anon_key','fcm_api_key','fcm_project_id','fcm_sender_id','fcm_app_id','fcm_vapid_key','theme','currency'];
-    const out = { _wego_config_version: '1.4', _exported_at: new Date().toISOString(), _note: 'WeGo config — conserva in modo sicuro' };
+    const out = { _wego_config_version: '2.0', _exported_at: new Date().toISOString(), _note: 'WeGo — configurazione centralizzata, caricare nella root del repo GitHub' };
+    Utils.REMOTE_CONFIG_KEYS.forEach(k => { out[k] = cfg[k] || ''; });
+    if (!out.supabase_url || !out.supabase_anon_key) {
+      Utils.toast('Compila e salva almeno Supabase prima di esportare', 'error');
+      return;
+    }
+    const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'chiavi.json'; a.click();
+    URL.revokeObjectURL(url);
+    Utils.toast('chiavi.json scaricato — caricalo ora nella root del repo GitHub', 'success', 4000);
+  },
+
+  // ── backup/ripristino locale (solo questo browser, per emergenza) ──
+  exportLocalConfig() {
+    const cfg = Utils.getAllConfig();
+    const keys = [...Utils.REMOTE_CONFIG_KEYS, 'theme', 'currency'];
+    const out = { _wego_config_version: '2.0', _exported_at: new Date().toISOString(), _note: 'WeGo config locale — conserva in modo sicuro' };
     keys.forEach(k => { if (cfg[k]) out[k] = cfg[k]; });
     const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'wego-config-' + new Date().toISOString().slice(0,10) + '.json'; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = 'wego-config-locale-' + new Date().toISOString().slice(0,10) + '.json'; a.click();
     URL.revokeObjectURL(url);
-    Utils.toast('Configurazione esportata', 'success');
+    Utils.toast('Configurazione locale esportata', 'success');
   },
 
   importConfig() { document.getElementById('configFileInput').click(); },
@@ -547,14 +604,14 @@ const AdminApp = {
       try {
         const data = JSON.parse(e.target.result);
         if (!data._wego_config_version) throw new Error('File non valido — non e\' una configurazione WeGo');
-        const keys = ['supabase_url','supabase_anon_key','fcm_api_key','fcm_project_id','fcm_sender_id','fcm_app_id','fcm_vapid_key','theme','currency'];
+        const keys = [...Utils.REMOTE_CONFIG_KEYS, 'theme', 'currency'];
         let count = 0;
         keys.forEach(k => { if (data[k]) { Utils.setConfig(k, data[k]); count++; } });
         AdminApp._loadSavedCredentials();
         AdminApp._checkStatus();
         el.className = 'test-result ok';
-        el.textContent = 'Importate ' + count + ' impostazioni da "' + file.name + '" (esportato il ' + (data._exported_at || '?').slice(0,10) + ')';
-        Utils.toast('Configurazione importata!', 'success');
+        el.textContent = 'Importate ' + count + ' impostazioni locali da "' + file.name + '" (esportato il ' + (data._exported_at || '?').slice(0,10) + ')';
+        Utils.toast('Configurazione locale importata!', 'success');
       } catch(e) { el.className = 'test-result error'; el.textContent = 'Errore importazione: ' + e.message; }
       input.value = '';
     };
@@ -673,6 +730,7 @@ const AdminApp = {
     const config = {
       headers: [
         { source: '/sw.js', headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }, { key: 'Service-Worker-Allowed', value: '/' }] },
+        { source: '/chiavi.json', headers: [{ key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' }] },
         { source: '/(.*)', headers: [{ key: 'X-Content-Type-Options', value: 'nosniff' }, { key: 'X-Frame-Options', value: 'DENY' }, { key: 'X-XSS-Protection', value: '1; mode=block' }, { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' }, { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(self), notifications=(self)' }] }
       ],
       rewrites: [

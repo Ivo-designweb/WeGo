@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v1.6
+// WeGo — sw.js v1.7
 // Service Worker — cache offline + background sync
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v1.6';
+const CACHE_NAME = 'wego-v1.7';
 
 const STATIC_ASSETS = [
   '/',
@@ -31,7 +31,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v1.6');
+  console.log('[SW] Install v1.7');
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
@@ -40,7 +40,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v1.6');
+  console.log('[SW] Activate v1.7');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
@@ -65,6 +65,22 @@ self.addEventListener('fetch', (event) => {
 
   // Nominatim geocoding → solo rete
   if (url.hostname.includes('nominatim.openstreetmap.org')) {
+    return;
+  }
+
+  // chiavi.json (configurazione centralizzata) → network-first.
+  // Tenta sempre la rete per primo, così un aggiornamento del file si propaga
+  // subito; se offline, ripiega sull'ultima copia salvata in cache.
+  if (url.pathname === '/chiavi.json') {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
     return;
   }
 

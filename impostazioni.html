@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v1.3</title>
+  <title>Impostazioni — WeGo v1.4</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/css/style.css" />
@@ -101,6 +101,9 @@
     }
     .about-mail:hover { text-decoration: underline; }
     .about-mail svg  { width: 13px; height: 13px; }
+    .dev-contact { text-align: center; padding: 12px 0 4px; font-size: 11px; color: var(--text-muted); }
+    .dev-contact a { color: var(--accent); text-decoration: none; font-weight: 500; }
+    .dev-contact a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
@@ -341,6 +344,18 @@
           </div>
         </div>
 
+        <div class="settings-row settings-row--static">
+          <div class="settings-row__icon" style="background:#0EA5E9;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Configurazione connessione</div>
+            <div class="settings-row__value" id="remoteConfigLabel">Verifica…</div>
+          </div>
+        </div>
+
         <div class="settings-row" onclick="SettingsApp.forceUpdate()">
           <div class="settings-row__icon" style="background:#6366F1;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -367,7 +382,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 1.3</div>
+        <div class="about-ver">Versione 1.4</div>
 
         <div class="about-div"></div>
 
@@ -382,6 +397,8 @@
         </a>
       </div>
     </div>
+
+    <div class="dev-contact">Contatta lo sviluppatore: <a href="mailto:ivotaffarel@gmail.com">ivotaffarel@gmail.com</a></div>
 
   </main>
 
@@ -446,16 +463,40 @@
 
 <script src="/js/utils.js"></script>
 <script src="/js/db.js"></script>
+<script src="/js/supabase.js"></script>
 <script src="/js/payments.js"></script>
 <script src="/js/notifications.js"></script>
 <script>
 const SettingsApp = {
 
   async init() {
+    // Carica chiavi.json dal server (sovrascrive sempre supabase/fcm locali se presente)
+    await Utils.loadRemoteConfig();
+
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
     await DB.open();
     SettingsApp._renderAll();
     SettingsApp._renderSWVersion();
+    SettingsApp._renderRemoteConfig();
+  },
+
+  // ─── STATO CONFIGURAZIONE CONNESSIONE (chiavi.json) ────────
+  _renderRemoteConfig() {
+    const el = document.getElementById('remoteConfigLabel');
+    if (!el) return;
+    const info = Utils._remoteConfigInfo || {};
+    const sbOk = SupabaseClient.isConfigured();
+    if (info.status === 'loaded' && sbOk) {
+      el.textContent = 'Caricata da chiavi.json del server' + (info.exportedAt ? ' (' + info.exportedAt.slice(0,10) + ')' : '');
+    } else if (info.status === 'loaded' && !sbOk) {
+      el.textContent = 'chiavi.json trovato ma incompleto — contatta l\'admin';
+    } else if (info.status === 'missing') {
+      el.textContent = sbOk ? 'chiavi.json non trovato — uso configurazione locale di emergenza' : 'chiavi.json non trovato e nessuna configurazione locale';
+    } else if (info.status === 'error') {
+      el.textContent = sbOk ? 'Errore lettura chiavi.json — uso configurazione locale di emergenza' : 'Errore lettura chiavi.json e nessuna configurazione locale';
+    } else {
+      el.textContent = sbOk ? 'Configurata' : 'Non configurata';
+    }
   },
 
   // ─── VERSIONE SW ────────────────────────────────────────
