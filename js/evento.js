@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v1.6
+// WeGo — evento.js v1.7
 // Logica pagina dettaglio evento
 // ═══════════════════════════════════════════════════════════════
 
@@ -26,6 +26,9 @@ const EventoApp = {
       setTimeout(() => { window.location.href = '/index.html'; }, 1500);
       return;
     }
+
+    // Carica chiavi.json dal server (sovrascrive sempre supabase/fcm locali se presente)
+    await Utils.loadRemoteConfig();
 
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
 

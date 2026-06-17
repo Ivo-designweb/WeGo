@@ -1,9 +1,59 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — utils.js v1.0
+// WeGo — utils.js v1.1
 // Funzioni di utilità condivise da tutti i moduli
 // ═══════════════════════════════════════════════════════════════
 
 const Utils = {
+
+  // ─── CONFIGURAZIONE CENTRALIZZATA (chiavi.json) ────────────
+  /**
+   * Chiavi di connessione gestite centralmente tramite chiavi.json
+   * (caricato dal server, generato da admin.html). Non includono
+   * preferenze locali del device come tema o valuta.
+   */
+  REMOTE_CONFIG_KEYS: [
+    'supabase_url', 'supabase_anon_key',
+    'fcm_api_key', 'fcm_project_id', 'fcm_sender_id', 'fcm_app_id', 'fcm_vapid_key'
+  ],
+
+  /**
+   * Stato dell'ultimo caricamento di chiavi.json.
+   * status: 'loading' | 'loaded' | 'missing' | 'error'
+   */
+  _remoteConfigInfo: { status: 'loading', exportedAt: null },
+
+  /**
+   * Carica chiavi.json dal server e, se valido, sovrascrive SEMPRE
+   * le chiavi di connessione locali (supabase_url, supabase_anon_key, fcm_*).
+   * Se il file non è raggiungibile o non è valido, non modifica nulla:
+   * resta attiva l'eventuale configurazione locale salvata da admin.html
+   * come configurazione di emergenza per questo solo device.
+   * Va chiamata (e attesa) all'inizio di ogni pagina, prima di usare SupabaseClient.
+   */
+  async loadRemoteConfig() {
+    Utils._remoteConfigInfo = { status: 'loading', exportedAt: null };
+    try {
+      const res = await fetch('/chiavi.json', { cache: 'no-store' });
+      if (!res.ok) {
+        Utils._remoteConfigInfo = { status: 'missing', exportedAt: null };
+        console.warn('[Config] chiavi.json non trovato sul server (HTTP ' + res.status + ') — uso eventuale configurazione locale del device.');
+        return false;
+      }
+      const data = await res.json();
+      if (!data || !data._wego_config_version) {
+        throw new Error('chiavi.json non valido (manca _wego_config_version)');
+      }
+      Utils.REMOTE_CONFIG_KEYS.forEach(k => {
+        if (data[k]) Utils.setConfig(k, data[k]);
+      });
+      Utils._remoteConfigInfo = { status: 'loaded', exportedAt: data._exported_at || null };
+      return true;
+    } catch (e) {
+      Utils._remoteConfigInfo = { status: 'error', exportedAt: null };
+      console.warn('[Config] Errore caricamento chiavi.json:', e.message, '— uso eventuale configurazione locale del device.');
+      return false;
+    }
+  },
 
   // ─── ID GENERATION ──────────────────────────────────────────
   /**

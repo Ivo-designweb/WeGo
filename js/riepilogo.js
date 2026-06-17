@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — riepilogo.js v1.3
+// WeGo — riepilogo.js v1.4
 // Logica pagina riepilogo saldi multi-evento
 // ═══════════════════════════════════════════════════════════════
 
@@ -18,6 +18,9 @@ const RiepilogoApp = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
+    // Carica chiavi.json dal server (sovrascrive sempre supabase/fcm locali se presente)
+    await Utils.loadRemoteConfig();
+
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
     await DB.open();

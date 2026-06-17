@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v1.6
+// WeGo — app.js v1.7
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -12,7 +12,10 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v1.6 init');
+    console.log('[App] WeGo v1.7 init');
+
+    // Carica chiavi.json dal server (sovrascrive sempre supabase/fcm locali se presente)
+    await Utils.loadRemoteConfig();
 
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
     await App._registerSW();
