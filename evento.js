@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.1
+// WeGo — evento.js v2.2
 // Logica pagina dettaglio evento
 // ═══════════════════════════════════════════════════════════════
 
@@ -391,6 +391,15 @@ const EventoApp = {
             </div>
           </div>
           <div class="part-balance" style="color:${balColor};">${balText}</div>
+          <button onclick="EventoApp.deleteParticipant('${user.id}','${Utils.escapeHtml(user.name).replace(/'/g,"\\'")}');event.stopPropagation();"
+            style="margin-left:8px;background:none;border:none;color:var(--red);cursor:pointer;opacity:0.6;padding:4px;flex-shrink:0;"
+            title="Elimina partecipante">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/>
+              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+          </button>
         </div>`;
     }
 
@@ -489,19 +498,37 @@ const EventoApp = {
       }
     }
 
-    // Bottone registra pagamento
-    const saldiPanel = document.getElementById('panelSaldi');
-    if (saldiPanel && !saldiPanel.querySelector('.btn--settle')) {
-      const btn = document.createElement('button');
-      btn.className = 'btn btn--ghost btn--full btn--settle';
-      btn.style.marginTop = '16px';
-      btn.innerHTML = `
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
-        Registra pagamento`;
-      btn.onclick = () => EventoApp.showSettlePayment();
-      saldiPanel.appendChild(btn);
+    // Pagamenti registrati (movimenti tipo 'transfer' = Mov. cassa)
+    const transferPayments = EventoApp._expenses.filter(e => e.type === 'transfer');
+    const cassaSection = document.getElementById('cassaSection');
+    const cassaList    = document.getElementById('cassaList');
+
+    if (cassaSection && cassaList) {
+      if (transferPayments.length === 0) {
+        cassaSection.style.display = 'none';
+      } else {
+        cassaSection.style.display = '';
+        cassaList.innerHTML = transferPayments
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .map(t => {
+            const fromName = userNames[t.paid_by]  || '?';
+            const toName   = userNames[t.paid_for] || '?';
+            return `
+            <div class="settled-item" style="cursor:pointer;" onclick="EventoApp.editExpense('${t.id}')">
+              <div class="settled-info">
+                <div class="settled-text">
+                  <b>${Utils.escapeHtml(fromName)}</b>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin:0 2px;">
+                    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                  </svg>
+                  <b>${Utils.escapeHtml(toName)}</b>
+                </div>
+                <div class="settled-meta">${Utils.escapeHtml(t.title || 'Mov. cassa')} · ${Utils.formatDate(t.date)}</div>
+              </div>
+              <div class="settled-amount">${Utils.formatAmount(t.amount, currency)}</div>
+            </div>`;
+          }).join('');
+      }
     }
   },
 
@@ -512,7 +539,7 @@ const EventoApp = {
 
   // Apre direttamente la pagina di modifica con tutti i campi editabili
   editExpense(expenseId) {
-    window.location.href = `/spesa.html?event=${EventoApp._eventId}&id=${expenseId}`;
+    window.location.href = `/spesa.html?event=${EventoApp._eventId}&id=${expenseId}&mode=view`;
   },
 
   // ─── MODIFICA / ELIMINA PAGAMENTO ─────────────────────────
@@ -570,6 +597,27 @@ const EventoApp = {
   },
 
   // ─── AGGIUNGI PARTECIPANTE ────────────────────────────────
+  async deleteParticipant(userId, userName) {
+    const hasExpenses = EventoApp._expenses.some(
+      e => e.paid_by === userId || (e.participants || []).includes(userId)
+    );
+    const msg = hasExpenses
+      ? `Eliminare "${userName}"?\n\nAttenzione: questo partecipante ha spese associate. Eliminandolo le sue spese rimarranno nel sistema ma senza utente assegnato (da gestire manualmente).\n\nContinuare?`
+      : `Eliminare "${userName}" dall'evento?`;
+
+    if (!confirm(msg)) return;
+
+    try {
+      await DB.users.delete(userId);
+      await DB.pending.add({ type: 'delete_user', payload: { userId } });
+      if (Utils.isOnline()) Sync.push().catch(() => {});
+      Utils.toast(`${userName} eliminato`, 'success');
+      await EventoApp.loadAll();
+    } catch (err) {
+      Utils.toast('Errore eliminazione: ' + err.message, 'error');
+    }
+  },
+
   showAddUser() {
     EventoApp.closeEventMenu();
     document.getElementById('newUserName').value = '';

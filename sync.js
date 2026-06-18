@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v1.2
+// WeGo — sync.js v1.3
 // Gestione sincronizzazione bidirezionale con Supabase
 // ═══════════════════════════════════════════════════════════════
 
@@ -84,6 +84,12 @@ const Sync = {
         break;
       case 'create_user':
         await SupabaseClient.users.create(payload.user);
+        break;
+      case 'delete_user':
+        await SupabaseClient.users.delete(payload.userId);
+        break;
+      case 'delete_event':
+        await SupabaseClient.events.delete(payload.eventId);
         break;
       default:
         console.warn('[Sync] Unknown pending type:', type);

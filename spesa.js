@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v1.5
+// WeGo — spesa.js v1.6
 // Logica pagina inserimento / modifica spesa
 // ═══════════════════════════════════════════════════════════════
 
@@ -8,6 +8,7 @@ const SpesaApp = {
   // ─── STATO ────────────────────────────────────────────────
   _eventId:      null,
   _expenseId:    null,   // null = nuova spesa
+  _viewMode:     false,  // true = sola lettura (aperto da lista movimenti)
   _event:        null,
   _users:        [],
   _type:         'expense',   // 'expense' | 'transfer'
@@ -21,6 +22,7 @@ const SpesaApp = {
     const params = new URLSearchParams(window.location.search);
     SpesaApp._eventId   = params.get('event');
     SpesaApp._expenseId = params.get('id') || null;
+    SpesaApp._viewMode  = params.get('mode') === 'view' && !!SpesaApp._expenseId;
 
     if (!SpesaApp._eventId) {
       Utils.toast('Evento non specificato', 'error');
@@ -83,11 +85,16 @@ const SpesaApp = {
     const cur1 = document.getElementById('currencySymbol');
     if (cur2 && cur1) cur2.textContent = cur1.textContent;
 
-    // Modalità modifica
+    // Modalità modifica / sola lettura
     if (SpesaApp._expenseId) {
       await SpesaApp._loadExistingExpense();
       const delBtn = document.getElementById('deleteBtn');
       if (delBtn) delBtn.style.display = '';
+
+      if (SpesaApp._viewMode) {
+        SpesaApp._activateViewMode();
+        return; // non serve GPS né focus sul titolo
+      }
     }
 
     // Focus titolo
@@ -96,9 +103,60 @@ const SpesaApp = {
     // Listener importo nascosto per aggiornare preview quota (usato da altri path)
     document.getElementById('expenseAmount').addEventListener('input', SpesaApp._updateSharePreview);
 
-    // Punto 10: avvio GPS automatico se il permesso era già concesso
-    // (evita popup inaspettato: controlla prima lo stato del permesso)
+    // GPS automatico solo in modalità nuova spesa o modifica (non view)
     SpesaApp._tryAutoGps();
+  },
+
+  // ─── MODALITÀ SOLA LETTURA ────────────────────────────────
+  async _activateViewMode() {
+    // Disabilita tutti i campi e bottoni del form
+    document.querySelectorAll(
+      '.form-input,.form-select,.form-textarea,input,select,textarea,.type-btn,.chip,.btn--primary,#deleteBtn,.loc-bar,.photo-add-btn'
+    ).forEach(el => {
+      el.disabled = true;
+      el.style.pointerEvents = 'none';
+      el.style.opacity = '0.8';
+    });
+
+    // In view mode: nascondi Salva e il deleteBtn in fondo (già nella barra in alto)
+    const saveBtn   = document.getElementById('saveBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    if (saveBtn)   saveBtn.style.display   = 'none';
+    if (deleteBtn) deleteBtn.style.display = 'none';
+
+    // Mostra l'overlay con i bottoni Modifica / Elimina
+    const viewBar = document.getElementById('viewModeBar');
+    if (viewBar) {
+      // Determina chi può modificare/eliminare
+      const session   = DB.sessions.get(SpesaApp._eventId);
+      const currentId = session?.userId;
+      const expense   = await DB.expenses.getById(SpesaApp._expenseId);
+      const eventRec  = SpesaApp._event;
+      const creatorName = eventRec?.created_by || '';
+
+      // Proprietario della spesa OPPURE creatore dell'evento
+      const isExpenseOwner = expense?.created_by === currentId;
+      const currentName = session?.userName || '';
+      const isEventCreator = creatorName && currentName &&
+        creatorName.toLowerCase() === currentName.toLowerCase();
+      const canEdit = isExpenseOwner || isEventCreator;
+
+      const editBtn   = document.getElementById('viewEditBtn');
+      const deleteBtn = document.getElementById('viewDeleteBtn');
+      if (editBtn)   editBtn.disabled   = !canEdit;
+      if (deleteBtn) deleteBtn.disabled = !canEdit;
+      if (!canEdit) {
+        if (editBtn)   editBtn.style.opacity = '0.4';
+        if (deleteBtn) deleteBtn.style.opacity = '0.4';
+      }
+      viewBar.style.display = 'flex';
+    }
+  },
+
+  // Entra in modalità modifica dalla vista sola lettura
+  enterEditMode() {
+    window.location.href =
+      `/spesa.html?event=${SpesaApp._eventId}&id=${SpesaApp._expenseId}`;
   },
 
   // ─── VALUTA ───────────────────────────────────────────────
@@ -214,6 +272,12 @@ const SpesaApp = {
     btnTr.classList.toggle('active',           false);
     secExp.style.display  = type === 'expense'  ? '' : 'none';
     secTr.style.display   = type === 'transfer' ? '' : 'none';
+
+    // Nascondi GPS e foto per Mov. cassa: non pertinenti
+    const gpsCard   = document.getElementById('locationBar')?.closest('.form-card');
+    const photoCard = document.getElementById('photoPreviewWrap')?.closest('.form-card');
+    if (gpsCard)   gpsCard.style.display   = type === 'transfer' ? 'none' : '';
+    if (photoCard) photoCard.style.display = type === 'transfer' ? 'none' : '';
 
     if (pageTitle) {
       pageTitle.textContent = type === 'expense'

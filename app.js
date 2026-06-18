@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.1
+// WeGo — app.js v2.2
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -8,6 +8,8 @@ const App = {
   // ─── STATO ────────────────────────────────────────────────
   _events:       [],
   _pendingPhoto: null,
+  _pendingEditPhoto: null,   // foto nuova per modifica evento (null = invariata)
+  _editingEventId: null,
   _invitees:     [],   // lista nomi partecipanti aggiuntivi nel modal crea evento
 
   // ─── INIT ─────────────────────────────────────────────────
@@ -101,9 +103,28 @@ const App = {
       App._events = await DB.events.getAll();
       App._events.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
       await App._render();
+      // Chiudi menu tre punti se si clicca fuori
+      document.addEventListener('click', App.closeAllCardMenus, { once: false });
     } catch (e) {
       console.error('[App] loadEvents error:', e);
       Utils.toast('Errore nel caricamento degli eventi', 'error');
+    }
+  },
+
+  // Elimina evento dal menu tre punti della card
+  async confirmDeleteFromMenu(eventId, eventTitle, e) {
+    e.stopPropagation();
+    App.closeAllCardMenus();
+    if (!confirm(`Eliminare l'evento "${eventTitle}"?\n\nQuesta azione eliminerà TUTTI i dati (spese, partecipanti) dal server. Non è reversibile.`)) return;
+    try {
+      await DB.events.delete(eventId);
+      DB.sessions.remove(eventId);
+      await DB.pending.add({ type: 'delete_event', payload: { eventId } });
+      if (Utils.isOnline()) Sync.push().catch(() => {});
+      Utils.toast('Evento eliminato', 'success');
+      await App.loadEvents();
+    } catch (err) {
+      Utils.toast('Errore eliminazione: ' + err.message, 'error');
     }
   },
 
@@ -217,6 +238,7 @@ const App = {
       : '';
 
     return `
+    <div class="ev-card-wrap">
     <div class="ev-card ${isOwner ? 'ev-card--owned' : ''}" onclick="App.openEvent('${ev.id}')">
       <div class="ev-card__top">
         <div class="ev-card__thumb">${thumbHtml}</div>
@@ -258,6 +280,33 @@ const App = {
           </svg>
         </button>
       </div>
+    </div>
+
+    <!-- Menu tre punti -->
+    <button class="ev-card__menu-btn" onclick="App.toggleCardMenu('${ev.id}',event)" title="Opzioni evento">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+        <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+      </svg>
+    </button>
+    <div class="ev-ctx-menu" data-eid="${ev.id}">
+      <button class="ev-ctx-item" onclick="App.showEditEvent('${ev.id}',event)" ${!isOwner ? 'disabled' : ''}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        Modifica evento
+        ${!isOwner ? '<span style="font-size:9px;color:var(--text-muted);margin-left:auto;">(solo creatore)</span>' : ''}
+      </button>
+      <div class="ev-ctx-divider"></div>
+      <button class="ev-ctx-item danger" onclick="App.confirmDeleteFromMenu('${ev.id}','${Utils.escapeHtml(ev.title).replace(/'/g,"\\'")}',event)" ${!isOwner ? 'disabled' : ''}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+          <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+        </svg>
+        Elimina evento
+        ${!isOwner ? '<span style="font-size:9px;color:var(--text-muted);margin-left:auto;">(solo creatore)</span>' : ''}
+      </button>
+    </div>
     </div>`;
   },
 
@@ -305,6 +354,111 @@ const App = {
     } catch (err) {
       console.error('[App] leaveEvent error:', err);
       Utils.toast('Errore nello scollegamento', 'error');
+    }
+  },
+
+  // ─── MENU TRE PUNTI SU CARD EVENTO ────────────────────────
+  toggleCardMenu(eventId, e) {
+    e.stopPropagation();
+    // Chiudi tutti i menu aperti
+    document.querySelectorAll('.ev-ctx-menu.open').forEach(m => {
+      if (m.dataset.eid !== eventId) m.classList.remove('open');
+    });
+    const menu = document.querySelector(`.ev-ctx-menu[data-eid="${eventId}"]`);
+    if (menu) menu.classList.toggle('open');
+  },
+
+  closeAllCardMenus() {
+    document.querySelectorAll('.ev-ctx-menu.open').forEach(m => m.classList.remove('open'));
+  },
+
+  // ─── MODIFICA EVENTO ───────────────────────────────────────
+  async showEditEvent(eventId, e) {
+    e.stopPropagation();
+    App.closeAllCardMenus();
+    const ev = await DB.events.getById(eventId);
+    if (!ev) { Utils.toast('Evento non trovato', 'error'); return; }
+
+    App._editingEventId = eventId;
+    App._pendingEditPhoto = null;
+
+    document.getElementById('editEventTitle').value = ev.title || '';
+    document.getElementById('editEventDesc').value  = ev.description || '';
+
+    // Mostra foto attuale se presente
+    const photoName   = document.getElementById('editEventPhotoName');
+    const photoPreview = document.getElementById('editEventPhotoPreview');
+    const photoImg    = document.getElementById('editEventPhotoImg');
+    if (ev.photo) {
+      photoName.textContent = 'Foto attuale';
+      photoImg.src = ev.photo;
+      photoPreview.style.display = '';
+    } else {
+      photoName.textContent = 'Nessuna';
+      photoPreview.style.display = 'none';
+      photoImg.src = '';
+    }
+
+    App.openModal('modalEditEvent');
+  },
+
+  pickEditEventPhoto() {
+    document.getElementById('editEventPhotoInput').click();
+  },
+
+  async onEditEventPhotoChange(input) {
+    const file = input.files[0];
+    if (!file) return;
+    try {
+      const compressed = await Utils.compressImage(file, 1200);
+      App._pendingEditPhoto = compressed;
+      const img  = document.getElementById('editEventPhotoImg');
+      const name = document.getElementById('editEventPhotoName');
+      const prev = document.getElementById('editEventPhotoPreview');
+      img.src = compressed;
+      prev.style.display = '';
+      name.textContent = file.name;
+    } catch { Utils.toast('Errore caricamento foto', 'error'); }
+  },
+
+  clearEditEventPhoto() {
+    App._pendingEditPhoto = '';  // stringa vuota = rimuovi foto
+    document.getElementById('editEventPhotoImg').src = '';
+    document.getElementById('editEventPhotoPreview').style.display = 'none';
+    document.getElementById('editEventPhotoName').textContent = 'Nessuna';
+  },
+
+  async saveEditEvent() {
+    const title = document.getElementById('editEventTitle').value.trim();
+    const desc  = document.getElementById('editEventDesc').value.trim();
+    if (!Utils.required(title, 'Titolo evento')) return;
+
+    const btn = document.querySelector('#modalEditEvent .btn--primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Salvataggio…'; }
+
+    try {
+      const ev = await DB.events.getById(App._editingEventId);
+      if (!ev) throw new Error('Evento non trovato');
+
+      ev.title = title;
+      ev.description = desc;
+      if (App._pendingEditPhoto !== null) {
+        ev.photo = App._pendingEditPhoto || null;  // '' → null (rimozione)
+      }
+      ev.synced = false;
+      ev.updated_at = Utils.now();
+      await DB.events.save(ev);
+
+      await DB.pending.add({ type: 'update_event', payload: { event: ev } });
+      if (Utils.isOnline()) Sync.push().catch(() => {});
+
+      App.closeModal('modalEditEvent');
+      Utils.toast('Evento aggiornato', 'success');
+      await App.loadEvents();
+    } catch (err) {
+      Utils.toast('Errore salvataggio: ' + err.message, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Salva modifiche'; }
     }
   },
 

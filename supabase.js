@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.1
+// WeGo — supabase.js v1.2
 // Client Supabase — lettura config da localStorage
 // ═══════════════════════════════════════════════════════════════
 
@@ -87,8 +87,13 @@ const SupabaseClient = (() => {
       return request('PATCH', `sp_events?id=eq.${event.id}`, {
         title:       event.title,
         description: event.description,
+        photo:       event.photo || null,
         updated_at:  Utils.now()
       });
+    },
+
+    async delete(eventId) {
+      return request('DELETE', `sp_events?id=eq.${eventId}`);
     },
 
     async findByCode(code) {
@@ -136,6 +141,10 @@ const SupabaseClient = (() => {
         active:    user.active,
         updated_at: Utils.now()
       });
+    },
+
+    async delete(userId) {
+      return request('DELETE', `sp_users?id=eq.${userId}`);
     }
   };
 

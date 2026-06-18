@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v2.4</title>
+  <title>Evento — WeGo v2.5</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -353,6 +353,14 @@
       <div id="settledList"></div>
       <div id="settledEmpty" class="empty-state" style="display:none;padding:16px;">
         <p class="empty-state__desc">Nessun pagamento registrato.</p>
+      </div>
+
+      <!-- Pagamenti di cassa (movimenti tipo transfer) -->
+      <div id="cassaSection" style="display:none;margin-top:8px;">
+        <div class="section-header" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <span class="section-title">Pagamenti registrati</span>
+        </div>
+        <div id="cassaList"></div>
       </div>
 
       <!-- Condividi riepilogo -->

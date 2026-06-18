@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>WeGo v2.4</title>
+  <title>WeGo v2.5</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -96,7 +96,36 @@
     .ev-card__avatar--owner {
       width: 32px; height: 32px; font-size: 12px; flex-shrink: 0;
     }
-    /* ── Action row (SOLO welcome screen) ── */
+
+    /* ── Menu tre punti card evento ── */
+    .ev-card__menu-btn {
+      position:absolute; top:8px; right:8px;
+      background:rgba(0,0,0,0.0); border:none; cursor:pointer;
+      color:var(--text-muted); padding:4px; border-radius:6px;
+      line-height:1; z-index:2;
+    }
+    .ev-card__menu-btn:active { background:var(--bg-secondary); }
+    .ev-card-wrap { position:relative; }
+    .ev-ctx-menu {
+      display:none; position:absolute; top:32px; right:8px;
+      background:var(--bg-card); border:1px solid var(--border);
+      border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,0.18);
+      z-index:100; min-width:170px; overflow:hidden;
+    }
+    .ev-ctx-menu.open { display:block; }
+    .ev-ctx-item {
+      display:flex; align-items:center; gap:9px;
+      padding:11px 14px; font-size:13px; font-weight:500;
+      cursor:pointer; color:var(--text-primary);
+      border:none; background:none; width:100%; text-align:left;
+    }
+    .ev-ctx-item:active { background:var(--bg-secondary); }
+    .ev-ctx-item.danger { color:var(--red); }
+    .ev-ctx-item:disabled, .ev-ctx-item[disabled] {
+      opacity:0.35; cursor:not-allowed; pointer-events:none;
+    }
+    .ev-ctx-divider { height:1px; background:var(--border); margin:2px 0; }
+        /* ── Action row (SOLO welcome screen) ── */
     .action-row { display: flex; gap: 8px; margin: 8px 0 14px; }
     .action-row .btn { flex: 1; }
 
@@ -322,5 +351,47 @@
 <script src="/payments.js"></script>
 <script src="/app.js"></script>
 <script>document.addEventListener('DOMContentLoaded', () => App.init());</script>
+
+<!-- MODAL: MODIFICA EVENTO -->
+<div class="modal-backdrop" id="modalEditEvent" onclick="App.closeModal('modalEditEvent')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()" style="max-height:90vh;overflow-y:auto;">
+    <div class="bottom-sheet__handle"></div>
+    <h2 class="bottom-sheet__title">Modifica evento</h2>
+
+    <div class="form-group">
+      <label class="form-label">Titolo *</label>
+      <input type="text" class="form-input" id="editEventTitle" placeholder="es. Vacanza Sardegna" maxlength="60" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descrizione</label>
+      <textarea class="form-textarea" id="editEventDesc" placeholder="Note…" style="min-height:58px;"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Foto evento</label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="btn btn--ghost btn--sm" onclick="App.pickEditEventPhoto()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          Cambia foto
+        </button>
+        <span id="editEventPhotoName" class="text-xs text-muted">Nessuna</span>
+      </div>
+      <input type="file" id="editEventPhotoInput" accept="image/*" style="display:none;" onchange="App.onEditEventPhotoChange(this)" />
+      <div id="editEventPhotoPreview" style="margin-top:8px;display:none;">
+        <img id="editEventPhotoImg" src="" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:8px;"/>
+        <button onclick="App.clearEditEventPhoto()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;margin-left:8px;">Rimuovi</button>
+      </div>
+    </div>
+
+    <button class="btn btn--primary btn--full btn--xl" onclick="App.saveEditEvent()" style="margin-top:4px;">
+      Salva modifiche
+    </button>
+  </div>
+</div>
+
 </body>
 </html>
