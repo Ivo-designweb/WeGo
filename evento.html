@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v2.2</title>
+  <title>Evento — WeGo v2.3</title>
   <link rel="manifest" href="/manifest.json" />
-  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/style.css" />
   <style>
     /* ─── HEADER COMPATTO CON FOTO+TITOLO+CODICE ─── */
     .ev-header-content {
@@ -267,12 +267,12 @@
       </svg>
       Aggiungi partecipante
     </button>
-    <button class="ctx-item" onclick="EventoApp.goToRiepilogo()">
+    <button class="ctx-item" onclick="EventoApp.shareRiepilogo()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-        <line x1="3" y1="6" x2="3.01" y2="6"/>
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
       </svg>
-      Riepilogo saldi
+      Condividi riepilogo
     </button>
     <div class="ctx-divider"></div>
     <!-- Elimina evento: visibile solo al creatore (gestito da JS) -->
@@ -352,6 +352,18 @@
       <div id="settledList"></div>
       <div id="settledEmpty" class="empty-state" style="display:none;padding:16px;">
         <p class="empty-state__desc">Nessun pagamento registrato.</p>
+      </div>
+
+      <!-- Condividi riepilogo -->
+      <div style="padding:16px 0 80px;">
+        <button class="btn btn--ghost btn--full" onclick="EventoApp.shareRiepilogo()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          Condividi riepilogo
+        </button>
       </div>
     </div>
 
@@ -444,13 +456,13 @@
   </div>
 </div>
 
-<script src="/js/utils.js"></script>
-<script src="/js/db.js"></script>
-<script src="/js/supabase.js"></script>
-<script src="/js/sync.js"></script>
-<script src="/js/notifications.js"></script>
-<script src="/js/payments.js"></script>
-<script src="/js/evento.js"></script>
+<script src="/utils.js"></script>
+<script src="/db.js"></script>
+<script src="/supabase.js"></script>
+<script src="/sync.js"></script>
+<script src="/notifications.js"></script>
+<script src="/payments.js"></script>
+<script src="/evento.js"></script>
 <script>document.addEventListener('DOMContentLoaded', () => EventoApp.init());</script>
 </body>
 </html>

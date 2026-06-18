@@ -1,32 +1,28 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v2.2
+// WeGo — sw.js v2.3
 // Service Worker — cache offline + background sync
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v2.2';
+const CACHE_NAME = 'wego-v2.3';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/evento.html',
   '/spesa.html',
-  '/riepilogo.html',
   '/impostazioni.html',
   '/admin.html',
   '/manifest.json',
-  '/css/style.css',
-  '/js/utils.js',
-  '/js/db.js',
-  '/js/supabase.js',
-  '/js/sync.js',
-  '/js/notifications.js',
-  '/js/payments.js',
-  '/js/app.js',
-  '/js/evento.js',
-  '/js/spesa.js',
-  '/js/riepilogo.js',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/style.css',
+  '/utils.js',
+  '/db.js',
+  '/supabase.js',
+  '/sync.js',
+  '/notifications.js',
+  '/payments.js',
+  '/app.js',
+  '/evento.js',
+  '/spesa.js',
 ];
 
 // ─── INSTALL ──────────────────────────────────────────────────
