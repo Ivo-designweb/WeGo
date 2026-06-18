@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.0
+// WeGo — app.js v2.1
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -12,12 +12,16 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v1.7 init');
+    console.log('[App] WeGo v2.3 init');
 
-    // Carica chiavi.json dal server (sovrascrive sempre supabase/fcm locali se presente)
-    await Utils.loadRemoteConfig();
-
+    // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
+    // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
+
+    // loadRemoteConfig gira in background: non blocca il caricamento dei dati locali.
+    // I dati (spese, eventi) sono in IndexedDB e devono essere disponibili subito.
+    Utils.loadRemoteConfig().catch(() => {});
+
     await App._registerSW();
     await DB.open();
 

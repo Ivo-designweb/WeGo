@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v2.3
+// WeGo — sw.js v2.4
 // Service Worker — cache offline + background sync
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v2.3';
+const CACHE_NAME = 'wego-v2.4';
 
 const STATIC_ASSETS = [
   '/',
@@ -27,7 +27,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v2.2');
+  console.log('[SW] Install v2.4');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -53,7 +53,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v2.2');
+  console.log('[SW] Activate v2.4');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
@@ -97,22 +97,46 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategia Cache-First per asset statici
+  // Strategia Network-First per HTML e JS: prova sempre la rete così i deploy
+  // si propagano subito senza dover forzare il refresh manuale. Se offline,
+  // usa la copia in cache come fallback.
+  // Cache-First solo per font, immagini e risorse statiche binarie.
+  const isHtmlOrJs = url.pathname.endsWith('.html') ||
+                     url.pathname.endsWith('.js') ||
+                     url.pathname.endsWith('.css') ||
+                     url.pathname === '/';
+
+  if (isHtmlOrJs) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-cache' }).then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      }).catch(() => {
+        // Offline: usa cache
+        return caches.match(event.request).then(cached => {
+          if (cached) return cached;
+          if (event.request.mode === 'navigate') return caches.match('/index.html');
+        });
+      })
+    );
+    return;
+  }
+
+  // Cache-First per tutto il resto (immagini, icone, font)
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
       return fetch(event.request).then(response => {
-        // Aggiorna cache solo per risposte valide
         if (response && response.status === 200 && response.type === 'basic') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
         return response;
       }).catch(() => {
-        // Fallback per navigazione offline
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
+        if (event.request.mode === 'navigate') return caches.match('/index.html');
       });
     })
   );

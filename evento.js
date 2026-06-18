@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.0
+// WeGo — evento.js v2.1
 // Logica pagina dettaglio evento
 // ═══════════════════════════════════════════════════════════════
 
@@ -28,9 +28,8 @@ const EventoApp = {
     }
 
     // Carica chiavi.json dal server (sovrascrive sempre supabase/fcm locali se presente)
-    await Utils.loadRemoteConfig();
-
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
+    Utils.loadRemoteConfig().catch(() => {}); // background: non blocca i dati locali
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});

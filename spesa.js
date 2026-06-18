@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v1.4
+// WeGo — spesa.js v1.5
 // Logica pagina inserimento / modifica spesa
 // ═══════════════════════════════════════════════════════════════
 
@@ -29,9 +29,8 @@ const SpesaApp = {
     }
 
     // Carica chiavi.json dal server (sovrascrive sempre supabase/fcm locali se presente)
-    await Utils.loadRemoteConfig();
-
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
+    Utils.loadRemoteConfig().catch(() => {}); // background: non blocca i dati locali
 
     await DB.open();
 
