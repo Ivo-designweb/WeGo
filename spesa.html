@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Spesa — WeGo</title>
+  <title>Spesa — WeGo v2.2</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/css/style.css" />
   <style>
@@ -143,8 +143,8 @@
     </div>
   </header>
 
-  <!-- IMPORTO -->
-  <div class="amount-hero">
+  <!-- IMPORTO ORIGINALE: nascosto, usato solo da JS per compatibilità -->
+  <div class="amount-hero" style="display:none;">
     <div class="amount-hero__lbl">Importo</div>
     <div class="amount-hero__wrap">
       <span class="amount-hero__cur" id="currencySymbol">€</span>
@@ -193,6 +193,18 @@
       </div>
     </div>
 
+    <!-- IMPORTO (spostato tra Informazioni e Chi paga) -->
+    <div class="form-card" style="padding:12px 14px;">
+      <div class="form-card-title">Importo</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="currencySymbol2" style="font-size:22px;font-weight:700;color:var(--text-muted);">€</span>
+        <input type="number" id="expenseAmount2"
+          placeholder="0,00" step="0.01" min="0" inputmode="decimal"
+          onfocus="this.select()"
+          style="flex:1;background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-md);padding:10px 12px;font-size:24px;font-weight:800;color:var(--text-primary);outline:none;" />
+      </div>
+    </div>
+
     <!-- PAGANTE + PARTECIPANTI -->
     <div class="form-card" id="sectionExpense">
       <div class="form-card-title">Chi paga · Chi partecipa</div>
@@ -234,6 +246,14 @@
           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
         </svg>
         <span class="loc-bar__text ph" id="locationText">Tocca per rilevare posizione</span>
+        <a id="locationMapsLink" href="#" target="_blank" rel="noopener"
+          style="display:none;margin-left:4px;color:var(--accent);flex-shrink:0;"
+          onclick="event.stopPropagation()" title="Apri su Google Maps">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </a>
         <button id="locationClear" style="display:none;background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px;"
           onclick="SpesaApp.clearLocation(event)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">

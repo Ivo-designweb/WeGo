@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v2.1</title>
+  <title>Evento — WeGo v2.2</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/css/style.css" />
   <style>
@@ -331,7 +331,7 @@
     <!-- TAB PARTECIPANTI -->
     <div id="panelPartecipanti" style="display:none;">
       <div id="partecipantiList" style="padding:0 0 80px;"></div>
-      <div style="padding:4px 0 80px;">
+      <div id="addUserBtnWrap" style="padding:4px 0 80px;display:none;">
         <button class="btn btn--ghost btn--full" onclick="EventoApp.showAddUser()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -363,31 +363,23 @@
     </svg>
   </button>
 
-  <nav class="bottom-nav">
-    <a href="/index.html" class="bottom-nav__item" onclick="EventoApp.goHome(event)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-      <span class="bottom-nav__label">Home</span>
-    </a>
-    <a href="#" class="bottom-nav__item active" onclick="return false;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-      </svg>
-      <span class="bottom-nav__label">Evento</span>
-    </a>
-    <a href="#" class="bottom-nav__item" onclick="EventoApp.goToRiepilogo();return false;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-        <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
-      </svg>
-      <span class="bottom-nav__label">Saldi</span>
-    </a>
-  </nav>
-</div>
+  <!-- modale aggiunta partecipante -->
+</div><!-- fine app-shell -->
 
-<!-- MODAL: AGGIUNGI PARTECIPANTE -->
+<!-- LIGHTBOX FOTO -->
+<div id="photoLightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:2000;flex-direction:column;align-items:center;justify-content:center;"
+  onclick="EventoApp.closeLightbox()">
+  <button onclick="EventoApp.closeLightbox()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.12);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+  <img id="lightboxImg" src="" alt="Foto spesa" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;" onclick="event.stopPropagation()" />
+  <div id="lightboxDeleteWrap" style="margin-top:16px;display:none;">
+    <button onclick="EventoApp.deleteLightboxPhoto(event)" style="background:rgba(239,68,68,0.85);border:none;color:#fff;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer;">
+      🗑 Elimina foto
+    </button>
+  </div>
+  <div id="lightboxNoPhoto" style="display:none;color:#94A3B8;font-size:14px;text-align:center;padding:20px;">
+    📷 Foto disponibile solo sul dispositivo di chi l'ha caricata
+  </div>
+</div>
 <div class="modal-backdrop" id="modalAddUser" onclick="EventoApp.closeModal('modalAddUser')">
   <div class="bottom-sheet" onclick="event.stopPropagation()">
     <div class="bottom-sheet__handle"></div>

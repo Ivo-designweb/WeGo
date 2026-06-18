@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Riepilogo — WeGo v1.3</title>
+  <title>Riepilogo — WeGo v2.2</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/css/style.css" />
@@ -358,12 +358,20 @@
       <div id="saldatiEmpty" class="riepilogo-empty" style="display:none;">
         <div style="font-size:12px;">Nessun pagamento registrato ancora.</div>
       </div>
+
+      <!-- Pagamenti di cassa (movimenti tipo transfer) -->
+      <div id="cassaSection" style="display:none;margin-top:20px;">
+        <div style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;padding-top:12px;border-top:1px solid var(--border);">
+          Movimenti di cassa
+        </div>
+        <div id="cassaList"></div>
+      </div>
     </div>
 
   </main>
 
   <!-- BOTTOM SHARE BAR -->
-  <div class="share-footer">
+  <div class="share-footer" style="display:flex;gap:8px;">
     <button class="btn btn--ghost" style="flex:1;" onclick="RiepilogoApp.shareRiepilogo()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -372,80 +380,8 @@
       </svg>
       Condividi riepilogo
     </button>
-    <button class="btn btn--primary" style="flex:1;" onclick="RiepilogoApp.showRegisterPayment()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
-      Registra pagamento
-    </button>
   </div>
 
-  <!-- BOTTOM NAV -->
-  <nav class="bottom-nav">
-    <a href="/index.html" class="bottom-nav__item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-        <polyline points="9 22 9 12 15 12 15 22"/>
-      </svg>
-      <span class="bottom-nav__label">Home</span>
-    </a>
-    <a href="#" class="bottom-nav__item active" onclick="return false;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-        <line x1="8" y1="18" x2="21" y2="18"/>
-        <line x1="3" y1="6" x2="3.01" y2="6"/>
-      </svg>
-      <span class="bottom-nav__label">Riepilogo</span>
-    </a>
-    <a href="/impostazioni.html" class="bottom-nav__item">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-      </svg>
-      <span class="bottom-nav__label">Impostazioni</span>
-    </a>
-  </nav>
-
-</div>
-
-<!-- MODAL: REGISTRA PAGAMENTO -->
-<div class="modal-backdrop" id="modalPayment" onclick="RiepilogoApp.closeModal('modalPayment')">
-  <div class="bottom-sheet" onclick="event.stopPropagation()">
-    <div class="bottom-sheet__handle"></div>
-    <h2 class="bottom-sheet__title">Registra pagamento</h2>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="form-group" style="margin-bottom:0;">
-        <label class="form-label">Da</label>
-        <select class="form-select" id="payFrom"></select>
-      </div>
-      <div class="form-group" style="margin-bottom:0;">
-        <label class="form-label">A</label>
-        <select class="form-select" id="payTo"></select>
-      </div>
-    </div>
-    <div class="form-group" style="margin-top:12px;">
-      <label class="form-label">Importo *</label>
-      <input type="number" class="form-input" id="payAmount"
-        placeholder="0,00" step="0.01" min="0.01" inputmode="decimal"/>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <div class="form-group" style="margin-bottom:0;">
-        <label class="form-label">Metodo</label>
-        <select class="form-select" id="payMethod"></select>
-      </div>
-      <div class="form-group" style="margin-bottom:0;">
-        <label class="form-label">Data</label>
-        <input type="date" class="form-input" id="payDate"/>
-      </div>
-    </div>
-    <div class="form-group" style="margin-top:10px;margin-bottom:0;">
-      <label class="form-label">Note</label>
-      <input type="text" class="form-input" id="payNote" placeholder="es. bonifico bancario"/>
-    </div>
-    <button class="btn btn--success btn--full btn--xl" onclick="RiepilogoApp.confirmPayment()" style="margin-top:14px;">
-      Conferma pagamento
-    </button>
-  </div>
 </div>
 
 <script src="/js/utils.js"></script>
