@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v1.3
+// WeGo — sync.js v1.4
 // Gestione sincronizzazione bidirezionale con Supabase
 // ═══════════════════════════════════════════════════════════════
 
@@ -230,16 +230,21 @@ const Sync = {
   },
 
   // ─── UI HELPERS ───────────────────────────────────────────
+  // Non mostra più la barra arancione: evidenzia l'icona sync in header
   _showBar(text = 'Sincronizzazione…') {
-    const bar = document.getElementById('syncBar');
-    const txt = document.getElementById('syncBarText');
-    if (bar) bar.classList.remove('hidden');
-    if (txt) txt.textContent = text;
+    const icon = document.getElementById('syncIcon');
+    if (icon) {
+      icon.style.color     = 'var(--amber)';
+      icon.style.animation = 'spin 0.8s linear infinite';
+    }
   },
 
   _hideBar() {
-    const bar = document.getElementById('syncBar');
-    if (bar) bar.classList.add('hidden');
+    const icon = document.getElementById('syncIcon');
+    if (icon) {
+      icon.style.color     = '';
+      icon.style.animation = '';
+    }
   }
 };
 

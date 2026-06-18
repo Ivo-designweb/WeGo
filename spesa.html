@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Spesa — WeGo v2.6</title>
+  <title>Spesa — WeGo v2.7</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -157,29 +157,30 @@
       <span class="app-header__title" id="pageTitle">Nuova spesa</span>
     </div>
     <div class="app-header__actions">
-      <button class="btn btn--primary" id="saveBtn" onclick="SpesaApp.save()">Salva</button>
-    </div>
-  </header>
-
-  <!-- BARRA VISTA SOLA LETTURA (visibile solo in mode=view) -->
-  <div id="viewModeBar" style="display:none;position:sticky;top:56px;z-index:50;background:var(--bg-card);border-bottom:1px solid var(--border);padding:8px 16px;align-items:center;gap:8px;">
-    <span style="font-size:12px;color:var(--text-muted);">Visualizzazione — tocca Modifica per cambiare</span>
-    <div style="display:flex;gap:6px;">
-      <button id="viewEditBtn" class="btn btn--ghost btn--sm" onclick="SpesaApp.enterEditMode()">
+      <!-- Visibili solo in modalità SOLA LETTURA (view mode) -->
+      <button class="btn btn--ghost btn--sm" id="headerEditBtn" style="display:none;" onclick="SpesaApp.enterEditMode()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
           <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
         </svg>
         Modifica
       </button>
-      <button id="viewDeleteBtn" class="btn btn--sm" style="background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);" onclick="SpesaApp.deleteExpense()">
+      <button class="btn btn--sm" id="headerDeleteBtn" style="display:none;background:rgba(239,68,68,0.1);color:var(--red);border:1px solid rgba(239,68,68,0.3);" onclick="SpesaApp.deleteExpense()">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
         </svg>
         Elimina
       </button>
+      <!-- Visibile in modalità NUOVA SPESA o MODIFICA -->
+      <button class="btn btn--primary btn--sm" id="saveBtn" onclick="SpesaApp.save()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+          <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+        </svg>
+        Salva
+      </button>
     </div>
-  </div>
+  </header>
 
   <!-- IMPORTO ORIGINALE: nascosto, usato solo da JS per compatibilità -->
   <div class="amount-hero" style="display:none;">
@@ -219,15 +220,14 @@
         <input type="text" class="form-input" id="expenseTitle"
           placeholder="es. Cena al ristorante" maxlength="80" autocomplete="off" />
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Data *</label>
-          <input type="date" class="form-input" id="expenseDate" />
-        </div>
-        <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Metodo</label>
-          <select class="form-select" id="expenseMethod"></select>
-        </div>
+      <!-- DATA + METODO su una riga compatta: etichetta inline con campo -->
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
+        <label class="form-label" style="flex-shrink:0;margin:0;white-space:nowrap;">Data</label>
+        <input type="date" class="form-input" id="expenseDate"
+          style="flex:1;min-width:100px;max-width:145px;padding:6px 8px;font-size:13px;" />
+        <label class="form-label" style="flex-shrink:0;margin:0 0 0 4px;white-space:nowrap;">Metodo</label>
+        <select class="form-select" id="expenseMethod"
+          style="flex:1;min-width:80px;padding:6px 24px 6px 8px;font-size:13px;"></select>
       </div>
     </div>
 
@@ -243,15 +243,18 @@
       </div>
     </div>
 
-    <!-- PAGANTE + PARTECIPANTI (senza titolo intestazione) -->
+    <!-- PAGANTE: etichetta PAGA inline con select, poi DIVIDE TRA a destra -->
     <div class="form-card" id="sectionExpense">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-        <div>
-          <label class="form-label">Pagato da *</label>
-          <select class="form-select" id="expensePaidBy"></select>
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <!-- PAGA: label + select inline -->
+        <div style="display:flex;align-items:center;gap:5px;flex-shrink:0;">
+          <label class="form-label" style="margin:0;white-space:nowrap;">Paga:</label>
+          <select class="form-select" id="expensePaidBy"
+            style="width:auto;min-width:90px;max-width:130px;padding:5px 22px 5px 7px;font-size:13px;"></select>
         </div>
-        <div>
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <!-- DIVIDE TRA: label + bottoni Tutti/Nessuno -->
+        <div style="flex:1;min-width:120px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
             <label class="form-label" style="margin:0;">Divide tra *</label>
             <div style="display:flex;gap:3px;">
               <button class="btn btn--ghost btn--sm" style="height:22px;padding:0 6px;font-size:10px;" onclick="SpesaApp.selectAllParticipants()">Tutti</button>
@@ -314,32 +317,32 @@
         </button>
         <input type="file" id="photoInput" accept="image/*" capture="environment"
           style="display:none;" onchange="SpesaApp.onPhotoChange(this)" />
-        <!-- Miniatura subito a destra del bottone -->
+        <!-- Miniatura subito a destra del bottone — cliccabile per lightbox -->
         <div id="photoPreviewWrap" style="display:none;">
-          <div class="photo-thumb visible">
+          <div class="photo-thumb visible" onclick="SpesaApp.openPhotoLightbox()" style="cursor:pointer;" title="Apri a schermo intero">
             <img id="photoPreviewImg" src="" alt="Scontrino" />
-            <button class="photo-thumb__rm" onclick="SpesaApp.removePhoto()">×</button>
+            <button class="photo-thumb__rm" onclick="event.stopPropagation();SpesaApp.removePhoto()">×</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- NOTE -->
-    <div class="form-card">
-      <div class="form-card-title">Note</div>
-      <textarea class="form-textarea" id="expenseNotes"
-        placeholder="Note aggiuntive…" style="min-height:62px;margin-bottom:0;"></textarea>
+    <!-- NOTE + SALVA affiancati -->
+    <div class="form-card" style="padding:8px 12px;">
+      <div style="display:flex;align-items:stretch;gap:8px;">
+        <textarea class="form-textarea" id="expenseNotes"
+          placeholder="Note…" style="min-height:62px;margin-bottom:0;flex:1;resize:none;font-size:13px;"></textarea>
+        <button id="saveSpeaBtn" class="btn btn--primary" onclick="SpesaApp.save()"
+          style="flex-shrink:0;width:58px;height:auto;min-height:62px;padding:6px 4px;white-space:normal;text-align:center;line-height:1.3;font-size:12px;border-radius:var(--r-md);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/>
+            <polyline points="7 3 7 8 15 8"/>
+          </svg>
+          Salva
+        </button>
+      </div>
     </div>
-
-    <!-- SALVA (bottom) -->
-    <button class="btn btn--primary btn--full btn--xl" onclick="SpesaApp.save()" style="margin-top:6px;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
-        <polyline points="17 21 17 13 7 13 7 21"/>
-        <polyline points="7 3 7 8 15 8"/>
-      </svg>
-      Salva spesa
-    </button>
 
     <!-- ELIMINA (solo in modifica) -->
     <button class="btn btn--danger btn--full" id="deleteBtn" onclick="SpesaApp.deleteExpense()" style="margin-top:8px;margin-bottom:28px;display:none;">
@@ -351,6 +354,27 @@
     </button>
 
   </main>
+</div>
+
+<!-- LIGHTBOX FOTO (spesa.html) — si apre cliccando la miniatura -->
+<div id="spesaPhotoLightbox"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:2000;flex-direction:column;align-items:center;justify-content:center;"
+  onclick="SpesaApp.closePhotoLightbox()">
+  <button onclick="SpesaApp.closePhotoLightbox()"
+    style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.12);border:none;color:#fff;border-radius:50%;width:38px;height:38px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;">&times;</button>
+  <img id="spesaLightboxImg" src="" alt="Foto scontrino"
+    style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;"
+    onclick="event.stopPropagation()" />
+  <!-- Bottone elimina visibile solo in modalità modifica (non view) -->
+  <div id="spesaLightboxDeleteWrap" style="display:none;margin-top:18px;">
+    <button onclick="SpesaApp.removeLightboxPhoto(event)"
+      style="background:rgba(239,68,68,0.85);border:none;color:#fff;border-radius:8px;padding:10px 26px;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+      </svg>
+      Elimina foto
+    </button>
+  </div>
 </div>
 
 <script src="/utils.js"></script>

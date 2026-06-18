@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.2
+// WeGo — evento.js v2.3
 // Logica pagina dettaglio evento
 // ═══════════════════════════════════════════════════════════════
 
@@ -158,6 +158,10 @@ const EventoApp = {
 
     const fab = document.getElementById('fabBtn');
     if (fab) fab.style.display = tab === 'spese' ? '' : 'none';
+
+    // Mostra/nasconde la testata sticky dei totali (solo nel tab Movimenti)
+    const stickyHead = document.getElementById('speseStickyHead');
+    if (stickyHead) stickyHead.style.display = tab === 'spese' ? '' : 'none';
 
     EventoApp._renderTab(tab);
   },
@@ -941,20 +945,14 @@ const EventoApp = {
 
   // ─── SYNC ─────────────────────────────────────────────────
   async syncNow() {
-    const icon = document.getElementById('syncIcon');
-    if (icon) icon.style.animation = 'spin 0.8s linear infinite';
     try {
       if (!Utils.isOnline()) { Utils.toast('Nessuna connessione', 'error'); return; }
-      Sync._showBar('Sincronizzazione…');
       await Sync.push();
       await Sync.pullEvent(EventoApp._eventId);
       await EventoApp.loadAll();
       Utils.toast('Sincronizzato', 'success', 2000);
     } catch (e) {
       Utils.toast('Errore sync', 'error');
-    } finally {
-      if (icon) icon.style.animation = '';
-      Sync._hideBar();
     }
   },
 

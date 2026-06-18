@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v1.7
+// WeGo — spesa.js v1.8
 // Logica pagina inserimento / modifica spesa
 // ═══════════════════════════════════════════════════════════════
 
@@ -111,45 +111,46 @@ const SpesaApp = {
   async _activateViewMode() {
     // Disabilita tutti i campi e bottoni del form
     document.querySelectorAll(
-      '.form-input,.form-select,.form-textarea,input,select,textarea,.type-btn,.chip,.btn--primary,#deleteBtn,.loc-bar,.photo-add-btn'
+      '.form-input,.form-select,.form-textarea,input,select,textarea,.type-btn,.chip,.btn--primary,.photo-thumb__rm,#deleteBtn,.loc-bar,.photo-add-btn'
     ).forEach(el => {
       el.disabled = true;
       el.style.pointerEvents = 'none';
       el.style.opacity = '0.8';
     });
 
-    // In view mode: nascondi Salva e il deleteBtn in fondo (già nella barra in alto)
-    const saveBtn   = document.getElementById('saveBtn');
-    const deleteBtn = document.getElementById('deleteBtn');
-    if (saveBtn)   saveBtn.style.display   = 'none';
-    if (deleteBtn) deleteBtn.style.display = 'none';
+    // Nasconde saveBtn (header) e saveSpeaBtn (accanto alle note)
+    const saveBtn     = document.getElementById('saveBtn');
+    const saveSpeaBtn = document.getElementById('saveSpeaBtn');
+    const deleteBtn   = document.getElementById('deleteBtn');
+    if (saveBtn)     saveBtn.style.display     = 'none';
+    if (saveSpeaBtn) saveSpeaBtn.style.display = 'none';
+    if (deleteBtn)   deleteBtn.style.display   = 'none';
 
-    // Mostra l'overlay con i bottoni Modifica / Elimina
-    const viewBar = document.getElementById('viewModeBar');
-    if (viewBar) {
-      // Determina chi può modificare/eliminare
-      const session   = DB.sessions.get(SpesaApp._eventId);
-      const currentId = session?.userId;
-      const expense   = await DB.expenses.getById(SpesaApp._expenseId);
-      const eventRec  = SpesaApp._event;
-      const creatorName = eventRec?.created_by || '';
+    // Determina se l'utente corrente può modificare/eliminare
+    const session     = DB.sessions.get(SpesaApp._eventId);
+    const currentId   = session?.userId;
+    const expense     = await DB.expenses.getById(SpesaApp._expenseId);
+    const eventRec    = SpesaApp._event;
+    const creatorName = eventRec?.created_by || '';
 
-      // Proprietario della spesa OPPURE creatore dell'evento
-      const isExpenseOwner = expense?.created_by === currentId;
-      const currentName = session?.userName || '';
-      const isEventCreator = creatorName && currentName &&
-        creatorName.toLowerCase() === currentName.toLowerCase();
-      const canEdit = isExpenseOwner || isEventCreator;
+    const isExpenseOwner = expense?.created_by === currentId;
+    const currentName    = session?.userName || '';
+    const isEventCreator = creatorName && currentName &&
+      creatorName.toLowerCase() === currentName.toLowerCase();
+    const canEdit = isExpenseOwner || isEventCreator;
 
-      const editBtn   = document.getElementById('viewEditBtn');
-      const deleteBtn = document.getElementById('viewDeleteBtn');
-      if (editBtn)   editBtn.disabled   = !canEdit;
-      if (deleteBtn) deleteBtn.disabled = !canEdit;
-      if (!canEdit) {
-        if (editBtn)   editBtn.style.opacity = '0.4';
-        if (deleteBtn) deleteBtn.style.opacity = '0.4';
-      }
-      viewBar.style.display = 'flex';
+    // Mostra bottoni Modifica ed Elimina nell'header
+    const editBtn = document.getElementById('headerEditBtn');
+    const delBtn  = document.getElementById('headerDeleteBtn');
+    if (editBtn) {
+      editBtn.style.display = '';
+      editBtn.disabled      = !canEdit;
+      if (!canEdit) editBtn.style.opacity = '0.4';
+    }
+    if (delBtn) {
+      delBtn.style.display = '';
+      delBtn.disabled      = !canEdit;
+      if (!canEdit) delBtn.style.opacity = '0.4';
     }
   },
 
@@ -405,6 +406,32 @@ const SpesaApp = {
     if (wrap)    wrap.style.display = 'none';
     if (label) label.textContent  = 'Aggiungi foto';
     if (input) input.value = '';
+  },
+
+  // ─── LIGHTBOX FOTO (spesa.html) ───────────────────────────
+  openPhotoLightbox() {
+    if (!SpesaApp._photo) return;
+    const lb      = document.getElementById('spesaPhotoLightbox');
+    const img     = document.getElementById('spesaLightboxImg');
+    const delWrap = document.getElementById('spesaLightboxDeleteWrap');
+    if (!lb || !img) return;
+    img.src = SpesaApp._photo;
+    lb.style.display = 'flex';
+    // Bottone elimina: solo in edit mode (non in view mode)
+    if (delWrap) delWrap.style.display = SpesaApp._viewMode ? 'none' : '';
+  },
+
+  closePhotoLightbox() {
+    const lb  = document.getElementById('spesaPhotoLightbox');
+    const img = document.getElementById('spesaLightboxImg');
+    if (lb)  lb.style.display = 'none';
+    if (img) img.src = '';
+  },
+
+  removeLightboxPhoto(e) {
+    if (e) e.stopPropagation();
+    SpesaApp.removePhoto();
+    SpesaApp.closePhotoLightbox();
   },
 
   // ─── CARICA SPESA ESISTENTE ───────────────────────────────
