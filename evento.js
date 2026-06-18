@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.3
+// WeGo — evento.js v2.4
 // Logica pagina dettaglio evento
 // ═══════════════════════════════════════════════════════════════
 
@@ -407,7 +407,7 @@ const EventoApp = {
         </div>`;
     }
 
-    container.innerHTML = html || '<p style="color:var(--text-muted);font-size:13px;padding:16px 0;">Nessun partecipante.</p>';
+    container.innerHTML = html || '<p style="color:var(--text-muted);font-size:15px;padding:16px 0;">Nessun partecipante.</p>';
 
     // Punto 1: mostra il bottone "Aggiungi partecipante" solo al creatore
     const session = DB.sessions.get(EventoApp._eventId);
@@ -459,7 +459,7 @@ const EventoApp = {
 
     if (txnContainer) {
       if (txns.length === 0) {
-        txnContainer.innerHTML = `<p style="font-size:12px;color:var(--text-muted);padding:8px 0;">Tutto in pareggio! 🎉</p>`;
+        txnContainer.innerHTML = `<p style="font-size:14px;color:var(--text-muted);padding:8px 0;">Tutto in pareggio! 🎉</p>`;
       } else {
         txnContainer.innerHTML = txns.map(t => {
           const isMe = t.from === EventoApp._currentUserId || t.to === EventoApp._currentUserId;
@@ -468,7 +468,7 @@ const EventoApp = {
               <div class="txn-text">
                 <b>${Utils.escapeHtml(userNames[t.from] || t.from)}</b>
                 → <b>${Utils.escapeHtml(userNames[t.to] || t.to)}</b>
-                ${isMe ? '<span style="font-size:9px;font-weight:700;color:var(--accent);"> (Tu)</span>' : ''}
+                ${isMe ? '<span style="font-size:10px;font-weight:700;color:var(--accent);"> (Tu)</span>' : ''}
               </div>
               <div class="txn-amount">${Utils.formatAmount(t.amount, currency)}</div>
             </div>`;
@@ -476,17 +476,14 @@ const EventoApp = {
       }
     }
 
-    // Pagamenti effettuati
+    // Pagamenti manuali (già pagato) — rimane senza titolo, si aggiorna silenziosamente
     const settledContainer = document.getElementById('settledList');
-    const settledEmpty     = document.getElementById('settledEmpty');
     const payments = EventoApp._payments;
 
     if (settledContainer) {
       if (payments.length === 0) {
         settledContainer.innerHTML = '';
-        if (settledEmpty) settledEmpty.style.display = '';
       } else {
-        if (settledEmpty) settledEmpty.style.display = 'none';
         settledContainer.innerHTML = payments.map(p => {
           const fromName = userNames[p.from_user] || '?';
           const toName   = userNames[p.to_user]   || '?';
@@ -502,16 +499,14 @@ const EventoApp = {
       }
     }
 
-    // Pagamenti registrati (movimenti tipo 'transfer' = Mov. cassa)
+    // Pagamenti tra utenti (movimenti tipo 'transfer' = Mov. cassa) — SEMPRE VISIBILE
     const transferPayments = EventoApp._expenses.filter(e => e.type === 'transfer');
-    const cassaSection = document.getElementById('cassaSection');
     const cassaList    = document.getElementById('cassaList');
 
-    if (cassaSection && cassaList) {
+    if (cassaList) {
       if (transferPayments.length === 0) {
-        cassaSection.style.display = 'none';
+        cassaList.innerHTML = `<p style="font-size:14px;color:var(--text-muted);padding:8px 0;">Nessuno</p>`;
       } else {
-        cassaSection.style.display = '';
         cassaList.innerHTML = transferPayments
           .sort((a, b) => new Date(b.date) - new Date(a.date))
           .map(t => {
@@ -522,7 +517,7 @@ const EventoApp = {
               <div class="settled-info">
                 <div class="settled-text">
                   <b>${Utils.escapeHtml(fromName)}</b>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin:0 2px;">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin:0 2px;">
                     <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                   </svg>
                   <b>${Utils.escapeHtml(toName)}</b>

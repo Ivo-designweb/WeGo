@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v2.6</title>
+  <title>Evento — WeGo v2.7</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -93,7 +93,7 @@
 
     /* ─── EXPENSE ITEM ─── */
     .exp-group-date {
-      font-size: 10px; font-weight: 700; color: var(--text-muted);
+      font-size: 12px; font-weight: 700; color: var(--text-muted);
       text-transform: uppercase; letter-spacing: 0.5px;
       padding: 10px 0 4px;
     }
@@ -109,21 +109,21 @@
     .exp-avatar { flex-shrink: 0; }
     .exp-info { flex: 1; min-width: 0; }
     .exp-title {
-      font-size: 13px; font-weight: 600; color: var(--text-primary);
+      font-size: 15px; font-weight: 600; color: var(--text-primary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .exp-meta { display: flex; align-items: center; gap: 5px; margin-top: 2px; flex-wrap: wrap; }
-    .exp-meta-txt { font-size: 10px; color: var(--text-muted); }
+    .exp-meta-txt { font-size: 12px; color: var(--text-muted); }
     .exp-badge {
-      font-size: 9px; font-weight: 700; padding: 1px 5px;
+      font-size: 10px; font-weight: 700; padding: 1px 5px;
       border-radius: 4px; background: var(--bg-input); color: var(--text-muted);
     }
     .exp-badge--sync { color: #D97706; background: rgba(245,158,11,0.12); }
     .exp-amount { flex-shrink: 0; text-align: right; }
     .exp-amount__val {
-      font-size: 14px; font-weight: 700; color: var(--text-primary);
+      font-size: 16px; font-weight: 700; color: var(--text-primary);
     }
-    .exp-amount__lbl { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+    .exp-amount__lbl { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
 
     /* ─── PARTECIPANTE ─── */
     .part-item {
@@ -132,9 +132,9 @@
     }
     .part-item:last-child { border-bottom: none; }
     .part-info { flex: 1; }
-    .part-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
-    .part-sub  { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
-    .part-balance { font-size: 13px; font-weight: 700; text-align: right; flex-shrink: 0; }
+    .part-name { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .part-sub  { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .part-balance { font-size: 15px; font-weight: 700; text-align: right; flex-shrink: 0; }
 
     /* ─── SALDI ─── */
     .balance-item {
@@ -143,18 +143,18 @@
     }
     .balance-item:last-child { border-bottom: none; }
     .balance-info { flex: 1; }
-    .balance-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .balance-name { font-size: 15px; font-weight: 600; color: var(--text-primary); }
     .balance-bar-wrap { height: 4px; background: var(--bg-input); border-radius: 2px; margin-top: 5px; }
     .balance-bar { height: 100%; border-radius: 2px; transition: width 0.4s; }
-    .balance-val { font-size: 14px; font-weight: 700; text-align: right; flex-shrink: 0; }
+    .balance-val { font-size: 16px; font-weight: 700; text-align: right; flex-shrink: 0; }
 
     .txn-item {
       display: flex; align-items: center; gap: 10px;
       padding: 10px 0; border-bottom: 1px solid var(--border);
     }
     .txn-item:last-child { border-bottom: none; }
-    .txn-text { flex: 1; font-size: 13px; color: var(--text-primary); line-height: 1.4; }
-    .txn-amount { font-size: 14px; font-weight: 700; color: var(--text-primary); flex-shrink: 0; }
+    .txn-text { flex: 1; font-size: 15px; color: var(--text-primary); line-height: 1.4; }
+    .txn-amount { font-size: 16px; font-weight: 700; color: var(--text-primary); flex-shrink: 0; }
 
     /* ─── CONTEXT MENU ─── */
     .ctx-menu {
@@ -187,9 +187,9 @@
     }
     .settled-item:last-child { border-bottom: none; }
     .settled-info { flex: 1; }
-    .settled-text { font-size: 12px; color: var(--text-secondary); }
-    .settled-meta { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
-    .settled-amount { font-size: 13px; font-weight: 700; color: var(--green); flex-shrink: 0; }
+    .settled-text { font-size: 14px; color: var(--text-secondary); }
+    .settled-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .settled-amount { font-size: 15px; font-weight: 700; color: var(--green); flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -344,16 +344,13 @@
       <div class="section-header" style="margin-top:16px;"><span class="section-title">Transazioni minime</span></div>
       <div id="transactionsList" style="margin-bottom:20px;"></div>
 
-      <div class="section-header"><span class="section-title">Già pagato</span></div>
+      <!-- Pagamenti manuali tra utenti (già pagato, senza titolo separato) -->
       <div id="settledList"></div>
-      <div id="settledEmpty" class="empty-state" style="display:none;padding:16px;">
-        <p class="empty-state__desc">Nessun pagamento registrato.</p>
-      </div>
 
-      <!-- Pagamenti di cassa (movimenti tipo transfer) -->
-      <div id="cassaSection" style="display:none;margin-top:8px;">
+      <!-- Pagamenti da Mov. cassa — sempre visibile -->
+      <div id="cassaSection" style="margin-top:8px;">
         <div class="section-header" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-          <span class="section-title">Pagamenti registrati</span>
+          <span class="section-title">Pagamenti tra utenti</span>
         </div>
         <div id="cassaList"></div>
       </div>
