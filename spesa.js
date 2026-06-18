@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v1.6
+// WeGo — spesa.js v1.7
 // Logica pagina inserimento / modifica spesa
 // ═══════════════════════════════════════════════════════════════
 
@@ -275,7 +275,7 @@ const SpesaApp = {
 
     // Nascondi GPS e foto per Mov. cassa: non pertinenti
     const gpsCard   = document.getElementById('locationBar')?.closest('.form-card');
-    const photoCard = document.getElementById('photoPreviewWrap')?.closest('.form-card');
+    const photoCard = document.getElementById('photoInput')?.closest('.form-card');
     if (gpsCard)   gpsCard.style.display   = type === 'transfer' ? 'none' : '';
     if (photoCard) photoCard.style.display = type === 'transfer' ? 'none' : '';
 
@@ -390,7 +390,7 @@ const SpesaApp = {
       const wrap    = document.getElementById('photoPreviewWrap');
       const label   = document.getElementById('photoLabel');
       if (preview) preview.src = compressed;
-      if (wrap)    wrap.style.display = '';
+      if (wrap)    wrap.style.display = 'block';
       if (label)   label.textContent  = 'Cambia foto';
     } catch {
       Utils.toast('Errore nel caricamento foto', 'error');
@@ -402,7 +402,7 @@ const SpesaApp = {
     const wrap  = document.getElementById('photoPreviewWrap');
     const label = document.getElementById('photoLabel');
     const input = document.getElementById('photoInput');
-    if (wrap)  wrap.style.display = 'none';
+    if (wrap)    wrap.style.display = 'none';
     if (label) label.textContent  = 'Aggiungi foto';
     if (input) input.value = '';
   },
@@ -461,7 +461,7 @@ const SpesaApp = {
       const wrap    = document.getElementById('photoPreviewWrap');
       const label   = document.getElementById('photoLabel');
       if (preview) preview.src = savedPhoto.data;
-      if (wrap)    wrap.style.display = '';
+      if (wrap)    wrap.style.display = 'block';
       if (label)   label.textContent  = 'Cambia foto';
     }
   },

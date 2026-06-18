@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Spesa — WeGo v2.5</title>
+  <title>Spesa — WeGo v2.6</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -43,22 +43,21 @@
     .amount-hero__input::placeholder { color: var(--border-strong); }
 
     /* ─── TYPE TOGGLE ─── */
-    .type-row {
-      display: flex; gap: 6px; padding: 10px 14px 0;
-    }
+    /* ─── TIPO (in riga con titolo Informazioni) ─── */
     .type-btn {
-      flex: 1; height: 32px; padding: 0 8px;
+      height: 26px; padding: 0 8px;
       border-radius: var(--r-md);
       border: 1px solid var(--border-strong);
       background: var(--bg-input);
       color: var(--text-muted);
-      font-family: var(--font); font-size: 12px; font-weight: 600;
+      font-family: var(--font); font-size: 11px; font-weight: 600;
       cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 5px;
+      display: inline-flex; align-items: center; gap: 4px;
       transition: all var(--ease);
       -webkit-tap-highlight-color: transparent;
+      white-space: nowrap;
     }
-    .type-btn svg { width: 13px; height: 13px; }
+    .type-btn svg { width: 11px; height: 11px; }
     .type-btn.active {
       border-color: var(--accent);
       background: rgba(59,130,246,0.09);
@@ -75,49 +74,67 @@
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: var(--r-lg);
-      padding: 12px;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+    }
+    /* Riga titolo card + controlli a destra */
+    .form-card-header {
+      display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 8px;
     }
     .form-card-title {
       font-size: 10px; font-weight: 700;
       color: var(--text-muted);
       text-transform: uppercase; letter-spacing: 0.6px;
-      margin-bottom: 10px;
+      margin: 0;
     }
+    .form-card-title-only { margin-bottom: 8px; }
 
     /* ─── PARTICIPANTS ─── */
     .part-grid {
-      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+      display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px;
     }
 
-    /* ─── LOCATION BAR ─── */
-    .loc-bar {
+    /* ─── GPS ROW compatta ─── */
+    .gps-row {
       display: flex; align-items: center; gap: 8px;
-      padding: 9px 11px;
+    }
+    .gps-label {
+      font-size: 10px; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.6px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .loc-bar {
+      flex: 1; display: flex; align-items: center; gap: 6px;
+      padding: 6px 9px;
       background: var(--bg-input);
       border: 1px solid var(--border-strong);
       border-radius: var(--r-md);
       cursor: pointer;
       transition: border-color var(--ease);
+      min-width: 0;
     }
     .loc-bar:hover { border-color: var(--accent); }
-    .loc-bar svg   { width: 14px; height: 14px; color: var(--accent); flex-shrink: 0; }
-    .loc-bar__text { flex: 1; font-size: 13px; color: var(--text-primary); }
-    .loc-bar__text.ph { color: var(--text-muted); font-size: 12px; }
+    .loc-bar__text { flex: 1; font-size: 12px; color: var(--text-primary); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .loc-bar__text.ph { color: var(--text-muted); }
 
-    /* ─── PHOTO PREVIEW ─── */
+    /* ─── PHOTO ROW compatta ─── */
+    .photo-row {
+      display: flex; align-items: center; gap: 10px;
+    }
     .photo-thumb {
-      width: 60px; height: 60px;
+      width: 48px; height: 48px;
       border-radius: var(--r-md); overflow: hidden;
       position: relative; background: var(--bg-input);
-      flex-shrink: 0;
+      flex-shrink: 0; display: none;
     }
+    .photo-thumb.visible { display: block; }
     .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
     .photo-thumb__rm {
-      position: absolute; top: 3px; right: 3px;
-      width: 18px; height: 18px;
+      position: absolute; top: 2px; right: 2px;
+      width: 16px; height: 16px;
       background: rgba(0,0,0,0.7); border: none;
-      border-radius: 50%; color: #fff; font-size: 12px;
+      border-radius: 50%; color: #fff; font-size: 11px;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; line-height: 1;
     }
@@ -175,28 +192,28 @@
     </div>
   </div>
 
-  <!-- TIPO -->
-  <div class="type-row">
-    <button class="type-btn active" id="typeExpense" onclick="SpesaApp.setType('expense')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
-      </svg>
-      Spesa
-    </button>
-    <button class="type-btn" id="typeTransfer" onclick="SpesaApp.setType('transfer')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <line x1="5" y1="12" x2="19" y2="12"/>
-        <polyline points="12 5 19 12 12 19"/>
-      </svg>
-      Mov. cassa
-    </button>
-  </div>
+  <main class="page-content" style="padding-top:6px;">
 
-  <main class="page-content" style="padding-top:10px;">
-
-    <!-- INFO BASE -->
+    <!-- INFO BASE: titolo + bottoni tipo sulla stessa riga -->
     <div class="form-card">
-      <div class="form-card-title">Informazioni</div>
+      <div class="form-card-header">
+        <span class="form-card-title">Informazioni</span>
+        <div style="display:flex;gap:4px;">
+          <button class="type-btn active" id="typeExpense" onclick="SpesaApp.setType('expense')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+            Spesa
+          </button>
+          <button class="type-btn" id="typeTransfer" onclick="SpesaApp.setType('transfer')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="5" y1="12" x2="19" y2="12"/>
+              <polyline points="12 5 19 12 12 19"/>
+            </svg>
+            Mov. cassa
+          </button>
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">Descrizione *</label>
         <input type="text" class="form-input" id="expenseTitle"
@@ -226,24 +243,25 @@
       </div>
     </div>
 
-    <!-- PAGANTE + PARTECIPANTI -->
+    <!-- PAGANTE + PARTECIPANTI (senza titolo intestazione) -->
     <div class="form-card" id="sectionExpense">
-      <div class="form-card-title">Chi paga · Chi partecipa</div>
-      <div class="form-group">
-        <label class="form-label">Pagato da *</label>
-        <select class="form-select" id="expensePaidBy"></select>
-      </div>
-      <div class="form-group" style="margin-bottom:0;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-          <label class="form-label" style="margin:0;">Divide tra *</label>
-          <div style="display:flex;gap:4px;">
-            <button class="btn btn--ghost btn--sm" onclick="SpesaApp.selectAllParticipants()">Tutti</button>
-            <button class="btn btn--ghost btn--sm" onclick="SpesaApp.deselectAllParticipants()">Nessuno</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div>
+          <label class="form-label">Pagato da *</label>
+          <select class="form-select" id="expensePaidBy"></select>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <label class="form-label" style="margin:0;">Divide tra *</label>
+            <div style="display:flex;gap:3px;">
+              <button class="btn btn--ghost btn--sm" style="height:22px;padding:0 6px;font-size:10px;" onclick="SpesaApp.selectAllParticipants()">Tutti</button>
+              <button class="btn btn--ghost btn--sm" style="height:22px;padding:0 6px;font-size:10px;" onclick="SpesaApp.deselectAllParticipants()">Nessuno</button>
+            </div>
           </div>
         </div>
-        <div class="part-grid" id="participantsGrid"></div>
-        <div id="sharePreview" style="margin-top:8px;font-size:11px;color:var(--text-muted);text-align:center;"></div>
       </div>
+      <div class="part-grid" id="participantsGrid"></div>
+      <div id="sharePreview" style="margin-top:6px;font-size:11px;color:var(--text-muted);text-align:center;"></div>
     </div>
 
     <!-- TRASFERIMENTO -->
@@ -259,50 +277,50 @@
       </div>
     </div>
 
-    <!-- POSIZIONE -->
-    <div class="form-card">
-      <div class="form-card-title">Posizione GPS</div>
-      <div class="loc-bar" id="locationBar" onclick="SpesaApp.getLocation()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-        </svg>
-        <span class="loc-bar__text ph" id="locationText">Tocca per rilevare posizione</span>
-        <a id="locationMapsLink" href="#" target="_blank" rel="noopener"
-          style="display:none;margin-left:4px;color:var(--accent);flex-shrink:0;"
-          onclick="event.stopPropagation()" title="Apri su Google Maps">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
-            <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-          </svg>
-        </a>
-        <button id="locationClear" style="display:none;background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px;"
-          onclick="SpesaApp.clearLocation(event)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+    <!-- POSIZIONE compatta: GPS [campo] [mappa] [×] -->
+    <div class="form-card" style="padding:8px 12px;">
+      <div class="gps-row">
+        <span class="gps-label">GPS</span>
+        <div class="loc-bar" id="locationBar" onclick="SpesaApp.getLocation()">
+          <span class="loc-bar__text ph" id="locationText">Tocca per rilevare</span>
+          <a id="locationMapsLink" href="#" target="_blank" rel="noopener"
+            style="display:none;color:var(--accent);flex-shrink:0;line-height:1;"
+            onclick="event.stopPropagation()" title="Apri su Google Maps">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="10" r="3"/>
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+              <path d="M9 20l3 2 3-2"/>
+            </svg>
+          </a>
+          <button id="locationClear" style="display:none;background:none;border:none;color:var(--text-muted);cursor:pointer;padding:1px;line-height:1;"
+            onclick="SpesaApp.clearLocation(event)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- FOTO -->
-    <div class="form-card">
-      <div class="form-card-title">Foto scontrino</div>
-      <div style="display:flex;align-items:center;gap:10px;">
+    <!-- FOTO: bottone + thumbnail inline, senza titolo separato -->
+    <div class="form-card" style="padding:8px 12px;">
+      <div class="photo-row">
+        <button class="btn btn--ghost btn--sm" onclick="SpesaApp.pickPhoto()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+          </svg>
+          Foto Scontrino
+        </button>
+        <input type="file" id="photoInput" accept="image/*" capture="environment"
+          style="display:none;" onchange="SpesaApp.onPhotoChange(this)" />
+        <!-- Miniatura subito a destra del bottone -->
         <div id="photoPreviewWrap" style="display:none;">
-          <div class="photo-thumb">
+          <div class="photo-thumb visible">
             <img id="photoPreviewImg" src="" alt="Scontrino" />
             <button class="photo-thumb__rm" onclick="SpesaApp.removePhoto()">×</button>
           </div>
         </div>
-        <button class="btn btn--ghost" onclick="SpesaApp.pickPhoto()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="18" height="18" rx="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-          </svg>
-          <span id="photoLabel">Aggiungi foto</span>
-        </button>
-        <input type="file" id="photoInput" accept="image/*" capture="environment"
-          style="display:none;" onchange="SpesaApp.onPhotoChange(this)" />
       </div>
     </div>
 
