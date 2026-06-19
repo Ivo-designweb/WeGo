@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — notifications.js v1.0
-// Gestione notifiche push con Firebase Cloud Messaging (FCM)
+// WeGo — notifications.js v1.1
+// Gestione notifiche push con Web Push (VAPID) + Supabase
 // ═══════════════════════════════════════════════════════════════
 
 const Notifications = {
@@ -68,32 +68,73 @@ const Notifications = {
   },
 
   // ─── REGISTRA TOKEN FCM ───────────────────────────────────
-  async _registerToken() {
+  // eventId/userId sono opzionali: se forniti, la sottoscrizione viene
+  // anche salvata su Supabase, collegata a quell'evento, così il server
+  // sa A CHI inviare la notifica quando qualcun altro registra un movimento.
+  async _registerToken(eventId = null, userId = null) {
     if (!Notifications.isConfigured()) return;
     if (!window._swRegistration) return;
 
     try {
-      // Subscription Web Push
-      const subscription = await window._swRegistration.pushManager.subscribe({
-        userVisibleOnly:      true,
-        applicationServerKey: Notifications._urlBase64ToUint8Array(Notifications._vapidKey)
-      });
+      // Riusa la sottoscrizione esistente se già presente (pushManager.subscribe
+      // è idempotente solo se richiamato con la stessa chiave; getSubscription
+      // evita di doverla rigenerare ad ogni apertura dell'app).
+      let subscription = await window._swRegistration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await window._swRegistration.pushManager.subscribe({
+          userVisibleOnly:      true,
+          applicationServerKey: Notifications._urlBase64ToUint8Array(Notifications._vapidKey)
+        });
+      }
 
-      // Salva token localmente
+      // Salva token localmente (per diagnostica/retrocompatibilità)
       const token = JSON.stringify(subscription);
       Notifications._token = token;
       Utils.setConfig('push_token', token);
       Utils.setConfig('push_endpoint', subscription.endpoint);
 
-      console.log('[FCM] Token registrato');
+      console.log('[Push] Sottoscrizione attiva');
 
-      // Qui potresti inviare il token al server (Supabase) per notifiche server-side
-      // await Notifications._saveTokenToServer(token);
+      // Invia la sottoscrizione al server: senza questo passo il backend
+      // non ha modo di sapere a quale endpoint inviare le notifiche.
+      if (eventId) {
+        await Notifications._saveTokenToServer(subscription, eventId, userId);
+      }
 
       return token;
     } catch (e) {
-      console.warn('[FCM] Token registration error:', e);
+      console.warn('[Push] Token registration error:', e);
     }
+  },
+
+  // ─── SALVA SOTTOSCRIZIONE SU SUPABASE ─────────────────────
+  async _saveTokenToServer(subscription, eventId, userId) {
+    if (typeof SupabaseClient === 'undefined' || !SupabaseClient.isConfigured()) return;
+    try {
+      const raw = subscription.toJSON ? subscription.toJSON() : JSON.parse(JSON.stringify(subscription));
+      await SupabaseClient.pushSubscriptions.upsert({
+        event_id: eventId,
+        user_id:  userId || null,
+        endpoint: raw.endpoint,
+        p256dh:   raw.keys?.p256dh || '',
+        auth:     raw.keys?.auth   || ''
+      });
+      console.log('[Push] Sottoscrizione salvata su Supabase per evento', eventId);
+    } catch (e) {
+      console.warn('[Push] Salvataggio server-side fallito:', e.message);
+    }
+  },
+
+  // ─── REGISTRA/AGGIORNA LA SOTTOSCRIZIONE PER UN EVENTO ────
+  // Da chiamare ad ogni apertura di evento.html: se il permesso è già
+  // stato concesso, collega silenziosamente questo device a questo evento
+  // sul server, senza richiedere nulla all'utente.
+  async registerForEvent(eventId, userId) {
+    if (!eventId) return;
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    if (!Notifications.isConfigured()) return;
+    await Notifications._registerToken(eventId, userId);
   },
 
   // ─── NOTIFICA LOCALE ──────────────────────────────────────

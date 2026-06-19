@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.2
+// WeGo — supabase.js v1.3
 // Client Supabase — lettura config da localStorage
 // ═══════════════════════════════════════════════════════════════
 
@@ -262,6 +262,49 @@ const SupabaseClient = (() => {
     }
   };
 
+  // ─── PUSH SUBSCRIPTIONS TABLE ──────────────────────────────
+  // Collega un device (Web Push subscription) a un evento + utente, così
+  // il server sa a chi inviare la notifica quando viene registrato un
+  // nuovo movimento in quell'evento.
+  const pushSubscriptions = {
+    async upsert(sub) {
+      // Verifica se esiste già una riga per questo evento+endpoint
+      const existing = await request('GET', 'sp_push_subscriptions', null, {
+        event_id: `eq.${sub.event_id}`,
+        endpoint: `eq.${sub.endpoint}`,
+        select:   'id'
+      });
+      if (Array.isArray(existing) && existing.length > 0) {
+        return request('PATCH', `sp_push_subscriptions?id=eq.${existing[0].id}`, {
+          user_id:    sub.user_id || null,
+          p256dh:     sub.p256dh,
+          auth:       sub.auth,
+          updated_at: Utils.now()
+        });
+      }
+      return request('POST', 'sp_push_subscriptions', {
+        event_id:   sub.event_id,
+        user_id:    sub.user_id || null,
+        endpoint:   sub.endpoint,
+        p256dh:     sub.p256dh,
+        auth:       sub.auth,
+        created_at: Utils.now(),
+        updated_at: Utils.now()
+      });
+    },
+
+    async getByEvent(eventId) {
+      return request('GET', 'sp_push_subscriptions', null, {
+        event_id: `eq.${eventId}`,
+        select:   '*'
+      });
+    },
+
+    async deleteByEndpoint(endpoint) {
+      return request('DELETE', `sp_push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`);
+    }
+  };
+
   // ─── SCHEMA SQL ───────────────────────────────────────────
   /**
    * Script SQL da eseguire nel Supabase SQL Editor
@@ -347,6 +390,22 @@ CREATE INDEX IF NOT EXISTS idx_sp_payments_event ON sp_payments(event_id);
 -- Per installazioni precedenti: aggiunge la colonna deleted se mancante
 ALTER TABLE sp_payments ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE;
 
+-- TABELLA SOTTOSCRIZIONI PUSH (Web Push / notifiche)
+-- Collega un device a un evento: serve al backend per sapere a chi inviare
+-- la notifica quando viene registrato un nuovo movimento in quell'evento.
+CREATE TABLE IF NOT EXISTS sp_push_subscriptions (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_id    UUID NOT NULL REFERENCES sp_events(id) ON DELETE CASCADE,
+  user_id     UUID REFERENCES sp_users(id) ON DELETE CASCADE,
+  endpoint    TEXT NOT NULL,
+  p256dh      TEXT NOT NULL,
+  auth        TEXT NOT NULL,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(event_id, endpoint)
+);
+CREATE INDEX IF NOT EXISTS idx_sp_push_subs_event ON sp_push_subscriptions(event_id);
+
 -- ROW LEVEL SECURITY (opzionale, abilita se vuoi sicurezza extra)
 -- ALTER TABLE sp_events   ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE sp_users    ENABLE ROW LEVEL SECURITY;
@@ -358,6 +417,7 @@ GRANT SELECT, INSERT, UPDATE ON sp_events   TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_users    TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_expenses TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_payments TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON sp_push_subscriptions TO anon;
 
 SELECT 'Schema WeGo installato correttamente!' AS status;
 `;
@@ -369,6 +429,7 @@ SELECT 'Schema WeGo installato correttamente!' AS status;
     users,
     expenses,
     payments,
+    pushSubscriptions,
     SQL_SCHEMA
   };
 })();

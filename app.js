@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.2
+// WeGo — app.js v2.4
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -14,7 +14,7 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v2.3 init');
+    console.log('[App] WeGo v2.4 init');
 
     // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
     // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
@@ -25,7 +25,17 @@ const App = {
     Utils.loadRemoteConfig().catch(() => {});
 
     await App._registerSW();
-    await DB.open();
+
+    // Apertura IndexedDB: priorità assoluta è mostrare i dati locali (offline-first).
+    // Se per qualunque motivo l'apertura fallisce, non blocchiamo tutto il resto
+    // dell'init: mostriamo comunque la UI (anche se vuota) invece di restare
+    // bloccati su "Caricamento…".
+    try {
+      await DB.open();
+    } catch (e) {
+      console.error('[App] DB.open failed:', e);
+      Utils.toast('Errore database locale', 'error');
+    }
 
     // ── Redirect automatico all'ultimo evento aperto ──────
     const lastEventId = localStorage.getItem('wego_last_event_id');
@@ -44,11 +54,18 @@ const App = {
       }
     }
 
+    // Carica SEMPRE gli eventi dal database locale, indipendentemente dallo
+    // stato della connessione: il lavoro offline ha priorità. La sincronizzazione
+    // con il server avviene solo DOPO, e solo se si è online (vedi sotto).
     await App.loadEvents();
     App._initNetworkMonitor();
 
     if (Utils.isOnline()) {
       App._syncQuiet();
+    }
+
+    if (typeof Notifications !== 'undefined') {
+      Notifications.init().catch(() => {});
     }
 
     navigator.serviceWorker?.addEventListener('message', (e) => {
@@ -64,9 +81,12 @@ const App = {
   async _registerSW() {
     if (!('serviceWorker' in navigator)) return;
     try {
-      const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      console.log('[SW] Registered:', reg.scope);
-      window._swRegistration = reg;
+      await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      // Attende che il SW sia ATTIVO (non solo "installing"): pushManager
+      // richiede una registration con worker attivo, altrimenti la
+      // sottoscrizione alle notifiche push fallisce silenziosamente.
+      window._swRegistration = await navigator.serviceWorker.ready;
+      console.log('[SW] Pronto:', window._swRegistration.scope);
     } catch (e) {
       console.warn('[SW] Registration failed:', e);
     }
@@ -102,12 +122,19 @@ const App = {
     try {
       App._events = await DB.events.getAll();
       App._events.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
-      await App._render();
-      // Chiudi menu tre punti se si clicca fuori
-      document.addEventListener('click', App.closeAllCardMenus, { once: false });
     } catch (e) {
       console.error('[App] loadEvents error:', e);
       Utils.toast('Errore nel caricamento degli eventi', 'error');
+      App._events = App._events || [];
+    }
+    // Esegue SEMPRE il render, anche in caso di errore nel passo precedente:
+    // mostrare la lista (anche se vuota/parziale) è sempre meglio di restare
+    // bloccati sulla schermata di caricamento.
+    try {
+      await App._render();
+      document.addEventListener('click', App.closeAllCardMenus, { once: false });
+    } catch (e) {
+      console.error('[App] render error:', e);
     }
   },
 

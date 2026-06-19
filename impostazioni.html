@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v2.7</title>
+  <title>Impostazioni — WeGo v2.8</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -371,7 +371,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 2.7</div>
+        <div class="about-ver">Versione 2.8</div>
 
         <div class="about-div"></div>
 
@@ -464,6 +464,20 @@ const SettingsApp = {
 
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
     await DB.open();
+
+    // Registra (o recupera) il Service Worker e attende che sia ATTIVO.
+    // FONDAMENTALE per le notifiche push: senza window._swRegistration
+    // impostato, il bottone "Abilita notifiche" qui sotto fallisce in
+    // silenzio perché Notifications._registerToken() lo richiede.
+    if ('serviceWorker' in navigator) {
+      try {
+        await navigator.serviceWorker.register('/sw.js');
+        window._swRegistration = await navigator.serviceWorker.ready;
+      } catch (e) {
+        console.warn('[SW] Registrazione non riuscita:', e);
+      }
+    }
+
     SettingsApp._renderAll();
     SettingsApp._renderSWVersion();
   },

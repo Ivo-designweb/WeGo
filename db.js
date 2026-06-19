@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — db.js v1.1
+// WeGo — db.js v1.2
 // Gestione dati locali con IndexedDB (offline-first)
 // ═══════════════════════════════════════════════════════════════
 
@@ -49,6 +49,13 @@ const DB = (() => {
       req.onerror = (e) => {
         console.error('[DB] Open error:', e.target.error);
         reject(e.target.error);
+      };
+
+      // Si verifica se un'altra tab/finestra ha una connessione aperta a una
+      // versione precedente del DB. Non blocca l'app: la apertura resterà in
+      // sospeso finché l'altra tab non si chiude, ma logghiamo per diagnosi.
+      req.onblocked = () => {
+        console.warn('[DB] Apertura bloccata da un\'altra tab aperta');
       };
     });
   }

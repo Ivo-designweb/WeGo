@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v1.8
+// WeGo — spesa.js v1.9
 // Logica pagina inserimento / modifica spesa
 // ═══════════════════════════════════════════════════════════════
 
@@ -48,6 +48,9 @@ const SpesaApp = {
 
     // Imposta valuta
     SpesaApp._setCurrencySymbol();
+
+    // Titolo pagina con nome evento (es. "Nuova spesa - Sardegna 26")
+    SpesaApp._setPageTitle('Nuova spesa');
 
     // Popola metodi pagamento
     SpesaApp._buildMethodSelect();
@@ -258,6 +261,14 @@ const SpesaApp = {
     preview.style.color = 'var(--text-muted)';
   },
 
+  // ─── TITOLO PAGINA (con nome evento, es. "Nuova spesa - Sardegna 26") ──
+  _setPageTitle(base) {
+    const pageTitle = document.getElementById('pageTitle');
+    if (!pageTitle) return;
+    const evTitle = SpesaApp._event?.title;
+    pageTitle.textContent = evTitle ? `${base} - ${evTitle}` : base;
+  },
+
   // ─── TIPO SPESA ───────────────────────────────────────────
   setType(type) {
     SpesaApp._type = type;
@@ -266,7 +277,6 @@ const SpesaApp = {
     const btnTr   = document.getElementById('typeTransfer');
     const secExp  = document.getElementById('sectionExpense');
     const secTr   = document.getElementById('sectionTransfer');
-    const pageTitle = document.getElementById('pageTitle');
 
     btnExp.classList.toggle('active',          type === 'expense');
     btnTr.classList.toggle('active-transfer',  type === 'transfer');
@@ -280,11 +290,11 @@ const SpesaApp = {
     if (gpsCard)   gpsCard.style.display   = type === 'transfer' ? 'none' : '';
     if (photoCard) photoCard.style.display = type === 'transfer' ? 'none' : '';
 
-    if (pageTitle) {
-      pageTitle.textContent = type === 'expense'
+    SpesaApp._setPageTitle(
+      type === 'expense'
         ? (SpesaApp._expenseId ? 'Modifica spesa' : 'Nuova spesa')
-        : 'Movimento cassa';
-    }
+        : 'Movimento cassa'
+    );
   },
 
   // ─── GPS ──────────────────────────────────────────────────
@@ -442,8 +452,9 @@ const SpesaApp = {
       return;
     }
 
-    document.getElementById('pageTitle').textContent =
-      expense.type === 'transfer' ? 'Modifica movimento' : 'Modifica spesa';
+    SpesaApp._setPageTitle(
+      expense.type === 'transfer' ? 'Modifica movimento' : 'Modifica spesa'
+    );
 
     document.getElementById('expenseAmount').value = expense.amount;
     // Aggiorna anche il campo importo visibile

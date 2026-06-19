@@ -7,10 +7,45 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v2.7</title>
+  <title>Evento — WeGo v2.8</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
+    /* ─── SHELL VINCOLATA: solo .page-content scrolla internamente ───
+       Lo style.css globale usa min-height:100dvh su .app-shell, il che
+       fa scrollare l'intera pagina (incluse testata totali e header)
+       invece della sola lista movimenti. Qui vincoliamo l'altezza così
+       header, tab-bar e testata totali restano fissi e immobili. */
+    .app-shell {
+      height: 100vh;
+      height: 100dvh;
+      overflow: hidden;
+    }
+    .page-content {
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: calc(var(--fabbar-h, 76px) + env(safe-area-inset-bottom) + 14px) !important;
+    }
+
+    /* ─── BARRA FISSA INFERIORE CON BOTTONE + ─── */
+    .fab-bar {
+      position: fixed;
+      bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 100%; max-width: var(--max-w);
+      height: 76px;
+      display: flex; align-items: center; justify-content: flex-end;
+      padding: 0 16px;
+      padding-bottom: env(safe-area-inset-bottom);
+      background: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      z-index: 95;
+    }
+    .fab-bar .fab {
+      position: static;
+      width: 58px; height: 58px;
+    }
+
     /* ─── HEADER COMPATTO CON FOTO+TITOLO+CODICE ─── */
     .ev-header-content {
       display: flex;
@@ -51,7 +86,7 @@
       display: flex;
       background: var(--bg-secondary);
       border-bottom: 1px solid var(--border);
-      position: sticky; top: var(--nav-h); z-index: 50;
+      flex-shrink: 0;
     }
     .tab-btn {
       flex: 1; padding: 10px 6px;
@@ -370,12 +405,14 @@
 
   </main>
 
-  <button class="fab" id="fabBtn" onclick="EventoApp.newExpense()" title="Nuova spesa"
-    style="width:58px;height:58px;bottom:calc(var(--tab-h) + 14px);">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="24" height="24">
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-  </button>
+  <!-- BARRA FISSA INFERIORE: bottone + per nuovo movimento, sempre visibile -->
+  <div class="fab-bar" id="fabBar">
+    <button class="fab" id="fabBtn" onclick="EventoApp.newExpense()" title="Nuova spesa">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="24" height="24">
+        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      </svg>
+    </button>
+  </div>
 
   <!-- modale aggiunta partecipante -->
 </div><!-- fine app-shell -->

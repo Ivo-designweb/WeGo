@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.4
+// WeGo — evento.js v2.5
 // Logica pagina dettaglio evento
 // ═══════════════════════════════════════════════════════════════
 
@@ -31,11 +31,27 @@ const EventoApp = {
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
     Utils.loadRemoteConfig().catch(() => {}); // background: non blocca i dati locali
 
+    // Registra il Service Worker e attende che sia ATTIVO (non solo
+    // "installing"): serve per le notifiche push (pushManager richiede un
+    // worker attivo) ed è più robusto del semplice register() fire-and-forget.
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {});
+      try {
+        await navigator.serviceWorker.register('/sw.js');
+        window._swRegistration = await navigator.serviceWorker.ready;
+      } catch (e) {
+        console.warn('[SW] Registrazione non riuscita:', e);
+      }
     }
 
-    await DB.open();
+    // Apertura IndexedDB: priorità assoluta ai dati locali (offline-first).
+    // Se fallisce non blocchiamo tutto: l'utente vedrà al massimo un errore
+    // puntuale invece di restare bloccato su "Caricamento…".
+    try {
+      await DB.open();
+    } catch (e) {
+      console.error('[Evento] DB.open failed:', e);
+      Utils.toast('Errore database locale', 'error');
+    }
 
     // Salva come ultimo evento aperto
     localStorage.setItem('wego_last_event_id', EventoApp._eventId);
@@ -48,6 +64,15 @@ const EventoApp = {
     EventoApp._initNetwork();
 
     if (Utils.isOnline()) EventoApp._syncQuiet();
+
+    // Notifiche push: se il permesso è già stato concesso in precedenza,
+    // (ri)registra la sottoscrizione per QUESTO evento — è il passo che
+    // manca per far arrivare le notifiche di nuovi movimenti quando l'app
+    // è chiusa, perché il device deve essere noto al server per ogni evento.
+    if (typeof Notifications !== 'undefined') {
+      Notifications.init().catch(() => {});
+      Notifications.registerForEvent(EventoApp._eventId, EventoApp._currentUserId).catch(() => {});
+    }
 
     // Chiudi menu al click fuori
     document.addEventListener('click', (e) => {
@@ -72,11 +97,17 @@ const EventoApp = {
 
   // ─── CARICA TUTTI I DATI ──────────────────────────────────
   async loadAll() {
-    EventoApp._event    = await DB.events.getById(EventoApp._eventId);
-    EventoApp._users    = await DB.users.getByEvent(EventoApp._eventId);
-    const allExp        = await DB.expenses.getByEvent(EventoApp._eventId);
-    EventoApp._expenses = allExp.filter(e => !e.deleted);
-    EventoApp._payments = await DB.payments.getByEvent(EventoApp._eventId);
+    try {
+      EventoApp._event    = await DB.events.getById(EventoApp._eventId);
+      EventoApp._users    = await DB.users.getByEvent(EventoApp._eventId);
+      const allExp        = await DB.expenses.getByEvent(EventoApp._eventId);
+      EventoApp._expenses = allExp.filter(e => !e.deleted);
+      EventoApp._payments = await DB.payments.getByEvent(EventoApp._eventId);
+    } catch (e) {
+      console.error('[Evento] loadAll error:', e);
+      Utils.toast('Errore nel caricamento dei dati locali', 'error');
+      return;
+    }
 
     if (!EventoApp._event) {
       Utils.toast('Evento non trovato nel database locale', 'error');
@@ -156,8 +187,8 @@ const EventoApp = {
       if (panel) panel.style.display = t === tab ? '' : 'none';
     });
 
-    const fab = document.getElementById('fabBtn');
-    if (fab) fab.style.display = tab === 'spese' ? '' : 'none';
+    const fabBar = document.getElementById('fabBar');
+    if (fabBar) fabBar.style.display = tab === 'spese' ? '' : 'none';
 
     // Mostra/nasconde la testata sticky dei totali (solo nel tab Movimenti)
     const stickyHead = document.getElementById('speseStickyHead');
