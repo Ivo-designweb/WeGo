@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.5
+// WeGo — evento.js v2.6
 // Logica pagina dettaglio evento
 // ═══════════════════════════════════════════════════════════════
 
@@ -15,6 +15,7 @@ const EventoApp = {
   _currentUserId: null,
   _balances:      {},
   _menuOpen:      false,
+  _searchQuery:   '',
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
@@ -203,6 +204,28 @@ const EventoApp = {
     if (tab === 'saldi')        EventoApp._renderSaldi();
   },
 
+  // ─── RICERCA MOVIMENTI (descrizione, note, data) ──────────
+  onSearchInput() {
+    const input    = document.getElementById('movSearchInput');
+    const clearBtn = document.getElementById('movSearchClearBtn');
+    if (clearBtn) clearBtn.style.display = input && input.value ? '' : 'none';
+  },
+
+  runSearch() {
+    const input = document.getElementById('movSearchInput');
+    EventoApp._searchQuery = input ? input.value : '';
+    EventoApp.onSearchInput();
+    EventoApp._renderSpese();
+  },
+
+  clearSearch() {
+    const input = document.getElementById('movSearchInput');
+    if (input) input.value = '';
+    EventoApp._searchQuery = '';
+    EventoApp.onSearchInput();
+    EventoApp._renderSpese();
+  },
+
   // ─── RENDER MOVIMENTI (spese + trasferimenti + pagamenti) ──
   _renderSpese() {
     const expenses = EventoApp._expenses;          // include 'expense' e 'transfer'
@@ -225,22 +248,23 @@ const EventoApp = {
         ? Utils.formatAmount(totale / users.length, currency)
         : '—';
 
-    // Quota personale
-    const myQuotaEl   = document.getElementById('myQuota');
-    const myQuotaText = document.getElementById('myQuotaText');
-    if (EventoApp._currentUserId && myQuotaEl) {
+    // Quota personale: importo in grassetto, verde se a credito, rosso se a debito
+    const myQuotaInner = document.getElementById('myQuotaInner');
+    const myQuotaText  = document.getElementById('myQuotaText');
+    if (EventoApp._currentUserId && myQuotaInner) {
       const myBal = EventoApp._balances[EventoApp._currentUserId] || 0;
-      myQuotaText.textContent = myBal >= 0
-        ? `Sei in credito di ${Utils.formatAmount(myBal, currency)}`
-        : `Devi ${Utils.formatAmount(Math.abs(myBal), currency)}`;
-      myQuotaEl.style.display = '';
+      const amountHtml = `<b style="font-weight:700;color:${myBal >= 0 ? 'var(--green)' : 'var(--red)'};">${Utils.formatAmount(Math.abs(myBal), currency)}</b>`;
+      myQuotaText.innerHTML = myBal >= 0
+        ? `Sei in credito di ${amountHtml}`
+        : `Devi ${amountHtml}`;
+      myQuotaInner.style.display = 'flex';
     }
 
     const container = document.getElementById('expenseList');
     if (!container) return;
 
     // Costruisce elenco unificato dei movimenti
-    const movements = [];
+    let movements = [];
 
     for (const exp of expenses) {
       movements.push({
@@ -261,8 +285,28 @@ const EventoApp = {
       });
     }
 
+    // Filtro di ricerca: descrizione (titolo), note e data del movimento
+    const query = (EventoApp._searchQuery || '').trim().toLowerCase();
+    if (query) {
+      movements = movements.filter(m => {
+        const title = (m.data.title || '').toLowerCase();
+        const notes = (m.data.notes || m.data.note || '').toLowerCase();
+        const dateRaw   = (m.date || '').toLowerCase();
+        const dateLabel = Utils.formatDateLabel(m.date).toLowerCase();
+        const dateShort = Utils.formatDate(m.date).toLowerCase();
+        return title.includes(query) || notes.includes(query) ||
+               dateRaw.includes(query) || dateLabel.includes(query) || dateShort.includes(query);
+      });
+    }
+
     if (movements.length === 0) {
-      container.innerHTML = `
+      container.innerHTML = query
+        ? `
+        <div class="empty-state" style="padding:30px 0;">
+          <p class="empty-state__title">Nessun risultato</p>
+          <p class="empty-state__desc">Nessun movimento corrisponde alla ricerca "${Utils.escapeHtml(EventoApp._searchQuery)}".</p>
+        </div>`
+        : `
         <div class="empty-state" style="padding:30px 0;">
           <p class="empty-state__title">Nessun movimento</p>
           <p class="empty-state__desc">Tocca + per aggiungere la prima spesa o un movimento di cassa.</p>
@@ -353,7 +397,7 @@ const EventoApp = {
     const nPart    = (exp.participants || []).length;
     const syncBadge = exp.synced === false ? `<span class="exp-badge exp-badge--sync">sync</span>` : '';
     const photoBadge = exp.has_photo
-      ? `<span class="exp-badge" style="cursor:pointer;" onclick="EventoApp.openLightbox('${exp.id}',${isMyExp},event)" title="Vedi foto">📷</span>`
+      ? `<span class="exp-badge exp-badge--photo" style="cursor:pointer;" onclick="EventoApp.openLightbox('${exp.id}',${isMyExp},event)" title="Vedi foto">📷</span>`
       : '';
     const gpsBadge   = (exp.location_lat || exp.location?.lat) ? `<span class="exp-badge">📍</span>` : '';
     const methodBadge = exp.payment_method ? `<span class="exp-badge">${Utils.escapeHtml(exp.payment_method)}</span>` : '';

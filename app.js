@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.4
+// WeGo — app.js v2.5
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -261,7 +261,7 @@ const App = {
 
     // Avatar utente corrente: più grande se proprietario
     const userAvatarHtml = userName
-      ? `<div class="avatar avatar-${userIdx} ${isOwner ? 'ev-card__avatar--owner' : 'avatar--sm'}" title="Sei ${Utils.escapeHtml(userName)}">${Utils.initials(userName)}</div>`
+      ? `<div class="avatar avatar-${userIdx} ${isOwner ? 'ev-card__avatar--owner' : 'avatar--sm'}" style="flex-shrink:0;" title="Sei ${Utils.escapeHtml(userName)}">${Utils.initials(userName)}</div>`
       : '';
 
     return `
@@ -270,15 +270,17 @@ const App = {
       <div class="ev-card__top">
         <div class="ev-card__thumb">${thumbHtml}</div>
         <div class="ev-card__info">
-          <div class="ev-card__title">${Utils.escapeHtml(ev.title)}</div>
-          <div class="ev-card__meta">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="ev-card__title" style="margin-bottom:0;flex:1;min-width:0;">${Utils.escapeHtml(ev.title)}</div>
+            ${userAvatarHtml}
+          </div>
+          <div class="ev-card__meta" style="margin-top:3px;">
             <span class="ev-code">${ev.code}</span>
             ${ownerBadge}
             ${syncBadge}
             <span class="ev-meta-txt">· ${Utils.timeAgo(ev.updated_at)}</span>
           </div>
         </div>
-        ${userAvatarHtml}
       </div>
       <div class="ev-card__bottom">
         <div class="ev-stat">
