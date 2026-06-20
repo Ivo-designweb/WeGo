@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v2.9</title>
+  <title>Evento — WeGo v3.0</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -64,14 +64,14 @@
     }
     .ev-header-photo img { width: 100%; height: 100%; object-fit: cover; }
     .ev-header-title {
-      font-size: 14px; font-weight: 700;
+      font-size: 16.5px; font-weight: 700;
       color: var(--text-primary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       max-width: 130px;
     }
     .ev-header-code {
       display: inline-flex; align-items: center; gap: 3px;
-      font-size: 9.5px; font-weight: 700;
+      font-size: 11px; font-weight: 700;
       letter-spacing: 1px; color: var(--accent);
       background: rgba(59,130,246,0.09);
       padding: 2px 6px; border-radius: var(--r-full);
@@ -91,7 +91,7 @@
     .tab-btn {
       flex: 1; padding: 10px 6px;
       background: none; border: none; border-bottom: 2px solid transparent;
-      font-family: var(--font); font-size: 12px; font-weight: 600;
+      font-family: var(--font); font-size: 14px; font-weight: 600;
       color: var(--text-muted); cursor: pointer;
       transition: all var(--ease);
       -webkit-tap-highlight-color: transparent;
@@ -109,11 +109,11 @@
       padding: 9px 8px; text-align: center;
     }
     .summary-row__val {
-      font-size: 14px; font-weight: 700;
+      font-size: 16.5px; font-weight: 700;
       color: var(--text-primary); letter-spacing: -0.3px;
     }
     .summary-row__lbl {
-      font-size: 9px; font-weight: 600;
+      font-size: 10.5px; font-weight: 600;
       color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px;
       margin-top: 1px;
     }
@@ -123,7 +123,7 @@
       display: flex; align-items: center; gap: 8px;
       background: rgba(59,130,246,0.08);
       border-bottom: 1px solid rgba(59,130,246,0.15);
-      padding: 8px 14px; font-size: 12px; color: var(--text-secondary);
+      padding: 8px 14px; font-size: 14px; color: var(--text-secondary);
     }
     #myQuotaInner { display: none; align-items: center; gap: 6px; flex-shrink: 0; max-width: 50%; }
     #myQuotaText  { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -131,7 +131,7 @@
     .quota-search-input {
       width: 100%; height: 27px;
       padding: 0 50px 0 9px;
-      font-size: 12px; font-family: var(--font);
+      font-size: 14px; font-family: var(--font);
       border-radius: var(--r-full);
       border: 1px solid var(--border);
       background: var(--bg-card); color: var(--text-primary);
@@ -151,7 +151,7 @@
 
     /* ─── EXPENSE ITEM ─── */
     .exp-group-date {
-      font-size: 12px; font-weight: 700; color: var(--text-muted);
+      font-size: 14px; font-weight: 700; color: var(--text-muted);
       text-transform: uppercase; letter-spacing: 0.5px;
       padding: 10px 0 4px;
     }
@@ -167,25 +167,25 @@
     .exp-avatar { flex-shrink: 0; }
     .exp-info { flex: 1; min-width: 0; }
     .exp-title {
-      font-size: 15px; font-weight: 600; color: var(--text-primary);
+      font-size: 17.5px; font-weight: 600; color: var(--text-primary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
     .exp-meta { display: flex; align-items: center; gap: 5px; margin-top: 2px; flex-wrap: wrap; }
-    .exp-meta-txt { font-size: 12px; color: var(--text-muted); }
+    .exp-meta-txt { font-size: 14px; color: var(--text-muted); }
     .exp-badge {
-      font-size: 10px; font-weight: 700; padding: 1px 5px;
+      font-size: 11.5px; font-weight: 700; padding: 1px 5px;
       border-radius: 4px; background: var(--bg-input); color: var(--text-muted);
     }
     .exp-badge--sync { color: #D97706; background: rgba(245,158,11,0.12); }
     .exp-badge--photo {
-      background: none; padding: 0 1px; font-size: 15px; line-height: 1;
+      background: none; padding: 0 1px; font-size: 17.5px; line-height: 1;
       display: inline-flex; align-items: center; vertical-align: middle;
     }
     .exp-amount { flex-shrink: 0; text-align: right; }
     .exp-amount__val {
-      font-size: 16px; font-weight: 700; color: var(--text-primary);
+      font-size: 18.5px; font-weight: 700; color: var(--text-primary);
     }
-    .exp-amount__lbl { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+    .exp-amount__lbl { font-size: 14px; color: var(--text-muted); margin-top: 1px; }
 
     /* ─── PARTECIPANTE ─── */
     .part-item {
@@ -194,9 +194,9 @@
     }
     .part-item:last-child { border-bottom: none; }
     .part-info { flex: 1; }
-    .part-name { font-size: 15px; font-weight: 600; color: var(--text-primary); }
-    .part-sub  { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
-    .part-balance { font-size: 15px; font-weight: 700; text-align: right; flex-shrink: 0; }
+    .part-name { font-size: 17.5px; font-weight: 600; color: var(--text-primary); }
+    .part-sub  { font-size: 14px; color: var(--text-muted); margin-top: 1px; }
+    .part-balance { font-size: 17.5px; font-weight: 700; text-align: right; flex-shrink: 0; }
 
     /* ─── SALDI ─── */
     .balance-item {
@@ -205,18 +205,18 @@
     }
     .balance-item:last-child { border-bottom: none; }
     .balance-info { flex: 1; }
-    .balance-name { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .balance-name { font-size: 17.5px; font-weight: 600; color: var(--text-primary); }
     .balance-bar-wrap { height: 4px; background: var(--bg-input); border-radius: 2px; margin-top: 5px; }
     .balance-bar { height: 100%; border-radius: 2px; transition: width 0.4s; }
-    .balance-val { font-size: 16px; font-weight: 700; text-align: right; flex-shrink: 0; }
+    .balance-val { font-size: 18.5px; font-weight: 700; text-align: right; flex-shrink: 0; }
 
     .txn-item {
       display: flex; align-items: center; gap: 10px;
       padding: 10px 0; border-bottom: 1px solid var(--border);
     }
     .txn-item:last-child { border-bottom: none; }
-    .txn-text { flex: 1; font-size: 15px; color: var(--text-primary); line-height: 1.4; }
-    .txn-amount { font-size: 16px; font-weight: 700; color: var(--text-primary); flex-shrink: 0; }
+    .txn-text { flex: 1; font-size: 17.5px; color: var(--text-primary); line-height: 1.4; }
+    .txn-amount { font-size: 18.5px; font-weight: 700; color: var(--text-primary); flex-shrink: 0; }
 
     /* ─── CONTEXT MENU ─── */
     .ctx-menu {
@@ -231,7 +231,7 @@
       display: flex; align-items: center; gap: 10px;
       width: 100%; padding: 12px 14px;
       background: none; border: none; border-bottom: 1px solid var(--border);
-      font-family: var(--font); font-size: 13px; font-weight: 500;
+      font-family: var(--font); font-size: 15px; font-weight: 500;
       color: var(--text-primary); cursor: pointer; text-align: left;
       -webkit-tap-highlight-color: transparent;
     }
@@ -249,9 +249,9 @@
     }
     .settled-item:last-child { border-bottom: none; }
     .settled-info { flex: 1; }
-    .settled-text { font-size: 14px; color: var(--text-secondary); }
-    .settled-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-    .settled-amount { font-size: 15px; font-weight: 700; color: var(--green); flex-shrink: 0; }
+    .settled-text { font-size: 16.5px; color: var(--text-secondary); }
+    .settled-meta { font-size: 14px; color: var(--text-muted); margin-top: 2px; }
+    .settled-amount { font-size: 17.5px; font-weight: 700; color: var(--green); flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -465,14 +465,14 @@
 <!-- LIGHTBOX FOTO -->
 <div id="photoLightbox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:2000;flex-direction:column;align-items:center;justify-content:center;"
   onclick="EventoApp.closeLightbox()">
-  <button onclick="EventoApp.closeLightbox()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.12);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+  <button onclick="EventoApp.closeLightbox()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.12);border:none;color:#fff;border-radius:50%;width:36px;height:36px;font-size:23px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
   <img id="lightboxImg" src="" alt="Foto spesa" style="max-width:95vw;max-height:80vh;object-fit:contain;border-radius:8px;" onclick="event.stopPropagation()" />
   <div id="lightboxDeleteWrap" style="margin-top:16px;display:none;">
-    <button onclick="EventoApp.deleteLightboxPhoto(event)" style="background:rgba(239,68,68,0.85);border:none;color:#fff;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer;">
+    <button onclick="EventoApp.deleteLightboxPhoto(event)" style="background:rgba(239,68,68,0.85);border:none;color:#fff;border-radius:8px;padding:10px 24px;font-size:16.5px;font-weight:600;cursor:pointer;">
       🗑 Elimina foto
     </button>
   </div>
-  <div id="lightboxNoPhoto" style="display:none;color:#94A3B8;font-size:14px;text-align:center;padding:20px;">
+  <div id="lightboxNoPhoto" style="display:none;color:#94A3B8;font-size:16.5px;text-align:center;padding:20px;">
     📷 Foto disponibile solo sul dispositivo di chi l'ha caricata
   </div>
 </div>

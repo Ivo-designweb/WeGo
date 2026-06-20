@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>WeGo v2.9</title>
+  <title>WeGo v3.0</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -36,22 +36,22 @@
     .ev-card__thumb img { width: 100%; height: 100%; object-fit: cover; }
     .ev-card__info { flex: 1; min-width: 0; }
     .ev-card__title {
-      font-size: 14px; font-weight: 700;
+      font-size: 16.5px; font-weight: 700;
       color: var(--text-primary);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       margin-bottom: 3px;
     }
     .ev-card__meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
     .ev-code {
-      font-size: 9.5px; font-weight: 700; letter-spacing: 1px;
+      font-size: 11px; font-weight: 700; letter-spacing: 1px;
       color: var(--accent);
       background: rgba(59,130,246,0.1);
       padding: 1px 6px; border-radius: 4px;
       font-family: monospace;
     }
-    .ev-meta-txt { font-size: 10px; color: var(--text-muted); }
+    .ev-meta-txt { font-size: 11.5px; color: var(--text-muted); }
     .ev-badge-amber {
-      font-size: 9px; font-weight: 700;
+      font-size: 10.5px; font-weight: 700;
       color: #D97706; background: rgba(245,158,11,0.12);
       padding: 1px 5px; border-radius: 999px;
       text-transform: uppercase; letter-spacing: 0.3px;
@@ -64,7 +64,7 @@
     }
     .ev-stat {
       display: flex; align-items: center; gap: 4px;
-      font-size: 10px; color: var(--text-muted);
+      font-size: 11.5px; color: var(--text-muted);
     }
     .ev-stat svg { opacity: 0.6; }
     .ev-stat__val { font-weight: 700; color: var(--text-secondary); }
@@ -72,7 +72,7 @@
       display: flex; flex-shrink: 0; margin-left: auto;
     }
     .ev-avatars .avatar {
-      width: 20px; height: 20px; font-size: 8px;
+      width: 20px; height: 20px; font-size: 9.5px;
       border: 1.5px solid var(--bg-card);
     }
     .ev-avatars .avatar + .avatar { margin-left: -6px; }
@@ -83,9 +83,9 @@
       gap: 8px; padding: 8px 0 2px;
     }
     .user-bar__info    { flex: 1; min-width: 0; }
-    .user-bar__lbl     { font-size: 10px; color: var(--text-muted); }
-    .user-bar__name    { font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .user-bar .avatar  { width: 24px; height: 24px; font-size: 9px; flex-shrink: 0; }
+    .user-bar__lbl     { font-size: 11.5px; color: var(--text-muted); }
+    .user-bar__name    { font-size: 15px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user-bar .avatar  { width: 24px; height: 24px; font-size: 10.5px; flex-shrink: 0; }
 
     .ev-card.ev-card--owned {
       background: rgba(16,185,129,0.06);
@@ -94,7 +94,7 @@
     .ev-card.ev-card--owned .ev-card__title { color: var(--text-primary); }
     /* Avatar utente nella card: più grande quando proprietario */
     .ev-card__avatar--owner {
-      width: 32px; height: 32px; font-size: 12px; flex-shrink: 0;
+      width: 32px; height: 32px; font-size: 14px; flex-shrink: 0;
     }
 
     /* ── Menu tre punti card evento ── */
@@ -115,7 +115,7 @@
     .ev-ctx-menu.open { display:block; }
     .ev-ctx-item {
       display:flex; align-items:center; gap:9px;
-      padding:11px 14px; font-size:13px; font-weight:500;
+      padding:11px 14px; font-size:15px; font-weight:500;
       cursor:pointer; color:var(--text-primary);
       border:none; background:none; width:100%; text-align:left;
     }
@@ -137,9 +137,9 @@
       border-radius: var(--r-md);
       padding: 7px 10px;
     }
-    .invite-item__name { flex: 1; font-size: 13px; font-weight: 500; color: var(--text-primary); }
+    .invite-item__name { flex: 1; font-size: 15px; font-weight: 500; color: var(--text-primary); }
     .invite-item__badge {
-      font-size: 9px; font-weight: 700;
+      font-size: 10.5px; font-weight: 700;
       color: var(--accent); background: rgba(59,130,246,0.12);
       padding: 1px 6px; border-radius: 999px;
     }
@@ -172,7 +172,7 @@
   <!-- HEADER -->
   <header class="app-header">
     <div class="app-header__logo">
-      <span class="app-header__title" style="font-size:24px;font-weight:800;letter-spacing:-0.5px;">WeGo</span>
+      <span class="app-header__title" style="font-size:28px;font-weight:800;letter-spacing:-0.5px;">WeGo</span>
     </div>
     <div class="app-header__actions">
       <div id="connDot" style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;"></div>
@@ -196,8 +196,8 @@
     <!-- WELCOME (nessun evento) -->
     <div id="welcomeScreen" class="hidden">
       <div style="padding:32px 0 18px;text-align:center;">
-        <div style="font-size:42px;font-weight:800;color:var(--accent);letter-spacing:-1px;line-height:1;">WeGo</div>
-        <div style="font-size:13px;color:var(--text-secondary);margin-top:6px;">Condividi spese con il tuo gruppo</div>
+        <div style="font-size:48.5px;font-weight:800;color:var(--accent);letter-spacing:-1px;line-height:1;">WeGo</div>
+        <div style="font-size:15px;color:var(--text-secondary);margin-top:6px;">Condividi spese con il tuo gruppo</div>
       </div>
       <div style="display:flex;flex-direction:column;gap:7px;margin-top:4px;">
         <button class="btn btn--primary btn--full btn--xl" onclick="App.showJoinEvent()">
@@ -216,10 +216,10 @@
           Crea nuovo evento
         </button>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--text-muted);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+      <div style="display:flex;align-items:center;gap:8px;margin:14px 0;color:var(--text-muted);font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
         <div style="flex:1;height:1px;background:var(--border);"></div>oppure<div style="flex:1;height:1px;background:var(--border);"></div>
       </div>
-      <div style="text-align:center;font-size:11px;color:var(--text-muted);">I tuoi eventi appariranno qui automaticamente.</div>
+      <div style="text-align:center;font-size:13px;color:var(--text-muted);">I tuoi eventi appariranno qui automaticamente.</div>
     </div>
 
     <!-- EVENTI -->
@@ -318,7 +318,7 @@
       <label class="form-label">Codice evento *</label>
       <input type="text" class="form-input" id="joinEventCode"
         placeholder="ABC-123456" maxlength="12"
-        style="text-transform:uppercase;letter-spacing:3px;font-size:16px;font-weight:700;text-align:center;"
+        style="text-transform:uppercase;letter-spacing:3px;font-size:18.5px;font-weight:700;text-align:center;"
         oninput="this.value=this.value.toUpperCase()" />
       <span class="form-hint">Chiedi il codice al creatore dell'evento</span>
     </div>
@@ -383,7 +383,7 @@
       <input type="file" id="editEventPhotoInput" accept="image/*" style="display:none;" onchange="App.onEditEventPhotoChange(this)" />
       <div id="editEventPhotoPreview" style="margin-top:8px;display:none;">
         <img id="editEventPhotoImg" src="" alt="" style="width:80px;height:80px;object-fit:cover;border-radius:8px;"/>
-        <button onclick="App.clearEditEventPhoto()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:12px;margin-left:8px;">Rimuovi</button>
+        <button onclick="App.clearEditEventPhoto()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;margin-left:8px;">Rimuovi</button>
       </div>
     </div>
 

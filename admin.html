@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
-  <title>Admin — WeGo v1.4</title>
+  <title>Admin — WeGo v1.5</title>
   <link rel="stylesheet" href="/css/style.css" />
   <style>
     .admin-section { margin-bottom: 22px; }
@@ -21,7 +21,7 @@
     .admin-row:last-child { border-bottom: none; }
     .status-dot {
       display: inline-flex; align-items: center; gap: 5px;
-      font-size: 11px; font-weight: 600;
+      font-size: 13px; font-weight: 600;
     }
     .status-dot__circle { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .status-dot.ok    .status-dot__circle { background: var(--green); }
@@ -33,7 +33,7 @@
     .sql-block {
       background: #0A0F1A; border: 1px solid var(--border); border-radius: var(--r-md);
       padding: 12px; font-family: 'Menlo','Monaco','Courier New',monospace;
-      font-size: 11px; color: #7DD3FC; line-height: 1.6;
+      font-size: 13px; color: #7DD3FC; line-height: 1.6;
       overflow-x: auto; white-space: pre; max-height: 240px; overflow-y: auto;
     }
     .sql-block .kw { color: #F472B6; }
@@ -43,22 +43,22 @@
     .step-badge {
       display: inline-flex; align-items: center; justify-content: center;
       width: 20px; height: 20px; border-radius: 50%;
-      background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; flex-shrink: 0;
+      background: var(--accent); color: #fff; font-size: 11.5px; font-weight: 800; flex-shrink: 0;
     }
     .ext-link {
       display: inline-flex; align-items: center; gap: 4px;
-      color: var(--accent); font-size: 12px; font-weight: 600; text-decoration: none;
+      color: var(--accent); font-size: 14px; font-weight: 600; text-decoration: none;
     }
     .ext-link:hover { text-decoration: underline; }
     .ext-link svg { width: 11px; height: 11px; }
     .test-result {
       margin-top: 10px; padding: 10px 12px; border-radius: var(--r-md);
-      font-size: 12px; font-weight: 500; display: none; line-height: 1.6;
+      font-size: 14px; font-weight: 500; display: none; line-height: 1.6;
     }
     .test-result.ok    { background: rgba(16,185,129,0.1); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }
     .test-result.error { background: rgba(239,68,68,0.1);  color: var(--red);   border: 1px solid rgba(239,68,68,0.25); }
     .test-result.warn  { background: rgba(245,158,11,0.1); color: #D97706;      border: 1px solid rgba(245,158,11,0.25); }
-    .diag-step { display: flex; align-items: flex-start; gap: 7px; padding: 2px 0; font-size: 11px; }
+    .diag-step { display: flex; align-items: flex-start; gap: 7px; padding: 2px 0; font-size: 13px; }
     .diag-step__icon { flex-shrink: 0; }
     .diag-step--ok   .diag-step__text { color: var(--green); }
     .diag-step--err  .diag-step__text { color: var(--red); }
@@ -66,25 +66,25 @@
     .diag-step--info .diag-step__text { color: var(--text-secondary); }
     .fcm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     @media (max-width: 360px) { .fcm-grid { grid-template-columns: 1fr; } }
-    .config-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; padding: 4px 0; }
+    .config-note { font-size: 13px; color: var(--text-muted); line-height: 1.5; padding: 4px 0; }
     .admin-about { text-align: center; padding: 20px 14px; border-top: 1px solid var(--border); margin-top: 8px; }
     .admin-about__logo {
       width: 36px; height: 36px; background: var(--accent); border-radius: 8px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 13px; font-weight: 800; color: #fff; letter-spacing: -0.3px; margin: 0 auto 8px;
+      font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -0.3px; margin: 0 auto 8px;
     }
-    .admin-about__title { font-size: 14px; font-weight: 700; color: var(--text-primary); }
-    .admin-about__ver   { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .admin-about__title { font-size: 16.5px; font-weight: 700; color: var(--text-primary); }
+    .admin-about__ver   { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
     .admin-about__sep   { height: 1px; background: var(--border); margin: 12px 0; }
-    .admin-about__dev   { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
-    .admin-about__name  { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+    .admin-about__dev   { font-size: 13px; color: var(--text-muted); margin-bottom: 3px; }
+    .admin-about__name  { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
     .admin-about__mail  {
       display: inline-flex; align-items: center; gap: 4px;
-      font-size: 12px; font-weight: 500; color: var(--accent); text-decoration: none;
+      font-size: 14px; font-weight: 500; color: var(--accent); text-decoration: none;
     }
     .admin-about__mail:hover { text-decoration: underline; }
     .admin-about__mail svg { width: 12px; height: 12px; }
-    .dev-contact { text-align: center; padding: 10px 0 4px; font-size: 11px; color: var(--text-muted); }
+    .dev-contact { text-align: center; padding: 10px 0 4px; font-size: 13px; color: var(--text-muted); }
     .dev-contact a { color: var(--accent); text-decoration: none; font-weight: 500; }
     .dev-contact a:hover { text-decoration: underline; }
   </style>
@@ -108,23 +108,23 @@
       <div class="section-header"><span class="section-title">Stato sistema</span></div>
       <div class="admin-group">
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:13px;color:var(--text-secondary);">Supabase</span>
+          <span style="font-size:15px;color:var(--text-secondary);">Supabase</span>
           <span class="status-dot" id="statusSupabase"><span class="status-dot__circle"></span><span id="statusSupabaseText">Non configurato</span></span>
         </div>
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:13px;color:var(--text-secondary);">Firebase FCM</span>
+          <span style="font-size:15px;color:var(--text-secondary);">Firebase FCM</span>
           <span class="status-dot" id="statusFCM"><span class="status-dot__circle"></span><span id="statusFCMText">Non configurato</span></span>
         </div>
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:13px;color:var(--text-secondary);">Service Worker</span>
+          <span style="font-size:15px;color:var(--text-secondary);">Service Worker</span>
           <span class="status-dot" id="statusSW"><span class="status-dot__circle"></span><span id="statusSWText">Verifica...</span></span>
         </div>
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:13px;color:var(--text-secondary);">Permesso notifiche</span>
+          <span style="font-size:15px;color:var(--text-secondary);">Permesso notifiche</span>
           <span class="status-dot" id="statusNotif"><span class="status-dot__circle"></span><span id="statusNotifText">Verifica...</span></span>
         </div>
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:13px;color:var(--text-secondary);">IndexedDB locale</span>
+          <span style="font-size:15px;color:var(--text-secondary);">IndexedDB locale</span>
           <span class="status-dot" id="statusDB"><span class="status-dot__circle"></span><span id="statusDBText">Verifica...</span></span>
         </div>
       </div>
@@ -137,7 +137,7 @@
         <div class="admin-row">
           <p class="config-note">
             Le credenziali sono salvate nel <b>localStorage</b> del browser corrente e non sono disponibili su altri PC o browser.
-            Esporta un file <code style="font-size:10px;background:var(--bg-input);padding:1px 4px;border-radius:3px;">wego-config.json</code>
+            Esporta un file <code style="font-size:11.5px;background:var(--bg-input);padding:1px 4px;border-radius:3px;">wego-config.json</code>
             da importare su ogni nuovo dispositivo. Conservalo in modo sicuro — contiene le chiavi API.
           </p>
         </div>
@@ -170,18 +170,18 @@
       </div>
       <div class="admin-group" style="margin-bottom:10px;">
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">1</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Crea account su supabase.com</span></div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Vai su <a href="https://supabase.com" target="_blank" class="ext-link" style="font-size:11px;">supabase.com</a>, crea un account gratuito e un nuovo progetto.</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">1</span><span style="font-size:14px;font-weight:600;color:var(--text-primary);">Crea account su supabase.com</span></div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Vai su <a href="https://supabase.com" target="_blank" class="ext-link" style="font-size:13px;">supabase.com</a>, crea un account gratuito e un nuovo progetto.</p>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">2</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Esegui lo schema SQL</span></div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;margin-bottom:8px;">Pannello Supabase &#8594; <b>SQL Editor</b> &#8594; <b>New query</b>, incolla e lancia:</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">2</span><span style="font-size:14px;font-weight:600;color:var(--text-primary);">Esegui lo schema SQL</span></div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-left:28px;margin-bottom:8px;">Pannello Supabase &#8594; <b>SQL Editor</b> &#8594; <b>New query</b>, incolla e lancia:</p>
           <div class="sql-block" id="sqlBlock"></div>
           <button class="btn btn--ghost btn--sm" onclick="AdminApp.copySQL()" style="margin-top:8px;">Copia SQL</button>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">3</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Copia le credenziali API</span></div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><b>Project Settings</b> &#8594; <b>API</b>. Copia Project URL e anon public key.</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">3</span><span style="font-size:14px;font-weight:600;color:var(--text-primary);">Copia le credenziali API</span></div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><b>Project Settings</b> &#8594; <b>API</b>. Copia Project URL e anon public key.</p>
         </div>
       </div>
       <div class="admin-group">
@@ -192,7 +192,7 @@
           </div>
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">Anon Public Key *</label>
-            <input type="text" class="form-input" id="supabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." autocomplete="off" style="font-family:monospace;font-size:11px;" />
+            <input type="text" class="form-input" id="supabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." autocomplete="off" style="font-family:monospace;font-size:13px;" />
           </div>
         </div>
         <div class="admin-row" style="display:flex;gap:8px;">
@@ -211,31 +211,31 @@
       </div>
       <div class="admin-group" style="margin-bottom:10px;">
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">1</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Crea progetto Firebase</span></div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Vai su <a href="https://console.firebase.google.com" target="_blank" class="ext-link" style="font-size:11px;">console.firebase.google.com</a>, crea progetto e aggiungi una Web App.</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">1</span><span style="font-size:14px;font-weight:600;color:var(--text-primary);">Crea progetto Firebase</span></div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Vai su <a href="https://console.firebase.google.com" target="_blank" class="ext-link" style="font-size:13px;">console.firebase.google.com</a>, crea progetto e aggiungi una Web App.</p>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">2</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Abilita Cloud Messaging</span></div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><b>Project Settings</b> &#8594; <b>Cloud Messaging</b> &#8594; genera chiavi VAPID (Web Push certificates).</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">2</span><span style="font-size:14px;font-weight:600;color:var(--text-primary);">Abilita Cloud Messaging</span></div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><b>Project Settings</b> &#8594; <b>Cloud Messaging</b> &#8594; genera chiavi VAPID (Web Push certificates).</p>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">3</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Copia le credenziali</span></div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><b>Project Settings</b> &#8594; <b>General</b> &#8594; <b>Your apps</b> &#8594; <b>SDK setup and configuration</b>.</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">3</span><span style="font-size:14px;font-weight:600;color:var(--text-primary);">Copia le credenziali</span></div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><b>Project Settings</b> &#8594; <b>General</b> &#8594; <b>Your apps</b> &#8594; <b>SDK setup and configuration</b>.</p>
         </div>
       </div>
       <div class="admin-group">
         <div class="admin-row">
           <div class="fcm-grid">
-            <div class="form-group" style="margin-bottom:0;"><label class="form-label">API Key</label><input type="text" class="form-input" id="fcmApiKey" placeholder="AIzaSy..." autocomplete="off" style="font-size:11px;font-family:monospace;" /></div>
-            <div class="form-group" style="margin-bottom:0;"><label class="form-label">Project ID</label><input type="text" class="form-input" id="fcmProjectId" placeholder="my-project-12345" autocomplete="off" style="font-size:11px;" /></div>
-            <div class="form-group" style="margin-bottom:0;"><label class="form-label">Sender ID</label><input type="text" class="form-input" id="fcmSenderId" placeholder="123456789012" autocomplete="off" style="font-size:11px;font-family:monospace;" /></div>
-            <div class="form-group" style="margin-bottom:0;"><label class="form-label">App ID</label><input type="text" class="form-input" id="fcmAppId" placeholder="1:123...:web:abc..." autocomplete="off" style="font-size:11px;font-family:monospace;" /></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">API Key</label><input type="text" class="form-input" id="fcmApiKey" placeholder="AIzaSy..." autocomplete="off" style="font-size:13px;font-family:monospace;" /></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">Project ID</label><input type="text" class="form-input" id="fcmProjectId" placeholder="my-project-12345" autocomplete="off" style="font-size:13px;" /></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">Sender ID</label><input type="text" class="form-input" id="fcmSenderId" placeholder="123456789012" autocomplete="off" style="font-size:13px;font-family:monospace;" /></div>
+            <div class="form-group" style="margin-bottom:0;"><label class="form-label">App ID</label><input type="text" class="form-input" id="fcmAppId" placeholder="1:123...:web:abc..." autocomplete="off" style="font-size:13px;font-family:monospace;" /></div>
           </div>
         </div>
         <div class="admin-row">
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">VAPID Public Key (Web Push)</label>
-            <input type="text" class="form-input" id="fcmVapidKey" placeholder="BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfck..." autocomplete="off" style="font-size:11px;font-family:monospace;" />
+            <input type="text" class="form-input" id="fcmVapidKey" placeholder="BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfck..." autocomplete="off" style="font-size:13px;font-family:monospace;" />
             <span class="form-hint">Da Project Settings &#8594; Cloud Messaging &#8594; Web Push certificates</span>
           </div>
         </div>
@@ -255,16 +255,16 @@
       </div>
       <div class="admin-group">
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">1</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Push su GitHub</span></div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Carica la cartella del progetto su un repository GitHub.</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">1</span><span style="font-size:14px;font-weight:600;color:var(--text-primary);">Push su GitHub</span></div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Carica la cartella del progetto su un repository GitHub.</p>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">2</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Importa su Vercel</span></div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><a href="https://vercel.com" target="_blank" class="ext-link" style="font-size:11px;">vercel.com</a> &#8594; <b>Add New Project</b> &#8594; seleziona il repo &#8594; framework: <b>Other</b> &#8594; deploy.</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">2</span><span style="font-size:14px;font-weight:600;color:var(--text-primary);">Importa su Vercel</span></div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-left:28px;"><a href="https://vercel.com" target="_blank" class="ext-link" style="font-size:13px;">vercel.com</a> &#8594; <b>Add New Project</b> &#8594; seleziona il repo &#8594; framework: <b>Other</b> &#8594; deploy.</p>
         </div>
         <div class="admin-row">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">3</span><span style="font-size:12px;font-weight:600;color:var(--text-primary);">Configura il dominio</span></div>
-          <p style="font-size:11px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Vercel assegna un URL <code style="font-size:10px;background:var(--bg-input);padding:1px 4px;border-radius:3px;">*.vercel.app</code>. Le PWA richiedono HTTPS — fornito automaticamente.</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span class="step-badge">3</span><span style="font-size:14px;font-weight:600;color:var(--text-primary);">Configura il dominio</span></div>
+          <p style="font-size:13px;color:var(--text-muted);line-height:1.5;margin-left:28px;">Vercel assegna un URL <code style="font-size:11.5px;background:var(--bg-input);padding:1px 4px;border-radius:3px;">*.vercel.app</code>. Le PWA richiedono HTTPS — fornito automaticamente.</p>
         </div>
         <div class="admin-row">
           <button class="btn btn--ghost btn--full" onclick="AdminApp.downloadVercelJson()">
@@ -421,7 +421,7 @@ const AdminApp = {
   // ── TEST FCM con diagnostica step-by-step ──────────────
   async testFCM() {
     const el = document.getElementById('fcmTestResult');
-    el.style.display = 'block'; el.className = 'test-result'; el.innerHTML = '<em style="opacity:0.6;font-size:11px;">Analisi in corso...</em>';
+    el.style.display = 'block'; el.className = 'test-result'; el.innerHTML = '<em style="opacity:0.6;font-size:13px;">Analisi in corso...</em>';
 
     const steps = [];
     const add = (icon, cls, text) => steps.push('<div class="diag-step diag-step--' + cls + '"><span class="diag-step__icon">' + icon + '</span><span class="diag-step__text">' + text + '</span></div>');

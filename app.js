@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.5
+// WeGo — app.js v2.6
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -256,7 +256,7 @@ const App = {
 
     // Badge proprietario
     const ownerBadge = isOwner
-      ? `<span style="font-size:9px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.12);padding:1px 6px;border-radius:999px;letter-spacing:0.2px;">✦ mio</span>`
+      ? `<span style="font-size:10.5px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.12);padding:1px 6px;border-radius:999px;letter-spacing:0.2px;">✦ mio</span>`
       : '';
 
     // Avatar utente corrente: più grande se proprietario
@@ -300,7 +300,7 @@ const App = {
         <div class="ev-avatars">${avatarsHtml}</div>
         <button
           onclick="App.leaveEvent('${ev.id}','${Utils.escapeHtml(ev.title).replace(/'/g,"\\'")}',event)"
-          style="margin-left:8px;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:10px;padding:2px 4px;border-radius:4px;opacity:0.65;"
+          style="margin-left:8px;background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:11.5px;padding:2px 4px;border-radius:4px;opacity:0.65;"
           title="Scollegati dall'evento">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
@@ -324,7 +324,7 @@ const App = {
           <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
         </svg>
         Modifica evento
-        ${!isOwner ? '<span style="font-size:9px;color:var(--text-muted);margin-left:auto;">(solo creatore)</span>' : ''}
+        ${!isOwner ? '<span style="font-size:10.5px;color:var(--text-muted);margin-left:auto;">(solo creatore)</span>' : ''}
       </button>
       <div class="ev-ctx-divider"></div>
       <button class="ev-ctx-item danger" onclick="App.confirmDeleteFromMenu('${ev.id}','${Utils.escapeHtml(ev.title).replace(/'/g,"\\'")}',event)" ${!isOwner ? 'disabled' : ''}>
@@ -333,7 +333,7 @@ const App = {
           <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
         </svg>
         Elimina evento
-        ${!isOwner ? '<span style="font-size:9px;color:var(--text-muted);margin-left:auto;">(solo creatore)</span>' : ''}
+        ${!isOwner ? '<span style="font-size:10.5px;color:var(--text-muted);margin-left:auto;">(solo creatore)</span>' : ''}
       </button>
     </div>
     </div>`;
@@ -768,8 +768,8 @@ const App = {
       const users = await DB.users.getByEvent(event.id);
       const infoEl = document.getElementById('joinEventInfo');
       infoEl.innerHTML = `
-        <div style="font-size:14px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">${Utils.escapeHtml(event.title)}</div>
-        <div style="font-size:11px;color:var(--text-muted);">${users.length} partecipanti · Codice: ${event.code}</div>`;
+        <div style="font-size:16.5px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">${Utils.escapeHtml(event.title)}</div>
+        <div style="font-size:13px;color:var(--text-muted);">${users.length} partecipanti · Codice: ${event.code}</div>`;
 
       const select = document.getElementById('joinUserSelect');
       select.innerHTML = `<option value="">— seleziona —</option>` +
