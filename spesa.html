@@ -12,17 +12,20 @@
   <link rel="stylesheet" href="/style.css" />
   <style>
     /* ─── PAGINA SENZA BARRA INFERIORE ───────────────────────────
-       Due correzioni:
-       1) lo style.css globale forza .app-shell a un'altezza MINIMA pari
-          a tutto il viewport (min-height:100dvh) e .page-content a
-          riempire lo spazio restante (flex:1). Su un form corto questo
-          crea spazio vuoto "fantasma" in fondo, sotto le Note, che
-          obbliga a scorrere anche se non c'è altro contenuto.
-          Qui disattiviamo lo stretch forzato: la pagina sarà alta
-          esattamente quanto il suo contenuto, non un pixel di più.
-       2) .page-content riserva inoltre un padding-bottom pensato per
-          una bottom-nav che in questa pagina non esiste. Lo riduciamo
-          al minimo (solo safe-area per i telefoni con barra gestuale). */
+       Più livelli forzavano un'altezza MINIMA pari a tutto il viewport
+       (html/body/app-shell con min-height:100dvh, .page-content con
+       flex:1 per riempire lo spazio restante). Su un form corto questo
+       crea scroll "fantasma": la pagina viene resa alta come lo schermo
+       anche se il contenuto reale è più corto, e su Chrome Android
+       "100dvh" può risultare leggermente più alto dell'area visibile
+       reale (barra indirizzi dinamica), aggiungendo scroll percepito
+       anche a contenuto identico. Qui rimuoviamo lo stretch forzato a
+       OGNI livello: la pagina sarà alta esattamente quanto il suo
+       contenuto, non un pixel di più. Manteniamo lo sfondo coerente su
+       html (di norma trasparente/bianco) per evitare un lampo di colore
+       sbagliato nel caso il contenuto sia più corto del viewport. */
+    html { background: var(--bg-primary); }
+    body { min-height: auto !important; }
     .app-shell {
       min-height: 0 !important;
       height: auto !important;
@@ -245,7 +248,7 @@
       <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
         <label class="form-label" style="flex-shrink:0;margin:0;white-space:nowrap;">Data</label>
         <input type="date" class="form-input" id="expenseDate"
-          style="flex:1;min-width:100px;max-width:145px;padding:6px 8px;font-size:15px;" />
+          style="flex:1;min-width:130px;max-width:175px;padding:6px 6px;font-size:14px;" />
         <label class="form-label" style="flex-shrink:0;margin:0 0 0 4px;white-space:nowrap;">Metodo</label>
         <select class="form-select" id="expenseMethod"
           style="flex:1;min-width:80px;padding:6px 24px 6px 8px;font-size:15px;"></select>
