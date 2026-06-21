@@ -1,8 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.10
+// WeGo — evento.js v2.11
 // Logica pagina dettaglio evento
-// v2.10: banner "in attesa di sincronizzazione" per eventi esterni gated
-//        + eventId nel payload delete_user (vedi sync.js gating)
+// v2.11: rimosso il banner persistente "in attesa di sincronizzazione"
+//        — sostituito da un puntino giallo/verde accanto all'icona di
+//        aggiornamento (sempre presente, nessun popup); il popup di
+//        avviso appare SOLO sul tap manuale dell'icona di sync, non
+//        sulle sincronizzazioni automatiche. Corretto anche il messaggio
+//        "Sincronizzato" che appariva anche quando l'evento non era
+//        realmente abilitato (vedi syncNow()).
+// v2.10: eventId nel payload delete_user (vedi sync.js gating)
 // ═══════════════════════════════════════════════════════════════
 
 const EventoApp = {
@@ -200,9 +206,29 @@ const EventoApp = {
     if (countSpeseEl) countSpeseEl.textContent = nMovimenti ? `(${nMovimenti})` : '';
     if (countPartEl)  countPartEl.textContent  = EventoApp._users.length ? `(${EventoApp._users.length})` : '';
 
-    // Banner "in attesa di sincronizzazione" (evento esterno non ancora abilitato)
-    const gateBanner = document.getElementById('syncGateBanner');
-    if (gateBanner) gateBanner.classList.toggle('hidden', !(ev.gated && !ev.sync_allowed));
+    // Puntino di stato sincronizzazione, accanto all'icona di aggiornamento:
+    // assente per gli eventi non gated (proprietario/legacy, sempre sync
+    // come sempre), giallo se in attesa di abilitazione, verde se abilitato.
+    // Nessun popup qui: solo un'indicazione visiva passiva, sempre aggiornata
+    // ad ogni sync (manuale o automatica) perché _renderHero() viene chiamata
+    // da loadAll() dopo ogni ciclo (vedi syncNow()/_syncQuiet()).
+    const gateDot = document.getElementById('syncGateDot');
+    if (gateDot) {
+      if (ev.gated) {
+        gateDot.classList.remove('hidden');
+        gateDot.style.background = ev.sync_allowed ? 'var(--green)' : '#F59E0B';
+        gateDot.title = ev.sync_allowed
+          ? 'Sincronizzazione abilitata'
+          : 'In attesa di sincronizzazione — tocca l\'icona di aggiornamento per i dettagli';
+      } else {
+        gateDot.classList.add('hidden');
+      }
+    }
+
+    // Voce di menu "Richiedi sincronizzazione": visibile solo se l'evento
+    // è ancora in attesa di abilitazione (gated e non sync_allowed).
+    const ctxSyncBtn = document.getElementById('ctxSyncRequestBtn');
+    if (ctxSyncBtn) ctxSyncBtn.style.display = (ev.gated && !ev.sync_allowed) ? '' : 'none';
   },
 
   // ─── RICHIESTA SINCRONIZZAZIONE (evento gated) ────────────
@@ -1114,13 +1140,27 @@ const EventoApp = {
   closeModal(id) { document.getElementById(id)?.classList.remove('open'); },
 
   // ─── SYNC ─────────────────────────────────────────────────
+  // Tap manuale sull'icona di aggiornamento: è l'UNICO punto in cui
+  // mostriamo un popup sullo stato di sincronizzazione (3 secondi, vedi
+  // Utils.toast). Le sincronizzazioni automatiche (_syncQuiet, sotto)
+  // restano sempre silenziose: aggiornano solo il puntino di stato.
   async syncNow() {
     try {
       if (!Utils.isOnline()) { Utils.toast('Nessuna connessione', 'error'); return; }
       await Sync.push();
       await Sync.pullEvent(EventoApp._eventId);
       await EventoApp.loadAll();
-      Utils.toast('Sincronizzato', 'success', 2000);
+
+      // Messaggio in base allo stato REALE dell'evento dopo il ciclo di
+      // sync appena concluso (non un generico "Sincronizzato" sempre
+      // uguale): se è ancora gated e non abilitato, niente è stato
+      // davvero inviato al server, quindi lo diciamo chiaramente.
+      const ev = EventoApp._event;
+      if (ev && ev.gated && !ev.sync_allowed) {
+        Utils.toast('Questo evento non è ancora sincronizzato sul server: resta solo su questo telefono.', 'info', 3000);
+      } else {
+        Utils.toast('Sincronizzato', 'success', 2000);
+      }
     } catch (e) {
       Utils.toast('Errore sync', 'error');
     }

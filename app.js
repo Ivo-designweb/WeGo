@@ -1,13 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.8
+// WeGo — app.js v2.10
 // Logica principale pagina Home (index.html)
+// v2.10: syncNow() non dichiara più "Sincronizzato" se restano eventi
+//        gated non abilitati (vedi sotto)
+// v2.9:  sincronizzazione selettiva per eventi esterni — vedi createEvent()
+//        e _eventCardHtml() per il badge "in attesa di sincronizzazione"
 // ═══════════════════════════════════════════════════════════════
 
 const App = {
-
-  // ─── VERSIONE ─────────────────────────────────────────────
-  // v2.9: sincronizzazione selettiva per eventi esterni — vedi createEvent()
-  //       e _eventCardHtml() per il badge "in attesa di sincronizzazione"
 
   // ─── STATO ────────────────────────────────────────────────
   _events:       [],
@@ -18,7 +18,7 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v2.9 init');
+    console.log('[App] WeGo v2.10 init');
 
     // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
     // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
@@ -890,7 +890,27 @@ const App = {
       await Sync.push();
       await Sync.pull();
       await App.loadEvents();
-      Utils.toast('Sincronizzato', 'success', 2000);
+
+      // Come in evento.js: non diciamo "Sincronizzato" se almeno uno degli
+      // eventi presenti su questo device è ancora "gated" e non abilitato
+      // — altrimenti il messaggio sarebbe impreciso (niente è stato
+      // davvero inviato al server per quell'evento).
+      let pendingCount = 0;
+      try {
+        const allEvents = await DB.events.getAll();
+        pendingCount = allEvents.filter(e => e.gated && !e.sync_allowed).length;
+      } catch (e) {}
+
+      if (pendingCount > 0) {
+        Utils.toast(
+          pendingCount === 1
+            ? '1 evento è ancora in attesa di sincronizzazione sul server.'
+            : `${pendingCount} eventi sono ancora in attesa di sincronizzazione sul server.`,
+          'info', 3000
+        );
+      } else {
+        Utils.toast('Sincronizzato', 'success', 2000);
+      }
     } catch (e) {
       Utils.toast('Errore sync', 'error');
     } finally {

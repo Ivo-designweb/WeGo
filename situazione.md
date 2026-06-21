@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v3.6 (v3.3 per spesa.html/spesa.js) — Aggiornato: 21 giugno 2026**
+**Versione corrente: v3.8 (v3.3 per spesa.html/spesa.js) — Aggiornato: 21 giugno 2026**
 
 ---
 
@@ -28,9 +28,10 @@
 | Sincronizzazione | REST API Supabase | Push + Pull bidirezionale, momenti precisi (vedi §4) |
 | Push notifications | Web Push API (VAPID) | Client pronto; serve Edge Function Supabase non ancora deployata |
 | Hosting | Vercel | HTTPS automatico, no build, deploy da GitHub |
-| Service Worker | sw.js v3.6 | Cache offline, Network-First per HTML/JS/CSS con fallback cache |
+| Service Worker | sw.js v3.8 | Cache offline, Network-First per HTML/JS/CSS con fallback cache; `/api/*` sempre escluso dalla cache |
 | Mappe | Link esterno Google Maps | Coordinate GPS salvate |
-| Pannello admin | admin.html v1.6 | Protetto da password lato client (vedi §5) |
+| Pannello admin | admin.html v1.7 | Password verificata **lato server** (vedi §5, §11) — non più nel codice sorgente |
+| Funzioni serverless | Vercel `/api/*.js` (Node, **nuovo in v3.7**) | `admin-login.js`, `owner-verify.js`, `sync-status.js` — unico modo per nascondere segreti su un sito statico |
 
 ---
 
@@ -42,24 +43,28 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v3.6   Home: lista eventi, crea/unisciti
-├── evento.html          v3.6  Pagina evento: tab Movimenti / Saldi / Partecipanti
+├── index.html          v3.8   Home: lista eventi, crea/unisciti
+├── evento.html          v3.8  Pagina evento: tab Movimenti / Saldi / Partecipanti
 ├── spesa.html            v3.3 Registrazione / visualizzazione movimento
-├── impostazioni.html    v3.6   Impostazioni: tema, metodi pagamento, link Admin
-├── admin.html           v1.6   Pannello admin/debug — PROTETTO DA PASSWORD
-├── sw.js                v3.6   Service Worker (CACHE_NAME: wego-v3.6)
-├── manifest.json        v3.6   PWA manifest
+├── impostazioni.html    v3.8   Impostazioni: tema, metodi pagamento, dispositivo proprietario, link Admin
+├── admin.html           v1.7   Pannello admin/debug — password verificata lato server + gestione sync esterni
+├── sw.js                v3.8   Service Worker (CACHE_NAME: wego-v3.8) — esclude /api/* dalla cache
+├── manifest.json        v3.8   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
 ├── style.css            v1.4   Design system globale (font +15% rispetto a v1.3)
-├── app.js                v2.8 Logica home: eventi, crea/unisciti, menu tre punti
-├── evento.js             v2.9 Logica pagina evento: movimenti, saldi, partecipanti, ricerca
+├── app.js                v2.10 Logica home: eventi, crea/unisciti, gating sync, menu tre punti
+├── evento.js             v2.11 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync
 ├── spesa.js               v2.1 Logica form registrazione/visualizzazione movimento
-├── sync.js                v1.4 Sincronizzazione bidirezionale locale ↔ Supabase
-├── supabase.js            v1.3 Client REST Supabase (tutte le entity + push subscriptions)
-├── db.js                  v1.2 IndexedDB wrapper (events, users, expenses, photos, payments, pending, sessions)
+├── sync.js                v1.5 Sincronizzazione bidirezionale locale ↔ Supabase + gating eventi esterni
+├── supabase.js            v1.4 Client REST Supabase (tutte le entity + push subscriptions + sp_sync_status)
+├── db.js                  v1.3 IndexedDB wrapper (events con gated/sync_allowed, users, expenses, photos, payments, pending, sessions)
 ├── utils.js               v1.2 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share…)
 ├── payments.js            v1.0 Metodi di pagamento (lista configurabile, default + custom)
 ├── notifications.js      v1.1 Web Push: registrazione + salvataggio sottoscrizione su Supabase
+├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis)
+│   ├── admin-login.js          Verifica password admin contro env var ADMIN_PASSWORD
+│   ├── owner-verify.js         Verifica codice dispositivo proprietario contro env var OWNER_DEVICE_SECRET
+│   └── sync-status.js          Lista/abilita/disabilita codici evento esterni (sp_sync_status)
 └── icon*.png                  Icone PWA (72, 96, 128, 144, 152, 192, 384, 512 px)
 
 supabase-function/  (NON sul sito — va deployata separatamente su Supabase, vedi §11)
@@ -112,6 +117,45 @@ quindi visibile solo sul device dove è avvenuto il join). **Bug**: ogni device 
 solo se stesso. **Fix**: introdotto `users.joined_at` (sincronizzato su Supabase). "Connesso" ora
 = `!!user.joined_at`, vero per tutti i device. Vedi §6 per i dettagli del fix.
 
+### 🔒 Sincronizzazione selettiva eventi esterni (NUOVO v3.7)
+Dalla v3.7 non tutti gli eventi vengono sincronizzati automaticamente:
+
+- **Dispositivo proprietario**: in Impostazioni → Avanzate, Ivo inserisce un codice segreto
+  (verificato da `/api/owner-verify.js` contro la env var `OWNER_DEVICE_SECRET`, mai nel
+  codice). Se attivo, `Utils.getConfig('owner_device')` è `true` su quel device.
+- **Alla creazione di un evento** (`App.createEvent`): se il device NON è proprietario,
+  l'evento nasce con `gated:true` e `sync_allowed:false` (vedi `db.js` → `events.save()`).
+  Resta SOLO nell'IndexedDB locale: `Sync.push()` salta tutte le operazioni collegate a quel
+  evento (`_isEventSyncAllowed`/`_pendingEventId`), tranne la registrazione informativa del
+  codice su `sp_sync_status` (operazione `register_sync_request`, sempre eseguita).
+- **Abilitazione**: da `admin.html` (sezione "Sincronizzazione eventi esterni"), Ivo vede in
+  automatico i codici registrati e può abilitarli/disabilitarli con un tap, oppure inserire un
+  codice ricevuto a voce/WhatsApp. La scrittura passa da `/api/sync-status.js`, che verifica la
+  password admin lato server prima di toccare il database.
+- **Propagazione**: ad ogni `Sync.push()`, `_refreshGatedEvents()` controlla lo stato remoto
+  per ogni evento gated e aggiorna `sync_allowed` di conseguenza — appena abilitato, tutta la
+  coda `pending` + i dati non sincronizzati accumulati offline (utenti, spese, pagamenti)
+  vengono inviati nello stesso ciclo, senza bisogno di logica di "recupero" dedicata.
+- **Disabilitazione**: blocca solo i FUTURI invii — non elimina mai dati già presenti sul server.
+- **Protezione scelta**: solo a livello applicativo (non Row Level Security sul database) —
+  decisione esplicita dell'utente per mantenere la cosa semplice; la anon key Supabase ha
+  comunque accesso INSERT/UPDATE pubblico su tutte le tabelle, come già prima di questa modifica.
+- **UI (evento.html)**: niente più banner persistente (rimosso in v3.8 perché restava visibile anche
+  dopo l'abilitazione). Ora un **puntino** accanto all'icona di aggiornamento in header: assente per
+  gli eventi non gated, **giallo** se in attesa, **verde** se abilitato — aggiornato silenziosamente
+  ad ogni sync (manuale o automatica). Il **popup testuale** "non ancora sincronizzato" appare SOLO
+  al tap manuale sull'icona di sync (`EventoApp.syncNow()`), mai sulle sync automatiche (`_syncQuiet()`,
+  avvio pagina, evento online, dopo scrittura). La voce di menu "Richiedi sincronizzazione"
+  (`EventoApp.shareSyncRequest()`, condivisione WhatsApp/sistema del codice) è visibile solo per
+  eventi ancora in attesa, nel menu ☰ in alto.
+- **Messaggio "Sincronizzato" impreciso (fix v3.8)**: sia in `evento.js` (`syncNow`) che in `app.js`
+  (`syncNow`) il messaggio generico veniva mostrato anche quando l'evento/gli eventi non erano
+  davvero stati inviati al server perché ancora `gated`. Corretto: ora il messaggio riflette lo
+  stato reale dopo il ciclo di sync appena concluso.
+- Il campo `created_by` (già esistente) non cambia: il creatore originale dell'evento resta
+  sempre visibile anche dopo l'abilitazione.
+
+
 ### Tipi pending (coda sync)
 | Tipo | Quando viene creato | Nota |
 |---|---|---|
@@ -121,6 +165,7 @@ solo se stesso. **Fix**: introdotto `users.joined_at` (sincronizzato su Supabase
 | `create_user` | Aggiunta partecipante da evento aperto | Ora marca l'utente come `synced` dopo successo |
 | `delete_user` | Eliminazione di un partecipante | |
 | `clear_joined` | **Nuovo**: bottone "Scollegati" (home) | Pulisce `joined_at` sul server per l'utente che si scollega, così gli altri device lo vedono tornare "non connesso" |
+| `register_sync_request` | **Nuovo v3.7**: creazione evento da device non proprietario | Registra il codice su `sp_sync_status` per la lista automatica in admin.html; NON crea l'evento sul server, sempre eseguita anche se l'evento è gated |
 
 Le spese, i pagamenti e ora anche gli **utenti** (per `joined_at`/`last_sync_at`) si sincronizzano
 direttamente via `getUnsyced()` + `_syncExpense()`/`_syncPayment()`/`_syncUser()`, senza passare
@@ -165,13 +210,22 @@ dalla coda `pending` (usano il flag `synced: false`).
 - Metodi di pagamento configurabili
 - Forza aggiornamento (pulisce cache SW)
 - **Nuova sezione "Avanzate"** → link al Pannello amministratore (`admin.html`)
+- **NUOVO v3.7 — "Dispositivo proprietario"**: inserimento codice segreto (verificato da
+  `/api/owner-verify.js`) che rende questo device "proprietario": i suoi nuovi eventi sono
+  sempre sincronizzati di default, come prima della v3.7
 - **Fix**: `window._swRegistration` ora viene impostato correttamente (mancava, faceva fallire in silenzio l'abilitazione delle notifiche push da questa pagina)
 
 ### Pannello Admin (admin.html) — **NUOVO ACCESSO, PRIMA IRRAGGIUNGIBILE**
 - Prima non esisteva alcun link nell'app per arrivarci (solo URL diretto)
 - Path CSS/JS corretti (puntavano a `/css/style.css` e `/js/...`, inesistenti: pagina completamente rotta)
-- **Gate password** all'apertura: vedi `AdminGate.PASSWORD` in cima al file (attualmente `wego-admin-2026` — **da cambiare**, è in chiaro nel codice, protezione solo deterrente)
+- **Gate password** all'apertura: dalla v3.7 verificata da `/api/admin-login.js` contro la
+  env var Vercel `ADMIN_PASSWORD` — **non più in chiaro nel codice sorgente** (prima era
+  `AdminGate.PASSWORD = 'wego-admin-2026'`, solo deterrente). Bottone "Esci" per terminare la sessione
 - Contiene: stato sistema (Supabase/SW), **schema SQL completo** da copiare nel Supabase SQL Editor, test diagnostici
+- **NUOVO v3.7 — sezione "Sincronizzazione eventi esterni"**: lista automatica dei codici
+  evento registrati (in attesa o già abilitati) + campo per abilitare manualmente un codice
+  ricevuto a voce/WhatsApp. Scrittura sempre tramite `/api/sync-status.js` (password admin
+  verificata lato server)
 
 ---
 
@@ -192,6 +246,8 @@ dalla coda `pending` (usano il flag `synced: false`).
 | v3.x | **Bug "N connessi" sempre 1**: basato su `DB.sessions`, dato locale al browser, mai sincronizzato. Introdotto `users.joined_at` (sincronizzato), self-heal automatico per utenti creati prima del fix |
 | v3.x | **Notifiche push mai arrivate**: 3 bug concreti — (1) token push creato ma il salvataggio server-side era commentato nel codice (mai implementato); (2) `window._swRegistration` non impostato in `impostazioni.html`; (3) registrazione SW in `evento.html` non aspettava `serviceWorker.ready` prima di usare `pushManager`. Tutti i 3 corretti lato client; **manca ancora il deploy della Edge Function lato server** (vedi §11) |
 | v3.6 | `admin.html`: path CSS/JS rotti (`/css/`, `/js/` inesistenti) + nessun accesso dall'app + nessuna password → tutti risolti |
+| v3.7 | **Password admin in chiaro nel codice**: spostata su `/api/admin-login.js` + env var Vercel `ADMIN_PASSWORD`. Introdotta sincronizzazione selettiva eventi esterni (`gated`/`sync_allowed` su `events`, tabella `sp_sync_status`, gestione da `admin.html`) |
+| v3.8 | **Banner sync persistente**: in `evento.html` restava visibile anche dopo l'abilitazione → rimosso, sostituito da un puntino di stato + popup solo su tap manuale. **Messaggio "Sincronizzato" impreciso**: mostrato anche se l'evento era ancora `gated` e non abilitato (sia in `evento.js` che in `app.js`) → corretto |
 
 ---
 
@@ -247,16 +303,19 @@ spesa.js          ← dipende da utils, db, supabase, sync, payments
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v3.6 (v3.3 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v3.6`
+**Versione attuale:** v3.8 (v3.3 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v3.8`
 
 ---
 
 ## 11. Cose da fare / lavori futuri — PRIORITÀ
 
-### ⚠️ Da completare TU (richiede accesso al progetto Supabase, non eseguibile da Claude)
-- [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne, le funzioni "connesso multi-device" e "ultima sincronizzazione" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)
-- [ ] **Cambiare la password di `admin.html`** (`AdminGate.PASSWORD`, attualmente `wego-admin-2026` in chiaro nel codice)
+### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
+- [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, **tabella `sp_sync_status` (NUOVA v3.7)**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione" e "sincronizzazione selettiva eventi esterni" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)
+- [ ] **NUOVO v3.7 — Impostare 2 variabili d'ambiente su Vercel** (Project → Settings → Environment Variables), poi rideployare:
+  - `ADMIN_PASSWORD` → la password vera del pannello admin (sostituisce quella che prima era in chiaro nel codice)
+  - `OWNER_DEVICE_SECRET` → il codice segreto da inserire UNA VOLTA in Impostazioni → Avanzate sui tuoi device, per marcarli come "proprietario" (eventi sempre sincronizzati)
+- [ ] **NUOVO v3.7 — Verificare che Vercel rilevi la cartella `/api/`** come funzioni serverless dopo il primo upload (dovrebbe essere automatico, nessuna configurazione aggiuntiva in `vercel.json` richiesta per il runtime Node di default)
 - [ ] **Deployare la Edge Function** `supabase-function/send-push-notification/` per far funzionare davvero le notifiche push (lato client è pronto da v3.x, ma senza questo pezzo server-side nessuna notifica arriva). Istruzioni complete in `supabase-function/NOTIFICHE-SETUP.md`: generare chiavi VAPID, `supabase secrets set`, `supabase functions deploy`, configurare 2 Database Webhook (sp_expenses + sp_payments → Insert → Edge Function)
 
 ### Idee non ancora implementate
@@ -269,6 +328,7 @@ spesa.js          ← dipende da utils, db, supabase, sync, payments
 - [ ] Risoluzione spese orfane dopo eliminazione partecipante
 - [ ] Sync bidirezionale della foto (attualmente solo locale sul device del proprietario)
 - [ ] Verificare se serve un heartbeat periodico per "connesso" oltre al semplice `joined_at` (attualmente "connesso" = ha fatto il join almeno una volta e non si è scollegato esplicitamente; non è una presenza realtime minuto-per-minuto)
+- [ ] **Hardening sincronizzazione selettiva (v3.7)**: attualmente il blocco è solo a livello app (scelta esplicita dell'utente, per semplicità). Se in futuro servisse una protezione vincolante anche lato database, si può attivare Row Level Security su `sp_events` con una policy che richiede la presenza del codice in `sp_sync_status` con `enabled=true` prima di un INSERT — già predisposto un commento nello schema SQL (`supabase.js`)
 
 ---
 
