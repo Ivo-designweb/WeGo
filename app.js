@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.6
+// WeGo — app.js v2.7
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -271,7 +271,7 @@ const App = {
         <div class="ev-card__thumb">${thumbHtml}</div>
         <div class="ev-card__info">
           <div style="display:flex;align-items:center;gap:6px;">
-            <div class="ev-card__title" style="margin-bottom:0;flex:1;min-width:0;">${Utils.escapeHtml(ev.title)}</div>
+            <div class="ev-card__title" style="margin-bottom:0;min-width:0;">${Utils.escapeHtml(ev.title)}</div>
             ${userAvatarHtml}
           </div>
           <div class="ev-card__meta" style="margin-top:3px;">
