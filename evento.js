@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.8
+// WeGo — evento.js v2.9
 // Logica pagina dettaglio evento
 // ═══════════════════════════════════════════════════════════════
 
@@ -518,15 +518,16 @@ const EventoApp = {
         : '';
 
       // Stato connessione: se connesso, su un'unica riga mostriamo anche
-      // data/ora dell'ultima sincronizzazione tra parentesi, con badge blu
-      // a contrasto (es. "Connesso (21 giugno 26 - 17:07)"). Se non
-      // connesso, resta solo "Non ancora connesso" + bottone invita.
+      // data/ora dell'ultima sincronizzazione, con badge blu a contrasto
+      // (es. "Connesso 21 giugno 26 - 17:07"), senza parentesi e senza
+      // andare mai a capo. Se non connesso, resta solo "Non ancora
+      // connesso" + bottone invita.
       const lastSeenText = EventoApp._formatLastSeen(user.last_sync_at);
       const statusLine = hasJoined
-        ? `● Connesso${lastSeenText
-            ? ` <span style="background:#2563EB;color:#fff;font-weight:700;padding:1px 8px;border-radius:999px;font-size:11px;white-space:nowrap;">(${lastSeenText})</span>`
+        ? `<span style="white-space:nowrap;">● Connesso</span>${lastSeenText
+            ? ` <span style="background:#2563EB;color:#fff;font-weight:700;padding:1px 7px;border-radius:999px;font-size:9.5px;white-space:nowrap;">${lastSeenText}</span>`
             : ''}`
-        : `○ Non ancora connesso ${inviteBtn}`;
+        : `<span style="white-space:nowrap;">○ Non ancora connesso</span> ${inviteBtn}`;
 
       html += `
         <div class="part-item" ${isMe ? 'style="background:rgba(59,130,246,0.05);border-radius:8px;padding:10px 8px;"' : ''}>
@@ -537,7 +538,7 @@ const EventoApp = {
               ${isMe ? '<span style="font-size:10.5px;font-weight:700;color:var(--accent);background:rgba(59,130,246,0.1);padding:1px 5px;border-radius:999px;margin-left:5px;">Tu</span>' : ''}
               ${isCreator ? '<span style="font-size:10.5px;font-weight:700;color:var(--text-muted);background:var(--bg-input);padding:1px 5px;border-radius:999px;margin-left:5px;">Creatore</span>' : ''}
             </div>
-            <div class="part-sub" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+            <div class="part-sub" style="display:flex;align-items:center;gap:4px;font-size:12.5px;${hasJoined ? 'flex-wrap:nowrap;overflow:hidden;' : 'flex-wrap:wrap;'}">
               ${statusLine}
             </div>
           </div>
