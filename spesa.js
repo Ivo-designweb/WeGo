@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v2.0
+// WeGo — spesa.js v2.1
 // Logica pagina inserimento / modifica spesa
 // ═══════════════════════════════════════════════════════════════
 
@@ -261,13 +261,17 @@ const SpesaApp = {
     preview.style.color = 'var(--text-muted)';
   },
 
-  // ─── TITOLO PAGINA: solo il nome dell'evento, su una riga ──
-  // Niente più prefisso "Nuova spesa"/"Modifica spesa -": la modalità
-  // è già chiara dai bottoni Modifica/Elimina/Salva nell'header.
+  // ─── TITOLO PAGINA: nome evento, con prefisso "Modifica" solo
+  // quando si sta davvero modificando una spesa esistente (premuto il
+  // bottone "Modifica" dalla vista di sola lettura). Per nuova spesa e
+  // per la sola visualizzazione resta solo il nome dell'evento, su
+  // un'unica riga, senza testo ridondante.
   _setPageTitle(base) {
     const pageTitle = document.getElementById('pageTitle');
     if (!pageTitle) return;
-    pageTitle.textContent = SpesaApp._event?.title || base;
+    const evTitle = SpesaApp._event?.title || base;
+    const isEditingExisting = !!SpesaApp._expenseId && !SpesaApp._viewMode;
+    pageTitle.textContent = isEditingExisting ? `Modifica - ${evTitle}` : evTitle;
   },
 
   // ─── TIPO SPESA ───────────────────────────────────────────

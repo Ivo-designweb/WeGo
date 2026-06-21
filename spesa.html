@@ -7,15 +7,28 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Spesa — WeGo v3.2</title>
+  <title>Spesa — WeGo v3.3</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
-    /* ─── PAGINA SENZA BARRA INFERIORE: lo style.css globale riserva
-       in fondo a .page-content lo spazio per una bottom-nav/tab-bar che
-       in questa pagina non esiste (form di inserimento spesa), creando
-       uno spazio vuoto enorme sotto le Note. Qui lo riduciamo al minimo. */
+    /* ─── PAGINA SENZA BARRA INFERIORE ───────────────────────────
+       Due correzioni:
+       1) lo style.css globale forza .app-shell a un'altezza MINIMA pari
+          a tutto il viewport (min-height:100dvh) e .page-content a
+          riempire lo spazio restante (flex:1). Su un form corto questo
+          crea spazio vuoto "fantasma" in fondo, sotto le Note, che
+          obbliga a scorrere anche se non c'è altro contenuto.
+          Qui disattiviamo lo stretch forzato: la pagina sarà alta
+          esattamente quanto il suo contenuto, non un pixel di più.
+       2) .page-content riserva inoltre un padding-bottom pensato per
+          una bottom-nav che in questa pagina non esiste. Lo riduciamo
+          al minimo (solo safe-area per i telefoni con barra gestuale). */
+    .app-shell {
+      min-height: 0 !important;
+      height: auto !important;
+    }
     .page-content {
+      flex: 0 1 auto !important;
       padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
     }
 
