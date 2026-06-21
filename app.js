@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.7
+// WeGo — app.js v2.8
 // Logica principale pagina Home (index.html)
 // ═══════════════════════════════════════════════════════════════
 
@@ -250,9 +250,6 @@ const App = {
       return `<div class="avatar avatar-${idx}" title="${Utils.escapeHtml(u.name)}">${Utils.initials(u.name)}</div>`;
     }).join('');
 
-    const syncBadge = ev.synced === false
-      ? `<span class="ev-badge-amber">da sync</span>` : '';
-
     // Badge proprietario
     const ownerBadge = isOwner
       ? `<span style="font-size:10.5px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.12);padding:1px 6px;border-radius:999px;letter-spacing:0.2px;">✦ mio</span>`
@@ -276,7 +273,6 @@ const App = {
           <div class="ev-card__meta" style="margin-top:3px;">
             <span class="ev-code">${ev.code}</span>
             ${ownerBadge}
-            ${syncBadge}
             <span class="ev-meta-txt">· ${Utils.timeAgo(ev.updated_at)}</span>
           </div>
         </div>

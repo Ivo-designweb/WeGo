@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.7
+// WeGo — evento.js v2.8
 // Logica pagina dettaglio evento
 // ═══════════════════════════════════════════════════════════════
 
@@ -469,6 +469,19 @@ const EventoApp = {
     return { amount: Math.abs(net), isNetReceiver: net < 0 };
   },
 
+  // ─── FORMATO DATA "ultima connessione" per pagina Partecipanti ──
+  // Esempio richiesto: "21 giugno 26 - 17:07"
+  _formatLastSeen(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return '';
+    const day   = d.toLocaleDateString('it-IT', { day: 'numeric' });
+    const month = d.toLocaleDateString('it-IT', { month: 'long' });
+    const year  = String(d.getFullYear()).slice(-2);
+    const time  = d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+    return `${day} ${month} ${year} - ${time}`;
+  },
+
   _renderPartecipanti() {
     const container = document.getElementById('partecipantiList');
     if (!container) return;
@@ -492,8 +505,9 @@ const EventoApp = {
       // da quello su cui è avvenuto il join).
       const hasJoined = !!user.joined_at;
 
-      // Bottone invita: non mostrare sul creatore (ha già creato l'evento)
-      const inviteBtn = !isCreator
+      // Bottone invita: non mostrare sul creatore, né su chi è già connesso
+      // (l'invito via WhatsApp serve solo a chi non ha ancora fatto il join)
+      const inviteBtn = (!isCreator && !hasJoined)
         ? `<button onclick="EventoApp.shareInviteWhatsApp('${Utils.escapeHtml(user.name).replace(/'/g,"\\'")}');event.stopPropagation();"
             style="margin-left:8px;background:#25D366;border:none;border-radius:4px;padding:1px 6px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;color:#fff;">
             <svg width="9" height="9" viewBox="0 0 24 24" fill="white">
@@ -502,6 +516,17 @@ const EventoApp = {
             Invita
           </button>`
         : '';
+
+      // Stato connessione: se connesso, su un'unica riga mostriamo anche
+      // data/ora dell'ultima sincronizzazione tra parentesi, con badge blu
+      // a contrasto (es. "Connesso (21 giugno 26 - 17:07)"). Se non
+      // connesso, resta solo "Non ancora connesso" + bottone invita.
+      const lastSeenText = EventoApp._formatLastSeen(user.last_sync_at);
+      const statusLine = hasJoined
+        ? `● Connesso${lastSeenText
+            ? ` <span style="background:#2563EB;color:#fff;font-weight:700;padding:1px 8px;border-radius:999px;font-size:11px;white-space:nowrap;">(${lastSeenText})</span>`
+            : ''}`
+        : `○ Non ancora connesso ${inviteBtn}`;
 
       html += `
         <div class="part-item" ${isMe ? 'style="background:rgba(59,130,246,0.05);border-radius:8px;padding:10px 8px;"' : ''}>
@@ -512,14 +537,8 @@ const EventoApp = {
               ${isMe ? '<span style="font-size:10.5px;font-weight:700;color:var(--accent);background:rgba(59,130,246,0.1);padding:1px 5px;border-radius:999px;margin-left:5px;">Tu</span>' : ''}
               ${isCreator ? '<span style="font-size:10.5px;font-weight:700;color:var(--text-muted);background:var(--bg-input);padding:1px 5px;border-radius:999px;margin-left:5px;">Creatore</span>' : ''}
             </div>
-            <div class="part-sub">
-              ${hasJoined ? '● Connesso' : '○ Non ancora connesso'}
-              ${inviteBtn}
-            </div>
-            <div class="part-sub" style="margin-top:2px;color:var(--text-muted);">
-              ${user.last_sync_at
-                ? `↻ Agg.: ${Utils.formatDateTime(user.last_sync_at)}`
-                : '↻ Non ancora sincronizzato'}
+            <div class="part-sub" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+              ${statusLine}
             </div>
           </div>
           <div class="part-balance" style="color:${balColor};text-align:right;">
