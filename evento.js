@@ -62,6 +62,29 @@ const EventoApp = {
     const session = DB.sessions.get(EventoApp._eventId);
     EventoApp._currentUserId = session?.userId || null;
 
+    // Self-heal per utenti esistenti creati prima dell'introduzione del
+    // campo joined_at: se questo device sa già "chi sono" (sessione locale)
+    // ma il record utente non ha ancora joined_at, lo impostiamo ora e lo
+    // sincronizziamo, così anche gli altri device vedranno correttamente
+    // questo partecipante come connesso.
+    if (EventoApp._currentUserId) {
+      try {
+        const me = await DB.users.getById(EventoApp._currentUserId);
+        if (me && !me.joined_at) {
+          me.joined_at = Utils.now();
+          me.synced    = false;
+          await DB.users.save(me);
+          // Aggiorna anche l'array in memoria, così se si passa al tab
+          // "Partecipanti" senza ricaricare la pagina lo stato è già corretto.
+          const cached = EventoApp._users.find(u => u.id === me.id);
+          if (cached) cached.joined_at = me.joined_at;
+          if (Utils.isOnline()) Sync.push().catch(() => {});
+        }
+      } catch (e) {
+        console.warn('[Evento] Self-heal joined_at fallito:', e.message);
+      }
+    }
+
     EventoApp._initNetwork();
 
     if (Utils.isOnline()) EventoApp._syncQuiet();
@@ -451,7 +474,6 @@ const EventoApp = {
     if (!container) return;
 
     const currency = EventoApp._event?.currency || 'EUR';
-    const sessions = DB.sessions.getAll();
 
     const ev = EventoApp._event;
     const creatorName = ev?.created_by || '';
@@ -465,7 +487,10 @@ const EventoApp = {
       const balLabel   = contrib.isNetReceiver ? 'Incassato' : 'Versato';
       const isMe      = user.id === EventoApp._currentUserId;
       const isCreator = creatorName && user.name.toLowerCase() === creatorName.toLowerCase();
-      const hasJoined = Object.values(sessions).some(s => s.userId === user.id);
+      // "Connesso" = ha effettuato il join almeno una volta (joined_at
+      // sincronizzato dal server, visibile da TUTTI i device — non solo
+      // da quello su cui è avvenuto il join).
+      const hasJoined = !!user.joined_at;
 
       // Bottone invita: non mostrare sul creatore (ha già creato l'evento)
       const inviteBtn = !isCreator
@@ -490,6 +515,11 @@ const EventoApp = {
             <div class="part-sub">
               ${hasJoined ? '● Connesso' : '○ Non ancora connesso'}
               ${inviteBtn}
+            </div>
+            <div class="part-sub" style="margin-top:2px;color:var(--text-muted);">
+              ${user.last_sync_at
+                ? `↻ Agg.: ${Utils.formatDateTime(user.last_sync_at)}`
+                : '↻ Non ancora sincronizzato'}
             </div>
           </div>
           <div class="part-balance" style="color:${balColor};text-align:right;">

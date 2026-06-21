@@ -164,7 +164,17 @@ const DB = (() => {
         created_at: user.created_at || Utils.now(),
         updated_at: Utils.now(),
         synced:     user.synced || false,
-        active:     user.active !== false
+        active:     user.active !== false,
+        // Quando questo utente ha effettuato il "join" (selezionato il
+        // proprio nome ed entrato nell'evento). null = invitato ma non
+        // ancora connesso da nessun device. Va sincronizzato sul server
+        // (sp_users.joined_at) per essere visibile da TUTTI i device,
+        // non solo da quello su cui è avvenuto il join.
+        joined_at:  user.joined_at || null,
+        // Ultima volta che QUESTO utente (su un qualunque device) ha
+        // completato una sincronizzazione dei dati dell'evento. Permette
+        // agli altri partecipanti di capire se ha i dati aggiornati.
+        last_sync_at: user.last_sync_at || null
       };
       await put('users', item);
       return item;
@@ -177,6 +187,16 @@ const DB = (() => {
     async getByEventAndName(eventId, name) {
       const all = await users.getByEvent(eventId);
       return all.find(u => u.name.toLowerCase() === name.toLowerCase()) || null;
+    },
+
+    async getUnsyced() {
+      const all = await getAll('users');
+      return all.filter(u => !u.synced);
+    },
+
+    async markSynced(id) {
+      const u = await getOne('users', id);
+      if (u) { u.synced = true; await put('users', u); }
     }
   };
 

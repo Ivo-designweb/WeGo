@@ -228,11 +228,10 @@ const App = {
     let connectedCount = 0;
     try {
       users = await DB.users.getByEvent(ev.id);
-      // "Connessi" = utenti che hanno una sessione associata (hanno fatto join)
-      const sessions = DB.sessions.getAll();
-      connectedCount = users.filter(u => {
-        return Object.values(sessions).some(s => s.userId === u.id);
-      }).length;
+      // "Connessi" = utenti che hanno effettuato il join almeno una volta
+      // (joined_at sincronizzato dal server, visibile da TUTTI i device —
+      // non solo dal device su cui è avvenuto il join).
+      connectedCount = users.filter(u => !!u.joined_at).length;
     } catch(e) {}
 
     const totalUsers = users.length;
@@ -355,6 +354,14 @@ const App = {
     )) return;
 
     try {
+      // 0. Identifica l'utente di QUESTO device su questo evento, prima di
+      // rimuovere la sessione: serve per pulire il suo stato "connesso"
+      // anche sul server (altrimenti gli altri device continuerebbero a
+      // vederlo come connesso anche dopo che si è scollegato).
+      const session  = DB.sessions.get(eventId);
+      const myUserId = session?.userId || null;
+      const myUserSnapshot = myUserId ? await DB.users.getById(myUserId) : null;
+
       // 1. Rimuove sessione locale
       DB.sessions.remove(eventId);
 
@@ -376,6 +383,23 @@ const App = {
 
       if (localStorage.getItem('wego_last_event_id') === eventId) {
         localStorage.removeItem('wego_last_event_id');
+      }
+
+      // 4. Pulisce lo stato "connesso" sul server per questo utente
+      // specifico (il record locale è già stato eliminato sopra, quindi
+      // qui usiamo solo lo snapshot preso all'inizio).
+      if (myUserSnapshot) {
+        const clearedUser = { ...myUserSnapshot, joined_at: null };
+        try {
+          if (Utils.isOnline()) {
+            await SupabaseClient.users.update(clearedUser);
+          } else {
+            await DB.pending.add({ type: 'clear_joined', payload: { user: clearedUser } });
+          }
+        } catch (err2) {
+          // Best-effort: se il PATCH diretto fallisce, accoda per ritentare
+          await DB.pending.add({ type: 'clear_joined', payload: { user: clearedUser } }).catch(() => {});
+        }
       }
 
       Utils.toast('Scollegato dall\'evento', 'success');
@@ -616,8 +640,8 @@ const App = {
         created_by:  nickname
       });
 
-      // Crea utente creatore
-      const creator = await DB.users.save({ event_id: event.id, name: nickname });
+      // Crea utente creatore (joined_at = ora: sta usando l'app in questo momento)
+      const creator = await DB.users.save({ event_id: event.id, name: nickname, joined_at: Utils.now() });
       DB.sessions.set(event.id, creator.id, creator.name);
 
       // Crea gli utenti aggiuntivi (invitati). Vengono raccolti insieme al
@@ -798,6 +822,21 @@ const App = {
     const event = App._joiningEvent;
     DB.sessions.set(event.id, userId, userName);
     localStorage.setItem('wego_last_event_id', event.id);
+
+    // Segna il join anche sul record utente (sincronizzato sul server):
+    // senza questo, solo questo device sa che ha fatto il join, e gli
+    // altri device continuano a vederlo come "non connesso".
+    try {
+      const userRec = await DB.users.getById(userId);
+      if (userRec && !userRec.joined_at) {
+        userRec.joined_at = Utils.now();
+        userRec.synced    = false;
+        await DB.users.save(userRec);
+        if (Utils.isOnline()) Sync.push().catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[App] Impossibile salvare joined_at:', e.message);
+    }
 
     App.closeModal('modalJoinEvent');
     Utils.toast(`Benvenuto, ${userName}!`, 'success');

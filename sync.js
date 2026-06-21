@@ -54,6 +54,20 @@ const Sync = {
         }
       }
 
+      // Sync utenti non sincronizzati (es. dopo il join: il flag joined_at
+      // va spinto sul server, altrimenti gli altri device non sanno che
+      // questa persona si è collegata).
+      const unsyncedUsers = await DB.users.getUnsyced();
+      for (const u of unsyncedUsers) {
+        try {
+          await Sync._syncUser(u);
+          u.synced = true;
+          await DB.users.save(u);
+        } catch (e) {
+          console.warn('[Sync] User sync failed:', u.id, e.message);
+        }
+      }
+
     } finally {
       Sync._isSyncing = false;
       Sync._hideBar();
@@ -75,6 +89,7 @@ const Sync = {
           : [payload.user];
         for (const u of initialUsers) {
           await SupabaseClient.users.create(u);
+          await DB.users.markSynced(u.id);
         }
         await DB.events.markSynced(payload.event.id);
         break;
@@ -85,12 +100,19 @@ const Sync = {
         break;
       case 'create_user':
         await SupabaseClient.users.create(payload.user);
+        await DB.users.markSynced(payload.user.id);
         break;
       case 'delete_user':
         await SupabaseClient.users.delete(payload.userId);
         break;
       case 'delete_event':
         await SupabaseClient.events.delete(payload.eventId);
+        break;
+      case 'clear_joined':
+        // Bottone "Scollegati": rimuove lo stato di connessione di questo
+        // utente anche sul server, così gli altri device lo vedono come
+        // non connesso (il record locale è già stato eliminato a questo punto).
+        await SupabaseClient.users.update(payload.user);
         break;
       default:
         console.warn('[Sync] Unknown pending type:', type);
@@ -122,6 +144,19 @@ const Sync = {
       await SupabaseClient.payments.update(pay);
     } else {
       await SupabaseClient.payments.create(pay);
+    }
+  },
+
+  async _syncUser(user) {
+    // Controlla se esiste già su Supabase (creato a sua volta dal creatore
+    // dell'evento, o da un altro device) per decidere create vs update.
+    const remote = await SupabaseClient.users.getByEvent(user.event_id);
+    const exists = Array.isArray(remote) && remote.some(r => r.id === user.id);
+
+    if (exists) {
+      await SupabaseClient.users.update(user);
+    } else {
+      await SupabaseClient.users.create(user);
     }
   },
 
@@ -203,6 +238,31 @@ const Sync = {
           await DB.payments.save({ ...(lp || {}), ...rp, synced: true });
         }
       }
+    }
+
+    // ─── ULTIMA PRESENZA (last_sync_at) ──────────────────────
+    // Il pull è andato a buon fine: questo device ha appena ottenuto i
+    // dati aggiornati di questo evento. Aggiorna sul server l'orario
+    // dell'ultima sincronizzazione per l'utente di QUESTO device, così
+    // gli altri partecipanti possono vedere (nella pagina Partecipanti)
+    // se i suoi dati sono aggiornati. Aggiornamento diretto e "best
+    // effort": non deve mai bloccare o far fallire il pull.
+    try {
+      const session = DB.sessions.get(eventId);
+      if (session?.userId) {
+        const me = await DB.users.getById(session.userId);
+        if (me) {
+          me.last_sync_at = Utils.now();
+          me.synced = false;
+          await DB.users.save(me);
+          if (Utils.isOnline()) {
+            await SupabaseClient.users.update(me);
+            await DB.users.markSynced(me.id);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Sync] Aggiornamento last_sync_at non riuscito:', e.message);
     }
   },
 

@@ -123,7 +123,9 @@ const SupabaseClient = (() => {
         color_idx:  user.color_idx || 0,
         created_at: user.created_at,
         updated_at: user.updated_at,
-        active:     user.active !== false
+        active:     user.active !== false,
+        joined_at:  user.joined_at || null,
+        last_sync_at: user.last_sync_at || null
       });
     },
 
@@ -137,9 +139,11 @@ const SupabaseClient = (() => {
 
     async update(user) {
       return request('PATCH', `sp_users?id=eq.${user.id}`, {
-        name:      user.name,
-        active:    user.active,
-        updated_at: Utils.now()
+        name:         user.name,
+        active:       user.active,
+        joined_at:    user.joined_at || null,
+        last_sync_at: user.last_sync_at || null,
+        updated_at:   Utils.now()
       });
     },
 
@@ -333,13 +337,15 @@ CREATE INDEX IF NOT EXISTS idx_sp_events_code ON sp_events(code);
 
 -- TABELLA UTENTI (partecipanti)
 CREATE TABLE IF NOT EXISTS sp_users (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  event_id    UUID NOT NULL REFERENCES sp_events(id) ON DELETE CASCADE,
-  name        VARCHAR(50) NOT NULL,
-  color_idx   INTEGER DEFAULT 0,
-  active      BOOLEAN DEFAULT TRUE,
-  created_at  TIMESTAMPTZ DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ DEFAULT NOW()
+  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_id      UUID NOT NULL REFERENCES sp_events(id) ON DELETE CASCADE,
+  name          VARCHAR(50) NOT NULL,
+  color_idx     INTEGER DEFAULT 0,
+  active        BOOLEAN DEFAULT TRUE,
+  joined_at     TIMESTAMPTZ,
+  last_sync_at  TIMESTAMPTZ,
+  created_at    TIMESTAMPTZ DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_sp_users_event ON sp_users(event_id);
 
@@ -389,6 +395,16 @@ CREATE INDEX IF NOT EXISTS idx_sp_payments_event ON sp_payments(event_id);
 
 -- Per installazioni precedenti: aggiunge la colonna deleted se mancante
 ALTER TABLE sp_payments ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE;
+
+-- Per installazioni precedenti: aggiunge joined_at se mancante. Serve per
+-- mostrare correttamente "N connessi" su TUTTI i device, non solo su
+-- quello dove ciascun partecipante ha fatto il join.
+ALTER TABLE sp_users ADD COLUMN IF NOT EXISTS joined_at TIMESTAMPTZ;
+
+-- Per installazioni precedenti: aggiunge last_sync_at se mancante. Serve a
+-- mostrare in "Partecipanti" quando ciascun utente ha sincronizzato
+-- l'ultima volta, per capire se ha i dati aggiornati.
+ALTER TABLE sp_users ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMPTZ;
 
 -- TABELLA SOTTOSCRIZIONI PUSH (Web Push / notifiche)
 -- Collega un device a un evento: serve al backend per sapere a chi inviare
