@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v1.9
+// WeGo — spesa.js v2.0
 // Logica pagina inserimento / modifica spesa
 // ═══════════════════════════════════════════════════════════════
 
@@ -261,12 +261,13 @@ const SpesaApp = {
     preview.style.color = 'var(--text-muted)';
   },
 
-  // ─── TITOLO PAGINA (con nome evento, es. "Nuova spesa - Sardegna 26") ──
+  // ─── TITOLO PAGINA: solo il nome dell'evento, su una riga ──
+  // Niente più prefisso "Nuova spesa"/"Modifica spesa -": la modalità
+  // è già chiara dai bottoni Modifica/Elimina/Salva nell'header.
   _setPageTitle(base) {
     const pageTitle = document.getElementById('pageTitle');
     if (!pageTitle) return;
-    const evTitle = SpesaApp._event?.title;
-    pageTitle.textContent = evTitle ? `${base} - ${evTitle}` : base;
+    pageTitle.textContent = SpesaApp._event?.title || base;
   },
 
   // ─── TIPO SPESA ───────────────────────────────────────────

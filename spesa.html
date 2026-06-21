@@ -7,10 +7,18 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Spesa — WeGo v3.0</title>
+  <title>Spesa — WeGo v3.2</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
+    /* ─── PAGINA SENZA BARRA INFERIORE: lo style.css globale riserva
+       in fondo a .page-content lo spazio per una bottom-nav/tab-bar che
+       in questa pagina non esiste (form di inserimento spesa), creando
+       uno spazio vuoto enorme sotto le Note. Qui lo riduciamo al minimo. */
+    .page-content {
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 16px) !important;
+    }
+
     /* ─── IMPORTO HERO ─── */
     .amount-hero {
       background: var(--bg-secondary);
@@ -149,9 +157,9 @@
   <!-- HEADER -->
   <header class="app-header">
     <div class="app-header__logo">
-      <button class="btn btn--icon" onclick="SpesaApp.goBack()" title="Annulla">
+      <button class="btn btn--icon" onclick="SpesaApp.goBack()" title="Torna indietro">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          <polyline points="15 18 9 12 15 6"/>
         </svg>
       </button>
       <span class="app-header__title" id="pageTitle">Nuova spesa</span>
