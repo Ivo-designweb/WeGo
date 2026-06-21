@@ -422,6 +422,30 @@ const EventoApp = {
   },
 
   // ─── RENDER PARTECIPANTI ──────────────────────────────────
+  // ─── TOTALE VERSATO/INCASSATO PER PARTECIPANTE ────────────
+  // Sostituisce il saldo (credito/debito) nella lista partecipanti con:
+  //   (spese pagate + movimenti cassa in uscita) - movimenti cassa in entrata
+  // Se il risultato è negativo (ha incassato più di quanto versato),
+  // si mostra il valore assoluto con un colore diverso per segnalarlo.
+  _calcUserContribution(userId) {
+    let paidExpenses    = 0;
+    let transfersOut    = 0;
+    let transfersIn     = 0;
+
+    for (const exp of EventoApp._expenses) {
+      const amount = Number(exp.amount) || 0;
+      if (exp.type === 'transfer') {
+        if (exp.paid_by  === userId) transfersOut += amount;
+        if (exp.paid_for === userId) transfersIn  += amount;
+      } else {
+        if (exp.paid_by === userId) paidExpenses += amount;
+      }
+    }
+
+    const net = (paidExpenses + transfersOut) - transfersIn;
+    return { amount: Math.abs(net), isNetReceiver: net < 0 };
+  },
+
   _renderPartecipanti() {
     const container = document.getElementById('partecipantiList');
     if (!container) return;
@@ -435,11 +459,10 @@ const EventoApp = {
     let html = '';
     for (const user of EventoApp._users) {
       const idx       = Utils.avatarColorIndex(user.name);
-      const bal       = EventoApp._balances[user.id] || 0;
-      const balColor  = bal > 0 ? 'var(--green)' : bal < 0 ? 'var(--red)' : 'var(--text-muted)';
-      const balText   = bal > 0
-        ? `+${Utils.formatAmount(bal, currency)}`
-        : Utils.formatAmount(bal, currency);
+      const contrib    = EventoApp._calcUserContribution(user.id);
+      const balColor   = contrib.isNetReceiver ? 'var(--accent)' : 'var(--green)';
+      const balText    = Utils.formatAmount(contrib.amount, currency);
+      const balLabel   = contrib.isNetReceiver ? 'Incassato' : 'Versato';
       const isMe      = user.id === EventoApp._currentUserId;
       const isCreator = creatorName && user.name.toLowerCase() === creatorName.toLowerCase();
       const hasJoined = Object.values(sessions).some(s => s.userId === user.id);
@@ -469,7 +492,10 @@ const EventoApp = {
               ${inviteBtn}
             </div>
           </div>
-          <div class="part-balance" style="color:${balColor};">${balText}</div>
+          <div class="part-balance" style="color:${balColor};text-align:right;">
+            ${balText}
+            <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px;">${balLabel}</div>
+          </div>
           <button onclick="EventoApp.deleteParticipant('${user.id}','${Utils.escapeHtml(user.name).replace(/'/g,"\\'")}');event.stopPropagation();"
             style="margin-left:8px;background:none;border:none;color:var(--red);cursor:pointer;opacity:0.6;padding:4px;flex-shrink:0;"
             title="Elimina partecipante">

@@ -81,6 +81,7 @@ const Sync = {
       }
       case 'update_event':
         await SupabaseClient.events.update(payload.event);
+        await DB.events.markSynced(payload.event.id);
         break;
       case 'create_user':
         await SupabaseClient.users.create(payload.user);
