@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.3
+// WeGo — supabase.js v1.4
 // Client Supabase — lettura config da localStorage
+// v1.4: aggiunta tabella sp_sync_status (sincronizzazione selettiva
+//       eventi esterni — vedi sync.js / admin.html)
 // ═══════════════════════════════════════════════════════════════
 
 const SupabaseClient = (() => {
@@ -266,6 +268,30 @@ const SupabaseClient = (() => {
     }
   };
 
+  // ─── SYNC STATUS TABLE (sincronizzazione selettiva eventi esterni) ──
+  // Un evento creato da un device "non proprietario" resta solo locale
+  // finché il suo codice non è abilitato qui (admin.html). request() viene
+  // chiamato in automatico alla creazione dell'evento (vedi app.js); getByCode()
+  // viene interrogato da Sync ad ogni ciclo per sapere se è stato abilitato.
+  const syncStatus = {
+    async request(code, title, createdBy) {
+      const existing = await request('GET', 'sp_sync_status', null, { code: `eq.${code}`, select: 'code' });
+      if (Array.isArray(existing) && existing.length) return existing[0];
+      return request('POST', 'sp_sync_status', {
+        code,
+        title:        title || null,
+        created_by:   createdBy || null,
+        requested_at: Utils.now(),
+        enabled:      false
+      });
+    },
+
+    async getByCode(code) {
+      const r = await request('GET', 'sp_sync_status', null, { code: `eq.${code}`, select: '*' });
+      return Array.isArray(r) ? (r[0] || null) : null;
+    }
+  };
+
   // ─── PUSH SUBSCRIPTIONS TABLE ──────────────────────────────
   // Collega un device (Web Push subscription) a un evento + utente, così
   // il server sa a chi inviare la notifica quando viene registrato un
@@ -422,6 +448,23 @@ CREATE TABLE IF NOT EXISTS sp_push_subscriptions (
 );
 CREATE INDEX IF NOT EXISTS idx_sp_push_subs_event ON sp_push_subscriptions(event_id);
 
+-- TABELLA STATO SINCRONIZZAZIONE EVENTI ESTERNI (v1.4)
+-- Un evento creato da un device "non proprietario" (senza il codice
+-- dispositivo configurato in Impostazioni → Avanzate) resta SOLO sul
+-- device che l'ha creato finché non viene abilitato qui. L'abilitazione
+-- avviene da admin.html (manualmente o dalla lista automatica) e NON
+-- elimina mai dati già presenti: la disabilitazione blocca solo i FUTURI
+-- invii, senza toccare quanto già sincronizzato.
+CREATE TABLE IF NOT EXISTS sp_sync_status (
+  code         VARCHAR(12) PRIMARY KEY,
+  title        VARCHAR(100),
+  created_by   VARCHAR(50),
+  requested_at TIMESTAMPTZ DEFAULT NOW(),
+  enabled      BOOLEAN DEFAULT FALSE,
+  enabled_at   TIMESTAMPTZ,
+  enabled_by   VARCHAR(50)
+);
+
 -- ROW LEVEL SECURITY (opzionale, abilita se vuoi sicurezza extra)
 -- ALTER TABLE sp_events   ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE sp_users    ENABLE ROW LEVEL SECURITY;
@@ -429,10 +472,11 @@ CREATE INDEX IF NOT EXISTS idx_sp_push_subs_event ON sp_push_subscriptions(event
 -- ALTER TABLE sp_payments ENABLE ROW LEVEL SECURITY;
 
 -- Policy: accesso pubblico per anon key (senza RLS)
-GRANT SELECT, INSERT, UPDATE ON sp_events   TO anon;
-GRANT SELECT, INSERT, UPDATE ON sp_users    TO anon;
-GRANT SELECT, INSERT, UPDATE ON sp_expenses TO anon;
-GRANT SELECT, INSERT, UPDATE ON sp_payments TO anon;
+GRANT SELECT, INSERT, UPDATE ON sp_events      TO anon;
+GRANT SELECT, INSERT, UPDATE ON sp_users       TO anon;
+GRANT SELECT, INSERT, UPDATE ON sp_expenses    TO anon;
+GRANT SELECT, INSERT, UPDATE ON sp_payments    TO anon;
+GRANT SELECT, INSERT, UPDATE ON sp_sync_status TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sp_push_subscriptions TO anon;
 
 SELECT 'Schema WeGo installato correttamente!' AS status;
@@ -446,6 +490,7 @@ SELECT 'Schema WeGo installato correttamente!' AS status;
     expenses,
     payments,
     pushSubscriptions,
+    syncStatus,
     SQL_SCHEMA
   };
 })();

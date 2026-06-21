@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v3.6</title>
+  <title>Evento — WeGo v3.7</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -340,6 +340,14 @@
       </svg>
       Elimina evento
     </button>
+  </div>
+
+  <!-- BANNER: evento esterno non ancora sincronizzato sul server (vedi evento.js _renderHero) -->
+  <div id="syncGateBanner" class="hidden" style="background:rgba(245,158,11,0.1);border-bottom:1px solid rgba(245,158,11,0.25);padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+    <span style="font-size:12.5px;color:#D97706;line-height:1.4;flex:1;">
+      Questo evento non è ancora sincronizzato sul server: resta solo su questo telefono.
+    </span>
+    <button class="btn btn--ghost btn--sm" onclick="EventoApp.shareSyncRequest()" style="flex-shrink:0;white-space:nowrap;">Invia codice</button>
   </div>
 
   <!-- TAB BAR -->

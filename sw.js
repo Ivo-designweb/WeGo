@@ -1,9 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v3.6
+// WeGo — sw.js v3.7
 // Service Worker — cache offline + background sync
+// v3.7: esclude /api/* dall'intercettazione (sempre rete, mai cache —
+//       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v3.6';
+const CACHE_NAME = 'wego-v3.7';
 
 const STATIC_ASSETS = [
   '/',
@@ -27,7 +29,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v3.6');
+  console.log('[SW] Install v3.7');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -53,7 +55,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v3.6');
+  console.log('[SW] Activate v3.7');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
@@ -73,6 +75,15 @@ self.addEventListener('fetch', (event) => {
       url.hostname.includes('firebase') ||
       url.hostname.includes('googleapis.com') ||
       url.hostname.includes('fcm.googleapis.com')) {
+    return;
+  }
+
+  // Funzioni serverless (/api/*) → solo rete, mai cache. Sono chiamate
+  // sempre "fresche" (login admin, verifica codice proprietario, stato
+  // sincronizzazione): intercettarle con una strategia di cache darebbe
+  // risposte stantie o, peggio, riproporrebbe un vecchio risultato di
+  // login. Lasciamo che il browser le gestisca direttamente.
+  if (url.pathname.startsWith('/api/')) {
     return;
   }
 

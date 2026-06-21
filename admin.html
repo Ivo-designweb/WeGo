@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
-  <title>Admin — WeGo v1.6</title>
+  <title>Admin — WeGo v1.7</title>
   <link rel="stylesheet" href="/style.css" />
   <style>
     .admin-section { margin-bottom: 22px; }
@@ -95,9 +95,11 @@
 <!-- ─── GATE PASSWORD ───────────────────────────────────────────
      Pagina riservata: contiene lo schema SQL del database e gli
      strumenti di diagnostica, non destinata ai partecipanti comuni.
-     Protezione lato client (non è sicurezza vera, ma evita che chi
-     apre il link per sbaglio veda i contenuti). Per cambiare la
-     password modifica la costante ADMIN_PASSWORD qui sotto. -->
+     La password vera NON è più nel codice sorgente: viene verificata
+     da /api/admin-login.js, che la confronta con la variabile
+     d'ambiente ADMIN_PASSWORD impostata su Vercel (Project Settings →
+     Environment Variables). Per cambiarla basta aggiornare quella
+     variabile, senza toccare il codice. -->
 <div id="adminGate" style="position:fixed;inset:0;z-index:999;background:var(--bg-primary);
   display:flex;align-items:center;justify-content:center;padding:20px;">
   <div style="width:100%;max-width:340px;background:var(--bg-card);border:1px solid var(--border);
@@ -115,45 +117,81 @@
       style="text-align:center;margin-bottom:10px;"
       onkeydown="if(event.key==='Enter')AdminGate.tryUnlock();" />
     <div id="adminGateError" style="display:none;color:var(--red);font-size:12.5px;margin-bottom:10px;">Password errata</div>
-    <button class="btn btn--primary btn--full" onclick="AdminGate.tryUnlock()">Entra</button>
+    <button class="btn btn--primary btn--full" id="adminGateBtn" onclick="AdminGate.tryUnlock()">Entra</button>
     <a href="/index.html" style="display:block;margin-top:14px;font-size:13px;color:var(--text-muted);">&#8592; Torna all'app</a>
   </div>
 </div>
 
 <script>
   const AdminGate = {
-    // Password del pannello admin: cambiala con una a tua scelta.
-    // Protezione lato client: scoraggia l'accesso casuale, non è
-    // sicurezza vera (chiunque può leggere il codice sorgente).
-    PASSWORD: 'wego-admin-2026',
+    // La password vera non è più qui: vive solo come variabile
+    // d'ambiente ADMIN_PASSWORD su Vercel, verificata da
+    // /api/admin-login.js. Qui restiamo con la password digitata SOLO
+    // in memoria/sessionStorage per questa sessione del browser, per
+    // poterla riusare come autenticazione sulle chiamate admin-only
+    // successive (es. abilitare un evento esterno).
+    password: null,
 
     init() {
-      if (sessionStorage.getItem('wego_admin_unlocked') === 'true') {
-        AdminGate._unlock();
+      const saved = sessionStorage.getItem('wego_admin_pw');
+      if (saved) {
+        AdminGate._unlock(saved);
       } else {
         setTimeout(() => document.getElementById('adminPasswordInput')?.focus(), 200);
       }
     },
 
-    tryUnlock() {
+    async tryUnlock() {
       const input = document.getElementById('adminPasswordInput');
       const error = document.getElementById('adminGateError');
-      if (input.value === AdminGate.PASSWORD) {
-        sessionStorage.setItem('wego_admin_unlocked', 'true');
-        AdminGate._unlock();
-      } else {
+      const btn   = document.getElementById('adminGateBtn');
+      const pw    = input.value;
+
+      error.style.display = 'none';
+      if (btn) { btn.disabled = true; btn.textContent = 'Verifica…'; }
+
+      try {
+        const res  = await fetch('/api/admin-login', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ password: pw })
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok && data.ok) {
+          sessionStorage.setItem('wego_admin_pw', pw);
+          AdminGate._unlock(pw);
+        } else if (res.status === 404) {
+          error.textContent = 'Funzione /api/admin-login non trovata — verifica che la cartella /api sia stata caricata su Vercel.';
+          error.style.display = '';
+        } else if (res.status === 500) {
+          error.textContent = data.error || 'ADMIN_PASSWORD non configurata su Vercel.';
+          error.style.display = '';
+        } else {
+          error.textContent = 'Password errata';
+          error.style.display = '';
+          input.value = ''; input.focus();
+        }
+      } catch (e) {
+        error.textContent = 'Errore di connessione — riprova';
         error.style.display = '';
-        input.value = '';
-        input.focus();
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Entra'; }
       }
     },
 
-    _unlock() {
+    _unlock(password) {
+      AdminGate.password = password;
       document.getElementById('adminGate').style.display  = 'none';
       document.getElementById('adminShell').style.display = '';
       // AdminApp è definito più sotto nel file: avviamo l'inizializzazione
       // del pannello solo ora che l'accesso è stato sbloccato.
       if (typeof AdminApp !== 'undefined') AdminApp.init();
+    },
+
+    logout() {
+      sessionStorage.removeItem('wego_admin_pw');
+      window.location.reload();
     }
   };
 
@@ -167,6 +205,7 @@
       <span class="app-header__title">Pannello Admin</span>
     </div>
     <div class="app-header__actions">
+      <button class="btn btn--ghost btn--sm" onclick="AdminGate.logout()" title="Esci dal pannello admin">Esci</button>
       <a href="/index.html" class="btn btn--ghost btn--sm">&#8592; App</a>
     </div>
   </header>
@@ -272,6 +311,34 @@
       </div>
     </div>
 
+    <!-- SYNC EVENTI ESTERNI -->
+    <div class="admin-section">
+      <div class="section-header"><span class="section-title">Sincronizzazione eventi esterni</span></div>
+      <div class="admin-group" style="margin-bottom:10px;">
+        <div class="admin-row">
+          <p class="config-note">
+            Gli eventi che crei tu (con il codice "dispositivo proprietario" attivo, vedi Impostazioni → Avanzate)
+            sono sempre sincronizzati. Gli eventi creati dagli altri utenti restano invece solo sul loro telefono
+            finché non abiliti qui il loro codice — il creatore originale resta sempre visibile anche dopo l'abilitazione.
+          </p>
+        </div>
+        <div class="admin-row" style="display:flex;gap:8px;">
+          <input type="text" class="form-input" id="enableEventCode" placeholder="Codice evento, es. ABC-123456"
+            style="flex:1;text-transform:uppercase;font-family:monospace;" oninput="this.value=this.value.toUpperCase()"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();AdminApp.enableEventCode();}" />
+          <button class="btn btn--primary" onclick="AdminApp.enableEventCode()">Abilita</button>
+        </div>
+        <div class="test-result" id="enableEventResult"></div>
+      </div>
+      <div class="admin-group">
+        <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:14px;font-weight:600;color:var(--text-primary);">Codici in attesa / abilitati</span>
+          <button class="btn btn--ghost btn--sm" onclick="AdminApp.loadSyncStatusList()">Aggiorna</button>
+        </div>
+        <div id="syncStatusList"><p class="config-note">Caricamento…</p></div>
+      </div>
+    </div>
+
     <!-- FIREBASE FCM -->
     <div class="admin-section">
       <div class="section-header">
@@ -348,7 +415,7 @@
     <div class="admin-about">
       <div class="admin-about__logo">WG</div>
       <div class="admin-about__title">WeGo</div>
-      <div class="admin-about__ver">Versione 1.4 — Pannello Amministratore</div>
+      <div class="admin-about__ver">Versione 1.7 — Pannello Amministratore</div>
       <div class="admin-about__sep"></div>
       <div class="admin-about__dev">Sviluppato da</div>
       <div class="admin-about__name">Ivo Taffarel</div>
@@ -371,6 +438,7 @@ const AdminApp = {
     AdminApp._loadSavedCredentials();
     AdminApp._checkStatus();
     AdminApp._renderSQL();
+    AdminApp.loadSyncStatusList();
   },
 
   _loadSavedCredentials() {
@@ -470,6 +538,92 @@ const AdminApp = {
       else if (res.status === 404) { el.className = 'test-result error'; el.textContent = 'Tabelle non trovate — esegui lo schema SQL prima'; }
       else { const body = await res.text().catch(() => ''); el.className = 'test-result error'; el.textContent = 'Errore HTTP ' + res.status + ' — ' + (body.slice(0,120) || 'verifica le credenziali'); }
     } catch(e) { el.className = 'test-result error'; el.textContent = 'Connessione fallita: ' + e.message; }
+  },
+
+  // ── SINCRONIZZAZIONE EVENTI ESTERNI ────────────────────
+  // Tutte le operazioni di scrittura (enable/disable) passano da
+  // /api/sync-status.js, che verifica AdminGate.password lato server
+  // contro ADMIN_PASSWORD prima di toccare il database.
+  async enableEventCode() {
+    const codeInput = document.getElementById('enableEventCode');
+    const code = codeInput.value.trim();
+    const el = document.getElementById('enableEventResult');
+    if (!code) { Utils.toast('Inserisci un codice evento', 'error'); return; }
+    el.style.display = 'block'; el.className = 'test-result'; el.textContent = 'Abilitazione in corso…';
+    try {
+      const res = await fetch('/api/sync-status', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': AdminGate.password || '' },
+        body:    JSON.stringify({ action: 'enable', code })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        el.className = 'test-result ok';
+        el.textContent = `Evento "${code}" abilitato alla sincronizzazione.`;
+        codeInput.value = '';
+        AdminApp.loadSyncStatusList();
+      } else {
+        el.className = 'test-result error';
+        el.textContent = data.error || 'Errore abilitazione';
+      }
+    } catch (e) {
+      el.className = 'test-result error';
+      el.textContent = 'Errore di connessione: ' + e.message;
+    }
+  },
+
+  async enableEventCodeQuick(code) {
+    document.getElementById('enableEventCode').value = code;
+    await AdminApp.enableEventCode();
+  },
+
+  async disableEventCode(code) {
+    if (!confirm(`Disabilitare la sincronizzazione per "${code}"?\n\nI dati già presenti sul server NON vengono eliminati: il dispositivo che ha creato l'evento smetterà solo di inviare nuovi aggiornamenti, finché non lo riabiliti.`)) return;
+    try {
+      const res = await fetch('/api/sync-status', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': AdminGate.password || '' },
+        body:    JSON.stringify({ action: 'disable', code })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) { Utils.toast('Sincronizzazione disabilitata', 'success'); AdminApp.loadSyncStatusList(); }
+      else Utils.toast(data.error || 'Errore disabilitazione', 'error');
+    } catch (e) { Utils.toast('Errore: ' + e.message, 'error'); }
+  },
+
+  async loadSyncStatusList() {
+    const container = document.getElementById('syncStatusList');
+    if (!container) return;
+    container.innerHTML = '<p class="config-note">Caricamento…</p>';
+    try {
+      const res = await fetch('/api/sync-status', {
+        headers: { 'x-admin-password': AdminGate.password || '' }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !Array.isArray(data.items)) {
+        container.innerHTML = `<p class="config-note" style="color:var(--red);">Errore caricamento: ${Utils.escapeHtml(data.error || String(res.status))}</p>`;
+        return;
+      }
+      if (!data.items.length) {
+        container.innerHTML = '<p class="config-note">Nessun codice registrato.</p>';
+        return;
+      }
+      container.innerHTML = data.items.map(item => `
+        <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="min-width:0;">
+            <div style="font-size:14px;font-weight:700;font-family:monospace;color:var(--text-primary);">${Utils.escapeHtml(item.code)}</div>
+            <div style="font-size:12.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">
+              ${Utils.escapeHtml(item.title || '—')} · creato da ${Utils.escapeHtml(item.created_by || '—')}
+            </div>
+          </div>
+          ${item.enabled
+            ? `<button class="btn btn--ghost btn--sm" style="color:var(--red);flex-shrink:0;" onclick="AdminApp.disableEventCode('${item.code}')">Disabilita</button>`
+            : `<button class="btn btn--primary btn--sm" style="flex-shrink:0;" onclick="AdminApp.enableEventCodeQuick('${item.code}')">Abilita</button>`}
+        </div>
+      `).join('');
+    } catch (e) {
+      container.innerHTML = `<p class="config-note" style="color:var(--red);">Errore: ${Utils.escapeHtml(e.message)}</p>`;
+    }
   },
 
   saveFCM() {

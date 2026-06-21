@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v1.4
+// WeGo — sync.js v1.5
 // Gestione sincronizzazione bidirezionale con Supabase
+// v1.5: sincronizzazione selettiva per eventi esterni — un evento
+//       "gated" (creato da un device non proprietario) non viene mai
+//       inviato a Supabase finché il suo codice non è abilitato da un
+//       admin (vedi admin.html / sp_sync_status). Vedi _refreshGatedEvents,
+//       _isEventSyncAllowed, _pendingEventId qui sotto.
 // ═══════════════════════════════════════════════════════════════
 
 const Sync = {
@@ -17,11 +22,23 @@ const Sync = {
     Sync._showBar('Sincronizzazione in corso…');
 
     try {
+      // Prima di tutto: per gli eventi "gated" (creati da un device non
+      // proprietario) verifica se nel frattempo un admin li ha abilitati
+      // (o disabilitati di nuovo) su sp_sync_status. Per gli eventi non
+      // gated non fa nulla: zero query extra per l'uso normale.
+      await Sync._refreshGatedEvents();
+
       const pendingOps = await DB.pending.getAll();
       console.log(`[Sync] Push: ${pendingOps.length} operazioni pending`);
 
       for (const op of pendingOps) {
         try {
+          const eventId = Sync._pendingEventId(op);
+          if (eventId && !(await Sync._isEventSyncAllowed(eventId))) {
+            // Evento ancora in attesa di abilitazione: resta in coda,
+            // non è un errore, semplicemente non lo inviamo ora.
+            continue;
+          }
           await Sync._executePending(op);
           await DB.pending.remove(op.id);
         } catch (e) {
@@ -34,6 +51,7 @@ const Sync = {
       const unsyncedExp = await DB.expenses.getUnsyced();
       for (const exp of unsyncedExp) {
         try {
+          if (!(await Sync._isEventSyncAllowed(exp.event_id))) continue;
           await Sync._syncExpense(exp);
           exp.synced = true;
           await DB.expenses.save(exp);
@@ -46,6 +64,7 @@ const Sync = {
       const unsyncedPay = await DB.payments.getUnsyced();
       for (const pay of unsyncedPay) {
         try {
+          if (!(await Sync._isEventSyncAllowed(pay.event_id))) continue;
           await Sync._syncPayment(pay);
           pay.synced = true;
           await DB.payments.save(pay);
@@ -60,6 +79,7 @@ const Sync = {
       const unsyncedUsers = await DB.users.getUnsyced();
       for (const u of unsyncedUsers) {
         try {
+          if (!(await Sync._isEventSyncAllowed(u.event_id))) continue;
           await Sync._syncUser(u);
           u.synced = true;
           await DB.users.save(u);
@@ -71,6 +91,71 @@ const Sync = {
     } finally {
       Sync._isSyncing = false;
       Sync._hideBar();
+    }
+  },
+
+  // ─── GATING EVENTI ESTERNI ─────────────────────────────────
+  /**
+   * Per ogni evento locale "gated" (creato da un device senza il codice
+   * proprietario), verifica su sp_sync_status se è stato abilitato (o
+   * disabilitato di nuovo) e aggiorna il permesso locale di conseguenza.
+   * Non tocca in alcun modo gli eventi non gated (proprietario/legacy):
+   * zero overhead per l'uso normale.
+   */
+  async _refreshGatedEvents() {
+    let all = [];
+    try { all = await DB.events.getAll(); } catch (e) { return; }
+    const gated = all.filter(e => e.gated);
+    if (!gated.length) return;
+
+    for (const ev of gated) {
+      try {
+        const status = await SupabaseClient.syncStatus.getByCode(ev.code);
+        const allowedNow = !!(status && status.enabled);
+        if (allowedNow !== !!ev.sync_allowed) {
+          await DB.events.setSyncAllowed(ev.id, allowedNow);
+          if (allowedNow) {
+            Utils.toast(`Evento "${ev.title}" abilitato alla sincronizzazione ✓`, 'success', 4000);
+          }
+        }
+      } catch (e) {
+        // Offline a metà ciclo, o tabella sp_sync_status non ancora creata
+        // sul server: non blocca il resto della sincronizzazione.
+        console.warn('[Sync] Verifica gating fallita per', ev.code, e.message);
+      }
+    }
+  },
+
+  /**
+   * Permesso effettivo di sincronizzare un evento: true per qualunque
+   * evento non gated (proprietario o legacy), altrimenti il valore
+   * aggiornato da _refreshGatedEvents().
+   */
+  async _isEventSyncAllowed(eventId) {
+    if (!eventId) return true;
+    const ev = await DB.events.getById(eventId);
+    if (!ev) return true; // evento non trovabile localmente: non blocchiamo
+    if (!ev.gated) return true;
+    return !!ev.sync_allowed;
+  },
+
+  /**
+   * Estrae l'event_id collegato a un'operazione pending, per poterne
+   * verificare il gating prima di eseguirla. 'register_sync_request' non
+   * ha un evento da bloccare: è proprio il meccanismo che segnala il
+   * codice all'admin, va sempre eseguito.
+   */
+  _pendingEventId(op) {
+    const p = op.payload || {};
+    switch (op.type) {
+      case 'create_event':
+      case 'update_event':       return p.event?.id || null;
+      case 'delete_event':       return p.eventId || null;
+      case 'create_user':        return p.user?.event_id || null;
+      case 'delete_user':        return p.eventId || null;
+      case 'clear_joined':       return p.user?.event_id || null;
+      case 'register_sync_request': return null;
+      default:                   return null;
     }
   },
 
@@ -113,6 +198,13 @@ const Sync = {
         // utente anche sul server, così gli altri device lo vedono come
         // non connesso (il record locale è già stato eliminato a questo punto).
         await SupabaseClient.users.update(payload.user);
+        break;
+      case 'register_sync_request':
+        // Segnala il codice evento sulla tabella sp_sync_status, così
+        // admin.html può mostrarlo nella lista "in attesa" anche prima
+        // che il creatore lo comunichi via WhatsApp. Non crea l'evento
+        // sul server: è solo un avviso informativo, idempotente.
+        await SupabaseClient.syncStatus.request(payload.code, payload.title, payload.createdBy);
         break;
       default:
         console.warn('[Sync] Unknown pending type:', type);

@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.9
+// WeGo — evento.js v2.10
 // Logica pagina dettaglio evento
+// v2.10: banner "in attesa di sincronizzazione" per eventi esterni gated
+//        + eventId nel payload delete_user (vedi sync.js gating)
 // ═══════════════════════════════════════════════════════════════
 
 const EventoApp = {
@@ -197,6 +199,28 @@ const EventoApp = {
     const countPartEl  = document.getElementById('tabPartCount');
     if (countSpeseEl) countSpeseEl.textContent = nMovimenti ? `(${nMovimenti})` : '';
     if (countPartEl)  countPartEl.textContent  = EventoApp._users.length ? `(${EventoApp._users.length})` : '';
+
+    // Banner "in attesa di sincronizzazione" (evento esterno non ancora abilitato)
+    const gateBanner = document.getElementById('syncGateBanner');
+    if (gateBanner) gateBanner.classList.toggle('hidden', !(ev.gated && !ev.sync_allowed));
+  },
+
+  // ─── RICHIESTA SINCRONIZZAZIONE (evento gated) ────────────
+  // Invia il codice evento via WhatsApp (o condivisione di sistema) a chi
+  // deve abilitare la sincronizzazione — l'app non conosce il contatto
+  // dell'admin, quindi apre la condivisione generica così l'utente scrive
+  // a chi vuole (es. il numero WhatsApp che già usa per contattarlo).
+  shareSyncRequest() {
+    const ev = EventoApp._event;
+    if (!ev) return;
+    const msg = `Ciao! Ho creato l'evento "${ev.title}" su WeGo.\n\nCodice: ${ev.code}\n\nPuoi abilitare la sincronizzazione sul server?`;
+    if (navigator.share) {
+      navigator.share({ title: 'WeGo — richiesta sincronizzazione', text: msg }).catch(() => {
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+      });
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+    }
   },
 
   // ─── SWITCH TAB ───────────────────────────────────────────
@@ -759,7 +783,7 @@ const EventoApp = {
 
     try {
       await DB.users.delete(userId);
-      await DB.pending.add({ type: 'delete_user', payload: { userId } });
+      await DB.pending.add({ type: 'delete_user', payload: { userId, eventId: EventoApp._eventId } });
       if (Utils.isOnline()) Sync.push().catch(() => {});
       Utils.toast(`${userName} eliminato`, 'success');
       await EventoApp.loadAll();

@@ -5,6 +5,10 @@
 
 const App = {
 
+  // ─── VERSIONE ─────────────────────────────────────────────
+  // v2.9: sincronizzazione selettiva per eventi esterni — vedi createEvent()
+  //       e _eventCardHtml() per il badge "in attesa di sincronizzazione"
+
   // ─── STATO ────────────────────────────────────────────────
   _events:       [],
   _pendingPhoto: null,
@@ -14,7 +18,7 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v2.4 init');
+    console.log('[App] WeGo v2.9 init');
 
     // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
     // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
@@ -255,6 +259,11 @@ const App = {
       ? `<span style="font-size:10.5px;font-weight:700;color:var(--green);background:rgba(16,185,129,0.12);padding:1px 6px;border-radius:999px;letter-spacing:0.2px;">✦ mio</span>`
       : '';
 
+    // Badge sincronizzazione in attesa (evento "gated" non ancora abilitato)
+    const pendingSyncBadge = (ev.gated && !ev.sync_allowed)
+      ? `<span class="ev-badge-amber" title="Resta solo su questo telefono finché non viene abilitata la sincronizzazione">In attesa di sync</span>`
+      : '';
+
     // Avatar utente corrente: più grande se proprietario
     const userAvatarHtml = userName
       ? `<div class="avatar avatar-${userIdx} ${isOwner ? 'ev-card__avatar--owner' : 'avatar--sm'}" style="flex-shrink:0;" title="Sei ${Utils.escapeHtml(userName)}">${Utils.initials(userName)}</div>`
@@ -273,6 +282,7 @@ const App = {
           <div class="ev-card__meta" style="margin-top:3px;">
             <span class="ev-code">${ev.code}</span>
             ${ownerBadge}
+            ${pendingSyncBadge}
             <span class="ev-meta-txt">· ${Utils.timeAgo(ev.updated_at)}</span>
           </div>
         </div>
@@ -629,11 +639,20 @@ const App = {
     btn.textContent = 'Creazione…';
 
     try {
+      // ── SINCRONIZZAZIONE SELETTIVA EVENTI ESTERNI ──────────
+      // Se questo device NON ha il codice "dispositivo proprietario"
+      // configurato (Impostazioni → Avanzate), l'evento nasce "gated":
+      // resta solo locale finché un admin non abilita il suo codice da
+      // admin.html. Il device proprietario non cambia comportamento:
+      // sincronizzazione automatica come sempre.
+      const isOwnerDevice = Utils.getConfig('owner_device', false) === true;
+
       const event = await DB.events.save({
         title,
         description: desc,
         photo:       App._pendingPhoto,
-        created_by:  nickname
+        created_by:  nickname,
+        gated:       !isOwnerDevice
       });
 
       // Crea utente creatore (joined_at = ora: sta usando l'app in questo momento)
@@ -658,6 +677,17 @@ const App = {
         payload: { event, user: creator, users: [creator, ...inviteeUsers] }
       });
 
+      // Evento gated: registra anche il codice su sp_sync_status, così
+      // admin.html lo mostra nella lista "in attesa" anche prima che tu
+      // lo segnali manualmente. Operazione separata e sempre eseguita
+      // (vedi Sync._pendingEventId), non blocca mai la creazione locale.
+      if (event.gated) {
+        await DB.pending.add({
+          type: 'register_sync_request',
+          payload: { code: event.code, title: event.title, createdBy: nickname }
+        });
+      }
+
       if (Utils.isOnline()) Sync.push().catch(() => {});
 
       // Salva nickname per riutilizzo futuro (sia con la chiave usata da impostazioni che quella legacy)
@@ -669,12 +699,18 @@ const App = {
       // Salva come ultimo evento e naviga direttamente
       localStorage.setItem('wego_last_event_id', event.id);
 
-      Utils.toast(`Evento "${title}" creato!`, 'success');
-
-      // Mostra codice poi naviga
-      setTimeout(() => {
-        App._showShareCode(event.code, event.title, event.id);
-      }, 400);
+      if (event.gated) {
+        Utils.toast(`Evento "${title}" creato — resterà solo su questo telefono finché non viene abilitata la sincronizzazione.`, 'info', 5000);
+        setTimeout(() => {
+          App._showShareCode(event.code, event.title, event.id, true);
+        }, 400);
+      } else {
+        Utils.toast(`Evento "${title}" creato!`, 'success');
+        // Mostra codice poi naviga
+        setTimeout(() => {
+          App._showShareCode(event.code, event.title, event.id);
+        }, 400);
+      }
 
     } catch (e) {
       console.error('[App] createEvent error:', e);
@@ -685,9 +721,14 @@ const App = {
     }
   },
 
-  _showShareCode(code, title, eventId) {
-    const msg = `Entra in "${title}" su WeGo!\n\nCodice: ${code}\n\nApri WeGo e tocca "Unisciti a un evento".`;
-    if (confirm(`Evento creato! ✅\n\nCodice: ${code}\n\nVuoi condividere il codice ora?`)) {
+  _showShareCode(code, title, eventId, gated = false) {
+    const msg = gated
+      ? `Entra in "${title}" su WeGo!\n\nCodice: ${code}\n\nApri WeGo e tocca "Unisciti a un evento".\n\n(Nota: questo evento non è ancora sincronizzato sul server — funziona solo tra device che hanno già il codice)`
+      : `Entra in "${title}" su WeGo!\n\nCodice: ${code}\n\nApri WeGo e tocca "Unisciti a un evento".`;
+    const confirmMsg = gated
+      ? `Evento creato! ✅\n\nCodice: ${code}\n\nResterà solo su questo telefono finché non abiliti la sincronizzazione (vedi Impostazioni) o me lo segnali. Vuoi condividere comunque il codice ora?`
+      : `Evento creato! ✅\n\nCodice: ${code}\n\nVuoi condividere il codice ora?`;
+    if (confirm(confirmMsg)) {
       if (navigator.share) {
         navigator.share({ title: 'WeGo — ' + title, text: msg }).catch(() => {});
       } else {
