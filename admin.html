@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
-  <title>Admin — WeGo v1.5</title>
-  <link rel="stylesheet" href="/css/style.css" />
+  <title>Admin — WeGo v1.6</title>
+  <link rel="stylesheet" href="/style.css" />
   <style>
     .admin-section { margin-bottom: 22px; }
     .admin-group {
@@ -91,7 +91,76 @@
 </head>
 <body>
 <div class="toast-container" id="toastContainer"></div>
-<div class="app-shell">
+
+<!-- ─── GATE PASSWORD ───────────────────────────────────────────
+     Pagina riservata: contiene lo schema SQL del database e gli
+     strumenti di diagnostica, non destinata ai partecipanti comuni.
+     Protezione lato client (non è sicurezza vera, ma evita che chi
+     apre il link per sbaglio veda i contenuti). Per cambiare la
+     password modifica la costante ADMIN_PASSWORD qui sotto. -->
+<div id="adminGate" style="position:fixed;inset:0;z-index:999;background:var(--bg-primary);
+  display:flex;align-items:center;justify-content:center;padding:20px;">
+  <div style="width:100%;max-width:340px;background:var(--bg-card);border:1px solid var(--border);
+    border-radius:var(--r-lg);padding:24px 22px;text-align:center;">
+    <div style="width:46px;height:46px;border-radius:50%;background:rgba(99,102,241,0.12);
+      display:flex;align-items:center;justify-content:center;margin:0 auto 14px;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6366F1" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2"/>
+        <path d="M7 11V7a5 5 0 0110 0v4"/>
+      </svg>
+    </div>
+    <div style="font-size:17px;font-weight:700;color:var(--text-primary);margin-bottom:4px;">Area riservata</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Inserisci la password per accedere al pannello admin</div>
+    <input type="password" id="adminPasswordInput" class="form-input" placeholder="Password"
+      style="text-align:center;margin-bottom:10px;"
+      onkeydown="if(event.key==='Enter')AdminGate.tryUnlock();" />
+    <div id="adminGateError" style="display:none;color:var(--red);font-size:12.5px;margin-bottom:10px;">Password errata</div>
+    <button class="btn btn--primary btn--full" onclick="AdminGate.tryUnlock()">Entra</button>
+    <a href="/index.html" style="display:block;margin-top:14px;font-size:13px;color:var(--text-muted);">&#8592; Torna all'app</a>
+  </div>
+</div>
+
+<script>
+  const AdminGate = {
+    // Password del pannello admin: cambiala con una a tua scelta.
+    // Protezione lato client: scoraggia l'accesso casuale, non è
+    // sicurezza vera (chiunque può leggere il codice sorgente).
+    PASSWORD: 'wego-admin-2026',
+
+    init() {
+      if (sessionStorage.getItem('wego_admin_unlocked') === 'true') {
+        AdminGate._unlock();
+      } else {
+        setTimeout(() => document.getElementById('adminPasswordInput')?.focus(), 200);
+      }
+    },
+
+    tryUnlock() {
+      const input = document.getElementById('adminPasswordInput');
+      const error = document.getElementById('adminGateError');
+      if (input.value === AdminGate.PASSWORD) {
+        sessionStorage.setItem('wego_admin_unlocked', 'true');
+        AdminGate._unlock();
+      } else {
+        error.style.display = '';
+        input.value = '';
+        input.focus();
+      }
+    },
+
+    _unlock() {
+      document.getElementById('adminGate').style.display  = 'none';
+      document.getElementById('adminShell').style.display = '';
+      // AdminApp è definito più sotto nel file: avviamo l'inizializzazione
+      // del pannello solo ora che l'accesso è stato sbloccato.
+      if (typeof AdminApp !== 'undefined') AdminApp.init();
+    }
+  };
+
+  document.addEventListener('DOMContentLoaded', () => AdminGate.init());
+</script>
+
+<div class="app-shell" id="adminShell" style="display:none;">
   <header class="app-header">
     <div class="app-header__logo">
       <div class="app-header__logo-mark">WG</div>
@@ -293,8 +362,8 @@
   </main>
 </div>
 
-<script src="/js/utils.js"></script>
-<script src="/js/supabase.js"></script>
+<script src="/utils.js"></script>
+<script src="/supabase.js"></script>
 <script>
 const AdminApp = {
   async init() {
@@ -551,7 +620,8 @@ const AdminApp = {
   }
 };
 
-document.addEventListener('DOMContentLoaded', () => AdminApp.init());
+// AdminApp.init() viene avviato da AdminGate._unlock(), solo dopo
+// l'inserimento corretto della password (vedi script in cima alla pagina).
 </script>
 </body>
 </html>

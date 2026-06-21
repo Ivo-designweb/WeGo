@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v3.3
+// WeGo — sw.js v3.4
 // Service Worker — cache offline + background sync
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v3.3';
+const CACHE_NAME = 'wego-v3.4';
 
 const STATIC_ASSETS = [
   '/',
@@ -27,7 +27,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v3.3');
+  console.log('[SW] Install v3.4');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -53,7 +53,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v3.3');
+  console.log('[SW] Activate v3.4');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

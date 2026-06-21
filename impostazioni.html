@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v3.3</title>
+  <title>Impostazioni — WeGo v3.4</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -364,6 +364,30 @@
       </div>
     </div>
 
+    <!-- ─── SEZIONE: AVANZATE ─── -->
+    <div class="settings-section">
+      <div class="section-header"><span class="section-title">Avanzate</span></div>
+      <div class="settings-group">
+
+        <div class="settings-row" onclick="window.location.href='/admin.html'">
+          <div class="settings-row__icon" style="background:#6366F1;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0110 0v4"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Pannello amministratore</div>
+            <div class="settings-row__value">Diagnostica, configurazione Supabase, schema SQL — protetto da password</div>
+          </div>
+          <div class="settings-row__right settings-row__chevron">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
     <!-- ─── SEZIONE: ABOUT ─── -->
     <div class="settings-section">
       <div class="section-header"><span class="section-title">Informazioni</span></div>
@@ -371,7 +395,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 3.3</div>
+        <div class="about-ver">Versione 3.4</div>
 
         <div class="about-div"></div>
 
