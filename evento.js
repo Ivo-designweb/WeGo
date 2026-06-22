@@ -1,13 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.11
+// WeGo — evento.js v2.12
 // Logica pagina dettaglio evento
+// v2.12: puntino sync sempre visibile, schema colori allineato al
+//        puntino di connessione (verde/rosso, niente più giallo);
+//        messaggio popup manuale aggiornato (richiede autorizzazione)
 // v2.11: rimosso il banner persistente "in attesa di sincronizzazione"
-//        — sostituito da un puntino giallo/verde accanto all'icona di
-//        aggiornamento (sempre presente, nessun popup); il popup di
-//        avviso appare SOLO sul tap manuale dell'icona di sync, non
-//        sulle sincronizzazioni automatiche. Corretto anche il messaggio
-//        "Sincronizzato" che appariva anche quando l'evento non era
-//        realmente abilitato (vedi syncNow()).
+//        — sostituito da un puntino accanto all'icona di aggiornamento
+//        (sempre presente, nessun popup); il popup di avviso appare
+//        SOLO sul tap manuale dell'icona di sync, non sulle
+//        sincronizzazioni automatiche.
 // v2.10: eventId nel payload delete_user (vedi sync.js gating)
 // ═══════════════════════════════════════════════════════════════
 
@@ -206,23 +207,21 @@ const EventoApp = {
     if (countSpeseEl) countSpeseEl.textContent = nMovimenti ? `(${nMovimenti})` : '';
     if (countPartEl)  countPartEl.textContent  = EventoApp._users.length ? `(${EventoApp._users.length})` : '';
 
-    // Puntino di stato sincronizzazione, accanto all'icona di aggiornamento:
-    // assente per gli eventi non gated (proprietario/legacy, sempre sync
-    // come sempre), giallo se in attesa di abilitazione, verde se abilitato.
-    // Nessun popup qui: solo un'indicazione visiva passiva, sempre aggiornata
-    // ad ogni sync (manuale o automatica) perché _renderHero() viene chiamata
-    // da loadAll() dopo ogni ciclo (vedi syncNow()/_syncQuiet()).
+    // Puntino di stato sincronizzazione, accanto al puntino di connessione e
+    // all'icona di aggiornamento: stesso schema colori (verde/rosso), sempre
+    // visibile. Verde = sincronizzato col server (evento non gated, oppure
+    // gated ma abilitato); rosso = NON sincronizzato (gated e non ancora
+    // abilitato). Nessun popup qui: solo un'indicazione visiva passiva,
+    // sempre aggiornata ad ogni sync (manuale o automatica) perché
+    // _renderHero() viene chiamata da loadAll() dopo ogni ciclo
+    // (vedi syncNow()/_syncQuiet()).
     const gateDot = document.getElementById('syncGateDot');
     if (gateDot) {
-      if (ev.gated) {
-        gateDot.classList.remove('hidden');
-        gateDot.style.background = ev.sync_allowed ? 'var(--green)' : '#F59E0B';
-        gateDot.title = ev.sync_allowed
-          ? 'Sincronizzazione abilitata'
-          : 'In attesa di sincronizzazione — tocca l\'icona di aggiornamento per i dettagli';
-      } else {
-        gateDot.classList.add('hidden');
-      }
+      const isSynced = !ev.gated || !!ev.sync_allowed;
+      gateDot.style.background = isSynced ? 'var(--green)' : 'var(--red)';
+      gateDot.title = isSynced
+        ? 'Sincronizzato'
+        : 'Non sincronizzato — tocca l\'icona di aggiornamento per i dettagli';
     }
 
     // Voce di menu "Richiedi sincronizzazione": visibile solo se l'evento
@@ -1157,7 +1156,7 @@ const EventoApp = {
       // davvero inviato al server, quindi lo diciamo chiaramente.
       const ev = EventoApp._event;
       if (ev && ev.gated && !ev.sync_allowed) {
-        Utils.toast('Questo evento non è ancora sincronizzato sul server: resta solo su questo telefono.', 'info', 3000);
+        Utils.toast('Questo evento non è sincronizzato sul server: richiede l\'autorizzazione dell\'amministratore per essere abilitato.', 'info', 3000);
       } else {
         Utils.toast('Sincronizzato', 'success', 2000);
       }

@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.10
+// WeGo — app.js v2.11
 // Logica principale pagina Home (index.html)
+// v2.11: messaggio sync aggregato aggiornato (richiede autorizzazione)
 // v2.10: syncNow() non dichiara più "Sincronizzato" se restano eventi
 //        gated non abilitati (vedi sotto)
 // v2.9:  sincronizzazione selettiva per eventi esterni — vedi createEvent()
@@ -18,7 +19,7 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v2.10 init');
+    console.log('[App] WeGo v2.11 init');
 
     // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
     // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
@@ -904,8 +905,8 @@ const App = {
       if (pendingCount > 0) {
         Utils.toast(
           pendingCount === 1
-            ? '1 evento è ancora in attesa di sincronizzazione sul server.'
-            : `${pendingCount} eventi sono ancora in attesa di sincronizzazione sul server.`,
+            ? '1 evento non è sincronizzato: richiede l\'autorizzazione dell\'amministratore.'
+            : `${pendingCount} eventi non sono sincronizzati: richiedono l'autorizzazione dell'amministratore.`,
           'info', 3000
         );
       } else {

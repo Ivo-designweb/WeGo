@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v3.8</title>
+  <title>Impostazioni — WeGo v3.9</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -411,7 +411,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 3.8</div>
+        <div class="about-ver">Versione 3.9</div>
 
         <div class="about-div"></div>
 
@@ -552,12 +552,43 @@ const SettingsApp = {
       if (res.ok && data.ok) {
         Utils.setConfig('owner_device', true);
         SettingsApp._renderOwnerDeviceStatus();
-        Utils.toast('Dispositivo proprietario attivato ✓', 'success');
+
+        // Eventi creati su QUESTO device PRIMA di attivare il dispositivo
+        // proprietario erano nati "gated" (non sincronizzati): ora che il
+        // device è riconosciuto come proprietario, li sblocchiamo subito
+        // — altrimenti resterebbero permanentemente non sincronizzati
+        // anche se "tuoi al 100%", perché il flag viene fissato solo alla
+        // creazione e non più ricalcolato da solo.
+        const fixed = await SettingsApp._unlockOwnedEvents();
+        Utils.toast(
+          fixed > 0
+            ? `Dispositivo proprietario attivato ✓ — ${fixed} evento${fixed > 1 ? 'i' : ''} già su questo telefono ${fixed > 1 ? 'sono stati sbloccati' : 'è stato sbloccato'} e si sincronizzerà al prossimo aggiornamento`
+            : 'Dispositivo proprietario attivato ✓',
+          'success', 4500
+        );
       } else {
         Utils.toast('Codice non valido', 'error');
       }
     } catch (e) {
       Utils.toast('Errore di connessione: ' + e.message, 'error');
+    }
+  },
+
+  // Rimuove il flag "gated" da tutti gli eventi già presenti nell'IndexedDB
+  // di questo device (per definizione creati qui: un evento unito tramite
+  // codice è SEMPRE gated:false fin dall'inizio, vedi sync.js/app.js).
+  // Ritorna quanti eventi sono stati corretti.
+  async _unlockOwnedEvents() {
+    try {
+      const all = await DB.events.getAll();
+      const toFix = all.filter(e => e.gated);
+      for (const ev of toFix) {
+        await DB.events.save({ ...ev, gated: false, sync_allowed: true });
+      }
+      return toFix.length;
+    } catch (e) {
+      console.warn('[Settings] Sblocco eventi locali non riuscito:', e);
+      return 0;
     }
   },
 

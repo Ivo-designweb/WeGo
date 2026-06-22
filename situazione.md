@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v3.8 (v3.3 per spesa.html/spesa.js) — Aggiornato: 21 giugno 2026**
+**Versione corrente: v3.9 (v3.3 per spesa.html/spesa.js) — Aggiornato: 21 giugno 2026**
 
 ---
 
@@ -28,7 +28,7 @@
 | Sincronizzazione | REST API Supabase | Push + Pull bidirezionale, momenti precisi (vedi §4) |
 | Push notifications | Web Push API (VAPID) | Client pronto; serve Edge Function Supabase non ancora deployata |
 | Hosting | Vercel | HTTPS automatico, no build, deploy da GitHub |
-| Service Worker | sw.js v3.8 | Cache offline, Network-First per HTML/JS/CSS con fallback cache; `/api/*` sempre escluso dalla cache |
+| Service Worker | sw.js v3.9 | Cache offline, Network-First per HTML/JS/CSS con fallback cache; `/api/*` sempre escluso dalla cache |
 | Mappe | Link esterno Google Maps | Coordinate GPS salvate |
 | Pannello admin | admin.html v1.7 | Password verificata **lato server** (vedi §5, §11) — non più nel codice sorgente |
 | Funzioni serverless | Vercel `/api/*.js` (Node, **nuovo in v3.7**) | `admin-login.js`, `owner-verify.js`, `sync-status.js` — unico modo per nascondere segreti su un sito statico |
@@ -43,17 +43,17 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v3.8   Home: lista eventi, crea/unisciti
-├── evento.html          v3.8  Pagina evento: tab Movimenti / Saldi / Partecipanti
+├── index.html          v3.9   Home: lista eventi, crea/unisciti
+├── evento.html          v3.9  Pagina evento: tab Movimenti / Saldi / Partecipanti
 ├── spesa.html            v3.3 Registrazione / visualizzazione movimento
-├── impostazioni.html    v3.8   Impostazioni: tema, metodi pagamento, dispositivo proprietario, link Admin
+├── impostazioni.html    v3.9   Impostazioni: tema, metodi pagamento, dispositivo proprietario, link Admin
 ├── admin.html           v1.7   Pannello admin/debug — password verificata lato server + gestione sync esterni
-├── sw.js                v3.8   Service Worker (CACHE_NAME: wego-v3.8) — esclude /api/* dalla cache
-├── manifest.json        v3.8   PWA manifest
+├── sw.js                v3.9   Service Worker (CACHE_NAME: wego-v3.9) — esclude /api/* dalla cache
+├── manifest.json        v3.9   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
 ├── style.css            v1.4   Design system globale (font +15% rispetto a v1.3)
-├── app.js                v2.10 Logica home: eventi, crea/unisciti, gating sync, menu tre punti
-├── evento.js             v2.11 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync
+├── app.js                v2.11 Logica home: eventi, crea/unisciti, gating sync, menu tre punti
+├── evento.js             v2.12 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync
 ├── spesa.js               v2.1 Logica form registrazione/visualizzazione movimento
 ├── sync.js                v1.5 Sincronizzazione bidirezionale locale ↔ Supabase + gating eventi esterni
 ├── supabase.js            v1.4 Client REST Supabase (tutte le entity + push subscriptions + sp_sync_status)
@@ -141,17 +141,30 @@ Dalla v3.7 non tutti gli eventi vengono sincronizzati automaticamente:
   decisione esplicita dell'utente per mantenere la cosa semplice; la anon key Supabase ha
   comunque accesso INSERT/UPDATE pubblico su tutte le tabelle, come già prima di questa modifica.
 - **UI (evento.html)**: niente più banner persistente (rimosso in v3.8 perché restava visibile anche
-  dopo l'abilitazione). Ora un **puntino** accanto all'icona di aggiornamento in header: assente per
-  gli eventi non gated, **giallo** se in attesa, **verde** se abilitato — aggiornato silenziosamente
-  ad ogni sync (manuale o automatica). Il **popup testuale** "non ancora sincronizzato" appare SOLO
-  al tap manuale sull'icona di sync (`EventoApp.syncNow()`), mai sulle sync automatiche (`_syncQuiet()`,
-  avvio pagina, evento online, dopo scrittura). La voce di menu "Richiedi sincronizzazione"
+  dopo l'abilitazione). Un **puntino** accanto all'icona di aggiornamento in header, **sempre visibile**
+  (stesso schema colori del puntino di connessione, NIENTE giallo dalla v3.9): **verde** = sincronizzato
+  (evento non gated, oppure gated ma abilitato), **rosso** = NON sincronizzato (gated e non ancora
+  abilitato) — aggiornato silenziosamente ad ogni sync (manuale o automatica). Il **popup testuale**
+  "non sincronizzato, richiede l'autorizzazione dell'amministratore" appare SOLO al tap manuale
+  sull'icona di sync (`EventoApp.syncNow()`), mai sulle sync automatiche (`_syncQuiet()`, avvio pagina,
+  evento online, dopo scrittura). La voce di menu "Richiedi sincronizzazione"
   (`EventoApp.shareSyncRequest()`, condivisione WhatsApp/sistema del codice) è visibile solo per
   eventi ancora in attesa, nel menu ☰ in alto.
 - **Messaggio "Sincronizzato" impreciso (fix v3.8)**: sia in `evento.js` (`syncNow`) che in `app.js`
   (`syncNow`) il messaggio generico veniva mostrato anche quando l'evento/gli eventi non erano
   davvero stati inviati al server perché ancora `gated`. Corretto: ora il messaggio riflette lo
   stato reale dopo il ciclo di sync appena concluso.
+- **Sblocco retroattivo (fix v3.9)**: `gated` viene fissato SOLO al momento della creazione
+  dell'evento (in base a `Utils.getConfig('owner_device')` in quel preciso istante). Se Ivo creava
+  eventi di test SUL SUO device PRIMA di aver attivato "Dispositivo proprietario" in Impostazioni,
+  quegli eventi restavano permanentemente `gated:true` anche dopo aver attivato il device come
+  proprietario — il puntino rimaneva rosso per sempre su eventi che in realtà sono "suoi al 100%".
+  Risolto: `SettingsApp.configureOwnerDevice()` ora, appena il codice viene verificato con successo,
+  sblocca in automatico (`_unlockOwnedEvents()`) tutti gli eventi già presenti nell'IndexedDB di
+  questo device con `gated:true` → impostati a `gated:false`/`sync_allowed:true` (per definizione
+  un evento unito tramite codice è SEMPRE `gated:false` fin da subito, quindi qualunque evento
+  `gated:true` trovato in locale è stato necessariamente creato su questo stesso device). Si
+  sincronizzano al successivo ciclo automatico.
 - Il campo `created_by` (già esistente) non cambia: il creatore originale dell'evento resta
   sempre visibile anche dopo l'abilitazione.
 
@@ -248,6 +261,7 @@ dalla coda `pending` (usano il flag `synced: false`).
 | v3.6 | `admin.html`: path CSS/JS rotti (`/css/`, `/js/` inesistenti) + nessun accesso dall'app + nessuna password → tutti risolti |
 | v3.7 | **Password admin in chiaro nel codice**: spostata su `/api/admin-login.js` + env var Vercel `ADMIN_PASSWORD`. Introdotta sincronizzazione selettiva eventi esterni (`gated`/`sync_allowed` su `events`, tabella `sp_sync_status`, gestione da `admin.html`) |
 | v3.8 | **Banner sync persistente**: in `evento.html` restava visibile anche dopo l'abilitazione → rimosso, sostituito da un puntino di stato + popup solo su tap manuale. **Messaggio "Sincronizzato" impreciso**: mostrato anche se l'evento era ancora `gated` e non abilitato (sia in `evento.js` che in `app.js`) → corretto |
+| v3.9 | **Puntino sync giallo anche su eventi "propri"**: causa reale = eventi creati sul device PRIMA di attivare "Dispositivo proprietario" restavano `gated:true` per sempre (il flag si fissa solo alla creazione). Fix: tolto il giallo (ora solo verde/rosso, stesso schema del puntino di connessione) + sblocco retroattivo automatico in `configureOwnerDevice()` |
 
 ---
 
@@ -303,8 +317,8 @@ spesa.js          ← dipende da utils, db, supabase, sync, payments
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v3.8 (v3.3 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v3.8`
+**Versione attuale:** v3.9 (v3.3 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v3.9`
 
 ---
 
