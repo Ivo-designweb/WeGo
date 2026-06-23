@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v1.5
+// WeGo — sync.js v1.6
 // Gestione sincronizzazione bidirezionale con Supabase
+// v1.6: sincronizzazione foto movimenti (push da DB.photos.getUnsynced,
+//       pull batch da sp_expense_photos per evento) — vedi db.js/supabase.js
 // v1.5: sincronizzazione selettiva per eventi esterni — un evento
 //       "gated" (creato da un device non proprietario) non viene mai
 //       inviato a Supabase finché il suo codice non è abilitato da un
@@ -85,6 +87,26 @@ const Sync = {
           await DB.users.save(u);
         } catch (e) {
           console.warn('[Sync] User sync failed:', u.id, e.message);
+        }
+      }
+
+      // Sync foto movimenti non sincronizzate (caricamento o cancellazione
+      // in attesa di essere propagata — vedi DB.photos.markDeleted).
+      const unsyncedPhotos = await DB.photos.getUnsynced();
+      for (const photo of unsyncedPhotos) {
+        try {
+          const exp = await DB.expenses.getById(photo.expense_id);
+          if (!exp) { await DB.photos.delete(photo.expense_id); continue; }
+          if (!(await Sync._isEventSyncAllowed(exp.event_id))) continue;
+          if (photo.sync_data) {
+            await SupabaseClient.expensePhotos.upsert(photo.expense_id, photo.sync_data, photo.created_by || exp.created_by);
+          } else {
+            // sync_data assente = è stata eliminata su questo device
+            await SupabaseClient.expensePhotos.delete(photo.expense_id);
+          }
+          await DB.photos.markSynced(photo.expense_id);
+        } catch (e) {
+          console.warn('[Sync] Photo sync failed:', photo.expense_id, e.message);
         }
       }
 
@@ -318,6 +340,39 @@ const Sync = {
             synced: true
           });
         }
+      }
+
+      // Foto dei movimenti (versione compatta, ~30-50KB) — batch unico
+      // invece di una richiesta per spesa. Solo per le spese che hanno
+      // effettivamente has_photo=true.
+      try {
+        const expIdsWithPhoto = remoteExp.filter(re => re.has_photo).map(re => re.id);
+        if (expIdsWithPhoto.length) {
+          const remotePhotos = await SupabaseClient.expensePhotos.getByExpenseIds(expIdsWithPhoto);
+          for (const rp of remotePhotos) {
+            const existingPhoto = await DB.photos.getByExpense(rp.expense_id);
+            if (!existingPhoto || new Date(rp.updated_at) > new Date(existingPhoto.updated_at)) {
+              await DB.photos.save(rp.expense_id, rp.photo, {
+                sync_data:  rp.photo,
+                created_by: rp.created_by,
+                updated_at: rp.updated_at,
+                synced:     true
+              });
+            }
+          }
+        }
+        // Pulizia: spese che non hanno più foto sul server (eliminata da
+        // chi l'ha creata) ma ne hanno ancora una in locale — la togliamo.
+        for (const re of remoteExp) {
+          if (!re.has_photo) {
+            const existingPhoto = await DB.photos.getByExpense(re.id);
+            if (existingPhoto && (existingPhoto.data || existingPhoto.sync_data)) {
+              await DB.photos.delete(re.id);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Sync] Pull foto movimenti fallito:', e.message);
       }
     }
 
