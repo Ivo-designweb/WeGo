@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v4.0 (v3.3 per spesa.html/spesa.js) — Aggiornato: 22 giugno 2026****
+**Versione corrente: v4.1 (v3.3 per spesa.html/spesa.js) — Aggiornato: 22 giugno 2026**
 
 ---
 
@@ -28,7 +28,7 @@
 | Sincronizzazione | REST API Supabase | Push + Pull bidirezionale, momenti precisi (vedi §4) |
 | Push notifications | Web Push API (VAPID) | Client + Edge Function `send-push-notification` deployata e funzionante (v4.0) |
 | Hosting | Vercel | HTTPS automatico, no build, deploy da GitHub |
-| Service Worker | sw.js v4.0 | Cache offline, Network-First per HTML/JS/CSS con fallback cache; `/api/*` sempre escluso dalla cache |
+| Service Worker | sw.js v4.1 | Cache offline, Network-First per HTML/JS/CSS con fallback cache; `/api/*` sempre escluso dalla cache |
 | Mappe | Link esterno Google Maps | Coordinate GPS salvate |
 | Pannello admin | admin.html v1.7 | Password verificata **lato server** (vedi §5, §11) — non più nel codice sorgente |
 | Funzioni serverless | Vercel `/api/*.js` (Node, **nuovo in v3.7**) | `admin-login.js`, `owner-verify.js`, `sync-status.js` — unico modo per nascondere segreti su un sito statico |
@@ -43,21 +43,21 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v4.0   Home: lista eventi, crea/unisciti
-├── evento.html          v4.0  Pagina evento: tab Movimenti / Saldi / Partecipanti
+├── index.html          v4.1   Home: lista eventi, crea/unisciti
+├── evento.html          v4.1  Pagina evento: tab Movimenti / Saldi / Partecipanti
 ├── spesa.html            v3.3 Registrazione / visualizzazione movimento
-├── impostazioni.html    v4.0   Impostazioni: tema, metodi pagamento, dispositivo proprietario, link Admin
+├── impostazioni.html    v4.1   Impostazioni: tema, metodi pagamento, dispositivo proprietario, link Admin
 ├── admin.html           v1.7   Pannello admin/debug — password verificata lato server + gestione sync esterni
-├── sw.js                v4.0   Service Worker (CACHE_NAME: wego-v4.0) — esclude /api/* dalla cache
-├── manifest.json        v4.0   PWA manifest
+├── sw.js                v4.1   Service Worker (CACHE_NAME: wego-v4.1) — esclude /api/* dalla cache
+├── manifest.json        v4.1   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
 ├── style.css            v1.4   Design system globale (font +15% rispetto a v1.3)
-├── app.js                v2.11 Logica home: eventi, crea/unisciti, gating sync, menu tre punti
+├── app.js                v2.12 Logica home: eventi, crea/unisciti, gating sync, avatar creatore, card colorate
 ├── evento.js             v2.12 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync
 ├── spesa.js               v2.1 Logica form registrazione/visualizzazione movimento
 ├── sync.js                v1.5 Sincronizzazione bidirezionale locale ↔ Supabase + gating eventi esterni
 ├── supabase.js            v1.4 Client REST Supabase (tutte le entity + push subscriptions + sp_sync_status)
-├── db.js                  v1.3 IndexedDB wrapper (events con gated/sync_allowed, users, expenses, photos, payments, pending, sessions)
+├── db.js                  v1.4 IndexedDB wrapper (events con gated/sync_allowed, users, expenses, photos, payments, pending, sessions)
 ├── utils.js               v1.2 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share…)
 ├── payments.js            v1.0 Metodi di pagamento (lista configurabile, default + custom)
 ├── notifications.js      v1.2 Web Push: registrazione + salvataggio sottoscrizione su Supabase (fix mismatch chiave VAPID)
@@ -116,6 +116,19 @@ Fino a v3.0 lo stato "connesso"/"N connessi" si basava su `DB.sessions` (solo `l
 quindi visibile solo sul device dove è avvenuto il join). **Bug**: ogni device vedeva connesso
 solo se stesso. **Fix**: introdotto `users.joined_at` (sincronizzato su Supabase). "Connesso" ora
 = `!!user.joined_at`, vero per tutti i device. Vedi §6 per i dettagli del fix.
+
+### ⚠️ Concetto importante: il bottone "Salva" in Admin NON aggiorna `chiavi.json`
+Tutti i campi delle sezioni Supabase/Notifiche (FCM-VAPID) in `admin.html` — quando premi
+**Salva** — scrivono SOLO nel `localStorage` del browser che hai usato in quel momento per
+aprire Admin. Non toccano in alcun modo il file `chiavi.json` sul server. Dato che **ogni**
+pagina dell'app (compresa Admin stessa) richiama `Utils.loadRemoteConfig()` ad ogni apertura,
+che rifetcha `chiavi.json` con `cache:'no-store'` e sovrascrive silenziosamente i valori locali,
+qualunque modifica fatta col solo "Salva" viene persa al primo refresh — su QUALUNQUE device,
+incluso quello con cui l'hai salvata. Per rendere permanente un cambiamento a una di queste
+chiavi (Supabase URL/anon key, VAPID, FCM…): **Salva** (in Admin) → **Backup configurazione →
+Esporta configurazione** → sostituire `chiavi.json` nel repo col file esportato → push su
+GitHub → attendere il redeploy Vercel. Scoperto e risolto in v4.0 per la VAPID public key
+(vedi tabella fix sotto), ma vale per ogni campo di quelle due sezioni.
 
 ### 🔒 Sincronizzazione selettiva eventi esterni (NUOVO v3.7)
 Dalla v3.7 non tutti gli eventi vengono sincronizzati automaticamente:
@@ -262,7 +275,8 @@ dalla coda `pending` (usano il flag `synced: false`).
 | v3.7 | **Password admin in chiaro nel codice**: spostata su `/api/admin-login.js` + env var Vercel `ADMIN_PASSWORD`. Introdotta sincronizzazione selettiva eventi esterni (`gated`/`sync_allowed` su `events`, tabella `sp_sync_status`, gestione da `admin.html`) |
 | v3.8 | **Banner sync persistente**: in `evento.html` restava visibile anche dopo l'abilitazione → rimosso, sostituito da un puntino di stato + popup solo su tap manuale. **Messaggio "Sincronizzato" impreciso**: mostrato anche se l'evento era ancora `gated` e non abilitato (sia in `evento.js` che in `app.js`) → corretto |
 | v3.9 | **Puntino sync giallo anche su eventi "propri"**: causa reale = eventi creati sul device PRIMA di attivare "Dispositivo proprietario" restavano `gated:true` per sempre (il flag si fissa solo alla creazione). Fix: tolto il giallo (ora solo verde/rosso, stesso schema del puntino di connessione) + sblocco retroattivo automatico in `configureOwnerDevice()` |
-| v4.0 | **Notifiche push mai consegnate dopo aver rigenerato le chiavi VAPID** (errori 401/403 "VAPID public key mismatch" lato Edge Function, nessun errore visibile sul device): `notifications.js` riusava la sottoscrizione push del browser anche quando era legata a una chiave VAPID pubblica diversa da quella attualmente configurata — il browser non se ne accorge da solo finché non gli si chiede esplicitamente di confrontarla. Fix: confronto byte-per-byte con la chiave attuale, `unsubscribe()` + nuova `subscribe()` se non corrisponde |
+| v4.0 | **Notifiche push mai consegnate dopo aver rigenerato le chiavi VAPID** (errori 401/403 "VAPID public key mismatch" lato Edge Function, nessun errore visibile sul device): `notifications.js` riusava la sottoscrizione push del browser anche quando era legata a una chiave VAPID pubblica diversa da quella attualmente configurata — il browser non se ne accorge da solo finché non gli si chiede esplicitamente di confrontarla. Fix: confronto byte-per-byte con la chiave attuale, `unsubscribe()` + nuova `subscribe()` se non corrisponde. **CAUSA DEFINITIVA (vera root cause)**: anche dopo questo fix il mismatch persisteva — il bottone "Salva" in Admin → sezione FCM aggiorna SOLO il `localStorage` del browser dell'admin in quel momento, NON il file `chiavi.json` sul server. Tutte le pagine (incluse quelle dell'admin stesso) richiamano `Utils.loadRemoteConfig()` ad ogni apertura, che rifetcha `chiavi.json` con `cache:'no-store'` e sovrascrive silenziosamente qualunque valore locale — quindi la chiave "salvata" in Admin veniva persa al primo refresh su qualunque pagina, e ogni device continuava a leggere la VAPID pubblica vecchia da `chiavi.json`. **Procedura corretta per cambiare qualunque chiave in `chiavi.json` (non solo VAPID)**: Admin → aggiorna il campo e Salva → Admin → Backup configurazione → **Esporta configurazione** → sostituire il `chiavi.json` nel repo con il file esportato → push su GitHub → attendere il redeploy Vercel. Il pulsante "Salva" da solo NON basta mai, su nessun campo di quella sezione |
+| v4.1 | **Titolo evento non si aggiornava mai dopo una modifica del creatore** (nemmeno scollegando/ricollegando): `db.js` → `events.save()` sovrascriveva SEMPRE `updated_at` con l'orario locale del device, anche durante un pull dal server col valore reale — bastava un minimo disallineamento tra gli orologi dei device perché il confronto "il server ha una versione più recente?" diventasse permanentemente falso su quell'evento. Fix: preserva `updated_at` se passato esplicitamente (pull/edit), default a "ora" solo per eventi nuovi. **Avatar sbagliato in home**: la card di un evento collegato (creato da altri) mostrava la TUA iniziale invece di quella del creatore — `_eventCardHtml()` usava l'identità locale (`session.userName`) invece di `ev.created_by`. **Estetica**: nuova classe `.ev-card--linked` (sfondo arancione chiaro) per distinguere a colpo d'occhio gli eventi collegati da quelli creati da me (verde chiaro, invariato) |
 
 ---
 
@@ -318,8 +332,8 @@ spesa.js          ← dipende da utils, db, supabase, sync, payments
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v4.0 (v3.3 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v4.0`
+**Versione attuale:** v4.1 (v3.3 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v4.1`
 
 ---
 

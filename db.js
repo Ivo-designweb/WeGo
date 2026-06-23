@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — db.js v1.3
+// WeGo — db.js v1.4
 // Gestione dati locali con IndexedDB (offline-first)
+// v1.4: fix critico — events.save() sovrascriveva SEMPRE updated_at con
+//       l'orario locale, anche quando arrivava un pull dal server col
+//       valore reale. Rompeva il confronto "il server ha una versione più
+//       recente?" non appena l'orologio del device superava quello di chi
+//       aveva modificato l'evento: titolo/descrizione non si aggiornavano
+//       più, nemmeno scollegandosi e ricollegandosi. Ora preserva
+//       updated_at se passato esplicitamente.
 // v1.3: aggiunta sincronizzazione selettiva per eventi esterni
 //       (campi events.gated / events.sync_allowed, vedi sync.js)
 // ═══════════════════════════════════════════════════════════════
@@ -129,7 +136,18 @@ const DB = (() => {
         currency:    event.currency || Utils.getConfig('currency') || 'EUR',
         created_at:  event.created_at || Utils.now(),
         created_by:  event.created_by || null,
-        updated_at:  Utils.now(),
+        // FIX: preserva updated_at se viene passato esplicitamente (es. da
+        // Sync.pullEvent con il valore reale del server, o da saveEditEvent
+        // che lo imposta a "ora" apposta). Prima veniva sempre sovrascritto
+        // con l'orario LOCALE del device, anche durante un pull — questo
+        // rompeva silenziosamente il confronto "il server ha una versione
+        // più recente?" non appena l'orologio di questo device superava
+        // quello del device che aveva fatto la modifica (bastava un minimo
+        // di disallineamento tra i due orologi): i pull successivi
+        // smettevano di funzionare per sempre su quell'evento, anche
+        // scollegandosi e ricollegandosi, perché la nuova modifica remota
+        // sembrava sempre "più vecchia" del falso updated_at locale.
+        updated_at:  event.updated_at || Utils.now(),
         synced:      event.synced || false,
         archived:    event.archived || false,
         // ── SINCRONIZZAZIONE SELETTIVA EVENTI ESTERNI (v1.3) ──────

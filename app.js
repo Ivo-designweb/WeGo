@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.11
+// WeGo — app.js v2.12
 // Logica principale pagina Home (index.html)
+// v2.12: card evento — avatar mostra il CREATORE invece dell'identità
+//        locale dell'utente; classe ev-card--linked per gli eventi non
+//        creati da me (sfondo arancione, vedi index.html)
 // v2.11: messaggio sync aggregato aggiornato (richiede autorizzazione)
 // v2.10: syncNow() non dichiara più "Sincronizzato" se restano eventi
 //        gated non abilitati (vedi sotto)
@@ -19,7 +22,7 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v2.11 init');
+    console.log('[App] WeGo v2.12 init');
 
     // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
     // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
@@ -222,7 +225,6 @@ const App = {
   async _eventCardHtml(ev) {
     const session  = DB.sessions.get(ev.id);
     const userName = session?.userName;
-    const userIdx  = userName ? Utils.avatarColorIndex(userName) : 0;
 
     // Determina se l'utente corrente è il creatore (proprietario) dell'evento
     const isOwner = ev.created_by && userName &&
@@ -266,13 +268,18 @@ const App = {
       : '';
 
     // Avatar utente corrente: più grande se proprietario
-    const userAvatarHtml = userName
-      ? `<div class="avatar avatar-${userIdx} ${isOwner ? 'ev-card__avatar--owner' : 'avatar--sm'}" style="flex-shrink:0;" title="Sei ${Utils.escapeHtml(userName)}">${Utils.initials(userName)}</div>`
+    // Mostra l'iniziale del CREATORE dell'evento (non la propria identità in
+    // quell'evento) — per gli eventi creati da me coincide comunque con la
+    // mia, per quelli collegati identifica subito chi l'ha creato.
+    const creatorName = ev.created_by || userName || '';
+    const creatorIdx  = creatorName ? Utils.avatarColorIndex(creatorName) : 0;
+    const userAvatarHtml = creatorName
+      ? `<div class="avatar avatar-${creatorIdx} ${isOwner ? 'ev-card__avatar--owner' : 'avatar--sm'}" style="flex-shrink:0;" title="${isOwner ? 'Sei tu' : 'Creato da ' + Utils.escapeHtml(creatorName)}">${Utils.initials(creatorName)}</div>`
       : '';
 
     return `
     <div class="ev-card-wrap">
-    <div class="ev-card ${isOwner ? 'ev-card--owned' : ''}" onclick="App.openEvent('${ev.id}')">
+    <div class="ev-card ${isOwner ? 'ev-card--owned' : 'ev-card--linked'}" onclick="App.openEvent('${ev.id}')">
       <div class="ev-card__top">
         <div class="ev-card__thumb">${thumbHtml}</div>
         <div class="ev-card__info">
