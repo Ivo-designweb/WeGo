@@ -1,12 +1,12 @@
 {
-  "_wego_config_version": "2.0",
-  "_exported_at": "2026-06-17T20:14:08.911Z",
-  "_note": "WeGo — configurazione centralizzata, caricare nella root del repo GitHub",
+  "_wego_config_version": "1.4",
+  "_exported_at": "2026-06-23T08:48:10.179Z",
+  "_note": "WeGo config — conserva in modo sicuro",
   "supabase_url": "https://wwaomtfchpplmmxdpsqa.supabase.co",
   "supabase_anon_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3YW9tdGZjaHBwbG1teGRwc3FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQ5MTIsImV4cCI6MjA5NzIwMDkxMn0.OyIYsrpg4yZQVxeG7gxA0KQRqM7q0MOc29AWaGNxhR8",
   "fcm_api_key": "AIzaSyAV5CxzPZ63OR9YmEBOAYqJ5MoofuEGBOw",
   "fcm_project_id": "wegoivo",
   "fcm_sender_id": "809519426216",
   "fcm_app_id": "1:809519426216:web:63f3effadf442b5d05709d",
-  "fcm_vapid_key": "BHIVBHA__RpHWxv7FgH3QImRhHSB7xoH2Pz1EGla-1GJ66VmxYdcQNKv3_Q3vhcXiXT2vYfJXfGDCi7TP4CDk8k"
+  "fcm_vapid_key": "BKsx6XWBHCIdohnVeyRNsWwf9JBGlyBeaJ5xb47BNi1AJDszmBRpM-3ocCshC-osoLTO42yp2H5FAxAbWOSFwMA"
 }
