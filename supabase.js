@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.4
+// WeGo — supabase.js v1.5
 // Client Supabase — lettura config da localStorage
+// v1.5: fix critico — sp_events non aveva la colonna "photo", ma
+//       events.update() la inviava comunque in ogni PATCH: PostgREST
+//       rifiutava l'INTERA richiesta (non solo il campo foto), quindi
+//       titolo/descrizione non si aggiornavano mai sul server dopo una
+//       modifica. Aggiunta colonna (ALTER TABLE) + events.create() ora
+//       invia anche la foto (prima la ometteva sempre, anche alla
+//       creazione).
 // v1.4: aggiunta tabella sp_sync_status (sincronizzazione selettiva
 //       eventi esterni — vedi sync.js / admin.html)
 // ═══════════════════════════════════════════════════════════════
@@ -81,7 +88,12 @@ const SupabaseClient = (() => {
         currency:    event.currency || 'EUR',
         created_by:  event.created_by || null,
         created_at:  event.created_at,
-        updated_at:  event.updated_at
+        updated_at:  event.updated_at,
+        // FIX v1.5: mancava qui — la foto veniva salvata solo in locale alla
+        // creazione dell'evento e non arrivava mai al server, quindi nessun
+        // altro device la vedeva (events.update() invece la includeva già
+        // correttamente, ma solo per le modifiche successive alla creazione).
+        photo:       event.photo || null
       });
     },
 
@@ -357,7 +369,8 @@ CREATE TABLE IF NOT EXISTS sp_events (
   created_by  VARCHAR(50),
   created_at  TIMESTAMPTZ DEFAULT NOW(),
   updated_at  TIMESTAMPTZ DEFAULT NOW(),
-  archived    BOOLEAN DEFAULT FALSE
+  archived    BOOLEAN DEFAULT FALSE,
+  photo       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_sp_events_code ON sp_events(code);
 
@@ -431,6 +444,14 @@ ALTER TABLE sp_users ADD COLUMN IF NOT EXISTS joined_at TIMESTAMPTZ;
 -- mostrare in "Partecipanti" quando ciascun utente ha sincronizzato
 -- l'ultima volta, per capire se ha i dati aggiornati.
 ALTER TABLE sp_users ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMPTZ;
+
+-- Per installazioni precedenti: aggiunge photo se mancante. SENZA questa
+-- colonna, ogni modifica all'evento (anche solo il titolo) fallisce per
+-- intero: events.update() invia sempre anche il campo "photo" nella
+-- stessa richiesta PATCH, e PostgREST rifiuta tutta la richiesta se una
+-- colonna non esiste — quindi titolo/descrizione non si aggiornavano MAI
+-- sul server, non solo la foto (bug v4.2).
+ALTER TABLE sp_events ADD COLUMN IF NOT EXISTS photo TEXT;
 
 -- TABELLA SOTTOSCRIZIONI PUSH (Web Push / notifiche)
 -- Collega un device a un evento: serve al backend per sapere a chi inviare

@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v4.1 (v3.3 per spesa.html/spesa.js) — Aggiornato: 22 giugno 2026**
+**Versione corrente: v4.2 (v3.3 per spesa.html/spesa.js) — Aggiornato: 23 giugno 2026**
 
 ---
 
@@ -28,7 +28,7 @@
 | Sincronizzazione | REST API Supabase | Push + Pull bidirezionale, momenti precisi (vedi §4) |
 | Push notifications | Web Push API (VAPID) | Client + Edge Function `send-push-notification` deployata e funzionante (v4.0) |
 | Hosting | Vercel | HTTPS automatico, no build, deploy da GitHub |
-| Service Worker | sw.js v4.1 | Cache offline, Network-First per HTML/JS/CSS con fallback cache; `/api/*` sempre escluso dalla cache |
+| Service Worker | sw.js v4.2 | Cache offline, Network-First per HTML/JS/CSS con fallback cache; `/api/*` sempre escluso dalla cache |
 | Mappe | Link esterno Google Maps | Coordinate GPS salvate |
 | Pannello admin | admin.html v1.7 | Password verificata **lato server** (vedi §5, §11) — non più nel codice sorgente |
 | Funzioni serverless | Vercel `/api/*.js` (Node, **nuovo in v3.7**) | `admin-login.js`, `owner-verify.js`, `sync-status.js` — unico modo per nascondere segreti su un sito statico |
@@ -43,20 +43,20 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v4.1   Home: lista eventi, crea/unisciti
-├── evento.html          v4.1  Pagina evento: tab Movimenti / Saldi / Partecipanti
+├── index.html          v4.2   Home: lista eventi, crea/unisciti
+├── evento.html          v4.2  Pagina evento: tab Movimenti / Saldi / Partecipanti
 ├── spesa.html            v3.3 Registrazione / visualizzazione movimento
-├── impostazioni.html    v4.1   Impostazioni: tema, metodi pagamento, dispositivo proprietario, link Admin
+├── impostazioni.html    v4.2   Impostazioni: tema, metodi pagamento, dispositivo proprietario, link Admin
 ├── admin.html           v1.7   Pannello admin/debug — password verificata lato server + gestione sync esterni
-├── sw.js                v4.1   Service Worker (CACHE_NAME: wego-v4.1) — esclude /api/* dalla cache
-├── manifest.json        v4.1   PWA manifest
+├── sw.js                v4.2   Service Worker (CACHE_NAME: wego-v4.2) — esclude /api/* dalla cache
+├── manifest.json        v4.2   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
 ├── style.css            v1.4   Design system globale (font +15% rispetto a v1.3)
 ├── app.js                v2.12 Logica home: eventi, crea/unisciti, gating sync, avatar creatore, card colorate
 ├── evento.js             v2.12 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync
 ├── spesa.js               v2.1 Logica form registrazione/visualizzazione movimento
 ├── sync.js                v1.5 Sincronizzazione bidirezionale locale ↔ Supabase + gating eventi esterni
-├── supabase.js            v1.4 Client REST Supabase (tutte le entity + push subscriptions + sp_sync_status)
+├── supabase.js            v1.5 Client REST Supabase (tutte le entity + push subscriptions + sp_sync_status + photo)
 ├── db.js                  v1.4 IndexedDB wrapper (events con gated/sync_allowed, users, expenses, photos, payments, pending, sessions)
 ├── utils.js               v1.2 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share…)
 ├── payments.js            v1.0 Metodi di pagamento (lista configurabile, default + custom)
@@ -277,6 +277,7 @@ dalla coda `pending` (usano il flag `synced: false`).
 | v3.9 | **Puntino sync giallo anche su eventi "propri"**: causa reale = eventi creati sul device PRIMA di attivare "Dispositivo proprietario" restavano `gated:true` per sempre (il flag si fissa solo alla creazione). Fix: tolto il giallo (ora solo verde/rosso, stesso schema del puntino di connessione) + sblocco retroattivo automatico in `configureOwnerDevice()` |
 | v4.0 | **Notifiche push mai consegnate dopo aver rigenerato le chiavi VAPID** (errori 401/403 "VAPID public key mismatch" lato Edge Function, nessun errore visibile sul device): `notifications.js` riusava la sottoscrizione push del browser anche quando era legata a una chiave VAPID pubblica diversa da quella attualmente configurata — il browser non se ne accorge da solo finché non gli si chiede esplicitamente di confrontarla. Fix: confronto byte-per-byte con la chiave attuale, `unsubscribe()` + nuova `subscribe()` se non corrisponde. **CAUSA DEFINITIVA (vera root cause)**: anche dopo questo fix il mismatch persisteva — il bottone "Salva" in Admin → sezione FCM aggiorna SOLO il `localStorage` del browser dell'admin in quel momento, NON il file `chiavi.json` sul server. Tutte le pagine (incluse quelle dell'admin stesso) richiamano `Utils.loadRemoteConfig()` ad ogni apertura, che rifetcha `chiavi.json` con `cache:'no-store'` e sovrascrive silenziosamente qualunque valore locale — quindi la chiave "salvata" in Admin veniva persa al primo refresh su qualunque pagina, e ogni device continuava a leggere la VAPID pubblica vecchia da `chiavi.json`. **Procedura corretta per cambiare qualunque chiave in `chiavi.json` (non solo VAPID)**: Admin → aggiorna il campo e Salva → Admin → Backup configurazione → **Esporta configurazione** → sostituire il `chiavi.json` nel repo con il file esportato → push su GitHub → attendere il redeploy Vercel. Il pulsante "Salva" da solo NON basta mai, su nessun campo di quella sezione |
 | v4.1 | **Titolo evento non si aggiornava mai dopo una modifica del creatore** (nemmeno scollegando/ricollegando): `db.js` → `events.save()` sovrascriveva SEMPRE `updated_at` con l'orario locale del device, anche durante un pull dal server col valore reale — bastava un minimo disallineamento tra gli orologi dei device perché il confronto "il server ha una versione più recente?" diventasse permanentemente falso su quell'evento. Fix: preserva `updated_at` se passato esplicitamente (pull/edit), default a "ora" solo per eventi nuovi. **Avatar sbagliato in home**: la card di un evento collegato (creato da altri) mostrava la TUA iniziale invece di quella del creatore — `_eventCardHtml()` usava l'identità locale (`session.userName`) invece di `ev.created_by`. **Estetica**: nuova classe `.ev-card--linked` (sfondo arancione chiaro) per distinguere a colpo d'occhio gli eventi collegati da quelli creati da me (verde chiaro, invariato) |
+| v4.2 | **CAUSA VERA E PIÙ GRAVE del bug titolo (oltre al fix v4.1)**: `sp_events` sul server non ha mai avuto la colonna `photo`, ma `events.update()` la invia comunque in OGNI richiesta PATCH (insieme a titolo/descrizione). PostgREST rifiuta l'INTERA richiesta se una colonna non esiste — quindi ogni modifica all'evento falliva per intero lato server, titolo compreso, non solo la foto. La pending op restava in coda e ritentava ad ogni sync, fallendo sempre allo stesso modo (per questo "scollega/ricollega" non risolveva nulla: lato server non c'era mai arrivato niente). Fix: aggiunta colonna `photo TEXT` a `sp_events` (richiede di rieseguire lo schema SQL). **Foto evento mai sincronizzata neanche alla creazione**: `events.create()` non includeva affatto il campo `photo` nel payload — corretto anche questo, ora la foto viene inviata sia alla creazione che alle modifiche successive |
 
 ---
 
@@ -332,15 +333,15 @@ spesa.js          ← dipende da utils, db, supabase, sync, payments
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v4.1 (v3.3 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v4.1`
+**Versione attuale:** v4.2 (v3.3 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v4.2`
 
 ---
 
 ## 11. Cose da fare / lavori futuri — PRIORITÀ
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
-- [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, **tabella `sp_sync_status` (NUOVA v3.7)**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione" e "sincronizzazione selettiva eventi esterni" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)
+- [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, tabella `sp_sync_status`, **colonna `sp_events.photo` (NUOVA v4.2, critica — senza questa colonna ogni modifica all'evento, non solo la foto, fallisce silenziosamente)**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "sincronizzazione selettiva eventi esterni" e "modifica evento" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)
 - [ ] **NUOVO v3.7 — Impostare 2 variabili d'ambiente su Vercel** (Project → Settings → Environment Variables), poi rideployare:
   - `ADMIN_PASSWORD` → la password vera del pannello admin (sostituisce quella che prima era in chiaro nel codice)
   - `OWNER_DEVICE_SECRET` → il codice segreto da inserire UNA VOLTA in Impostazioni → Avanzate sui tuoi device, per marcarli come "proprietario" (eventi sempre sincronizzati)
