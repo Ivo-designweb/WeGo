@@ -1,14 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.12
+// WeGo — evento.js v2.13
 // Logica pagina dettaglio evento
+// v2.13: sincronizzazione foto movimenti — permesso di modifica/
+//        cancellazione foto basato su created_by (creatore), non più
+//        paid_by (pagatore, usati per due scopi diversi prima); foto
+//        ora cancellata con markDeleted (propaga al server, non più
+//        hard delete locale); bump updated_at su modifica pagamento e
+//        self-heal joined_at (vedi anche db.js v1.5)
 // v2.12: puntino sync sempre visibile, schema colori allineato al
 //        puntino di connessione (verde/rosso, niente più giallo);
 //        messaggio popup manuale aggiornato (richiede autorizzazione)
 // v2.11: rimosso il banner persistente "in attesa di sincronizzazione"
 //        — sostituito da un puntino accanto all'icona di aggiornamento
-//        (sempre presente, nessun popup); il popup di avviso appare
-//        SOLO sul tap manuale dell'icona di sync, non sulle
-//        sincronizzazioni automatiche.
 // v2.10: eventId nel payload delete_user (vedi sync.js gating)
 // ═══════════════════════════════════════════════════════════════
 
@@ -82,6 +85,7 @@ const EventoApp = {
         if (me && !me.joined_at) {
           me.joined_at = Utils.now();
           me.synced    = false;
+          me.updated_at = Utils.now();
           await DB.users.save(me);
           // Aggiorna anche l'array in memoria, così se si passa al tab
           // "Partecipanti" senza ricaricare la pagina lo stato è già corretto.
@@ -466,10 +470,13 @@ const EventoApp = {
     const payerIdx = payer ? Utils.avatarColorIndex(payer.name) : 0;
     const payerInit = payer ? Utils.initials(payer.name) : '?';
     const isMyExp  = exp.paid_by === EventoApp._currentUserId;
+    // Permesso di modificare/eliminare la foto: solo chi ha CREATO il
+    // movimento (non chi l'ha pagato — possono essere persone diverse).
+    const isPhotoOwner = exp.created_by === EventoApp._currentUserId;
     const nPart    = (exp.participants || []).length;
     const syncBadge = exp.synced === false ? `<span class="exp-badge exp-badge--sync">sync</span>` : '';
     const photoBadge = exp.has_photo
-      ? `<span class="exp-badge exp-badge--photo" style="cursor:pointer;" onclick="EventoApp.openLightbox('${exp.id}',${isMyExp},event)" title="Vedi foto">📷</span>`
+      ? `<span class="exp-badge exp-badge--photo" style="cursor:pointer;" onclick="EventoApp.openLightbox('${exp.id}',${isPhotoOwner},event)" title="Vedi foto">📷</span>`
       : '';
     const gpsBadge   = (exp.location_lat || exp.location?.lat) ? `<span class="exp-badge">📍</span>` : '';
     const methodBadge = exp.payment_method ? `<span class="exp-badge">${Utils.escapeHtml(exp.payment_method)}</span>` : '';
@@ -894,7 +901,7 @@ const EventoApp = {
       const base = { event_id: EventoApp._eventId, from_user: fromId, to_user: toId, amount, method, note };
       if (editingId) {
         const existing = await DB.payments.getById(editingId);
-        await DB.payments.save({ ...existing, ...base, id: editingId, synced: false });
+        await DB.payments.save({ ...existing, ...base, id: editingId, synced: false, updated_at: Utils.now() });
       } else {
         await DB.payments.save({ ...base, date: Utils.today() });
       }
@@ -1007,7 +1014,7 @@ const EventoApp = {
   },
 
   // ─── LIGHTBOX FOTO ───────────────────────────────────────
-  async openLightbox(expenseId, isOwner, e) {
+  async openLightbox(expenseId, isPhotoOwner, e) {
     e.stopPropagation(); // non aprire la pagina modifica spesa
 
     const lb         = document.getElementById('photoLightbox');
@@ -1030,8 +1037,8 @@ const EventoApp = {
     if (photo?.data) {
       img.src = photo.data;
       img.style.display = '';
-      // Bottone elimina solo al proprietario della spesa
-      if (isOwner) {
+      // Bottone elimina solo a chi ha CREATO il movimento
+      if (isPhotoOwner) {
         deleteWrap.style.display = '';
         deleteWrap.dataset.expenseId = expenseId;
       }
@@ -1054,18 +1061,27 @@ const EventoApp = {
     const expenseId  = deleteWrap.dataset.expenseId;
     if (!expenseId) return;
 
+    // Doppio controllo lato app (oltre al bottone già nascosto a chi non
+    // ha creato il movimento): non fidarsi solo dello stato della UI.
+    const expense = await DB.expenses.getById(expenseId);
+    if (!expense || expense.created_by !== EventoApp._currentUserId) {
+      Utils.toast('Solo chi ha creato il movimento può eliminare la foto', 'error');
+      return;
+    }
+
     if (!confirm('Eliminare la foto? L\'operazione non è reversibile.')) return;
 
     try {
-      await DB.photos.delete(expenseId);
+      // Soft: segna la foto come eliminata e DA PROPAGARE al server (vedi
+      // Sync.push) — un hard delete locale perderebbe la cancellazione se
+      // il device fosse offline in questo momento.
+      await DB.photos.markDeleted(expenseId);
 
       // Aggiorna has_photo sulla spesa locale
-      const expense = await DB.expenses.getById(expenseId);
-      if (expense) {
-        expense.has_photo = false;
-        expense.synced = false;
-        await DB.expenses.save(expense);
-      }
+      expense.has_photo  = false;
+      expense.synced     = false;
+      expense.updated_at = Utils.now();
+      await DB.expenses.save(expense);
 
       if (Utils.isOnline()) Sync.push().catch(() => {});
 

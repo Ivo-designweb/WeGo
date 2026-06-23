@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.5
+// WeGo — supabase.js v1.6
 // Client Supabase — lettura config da localStorage
+// v1.6: sincronizzazione foto movimenti — tabella sp_expense_photos +
+//       namespace expensePhotos (upsert/delete/getByExpense/getByExpenseIds)
 // v1.5: fix critico — sp_events non aveva la colonna "photo", ma
 //       events.update() la inviava comunque in ogni PATCH: PostgREST
 //       rifiutava l'INTERA richiesta (non solo il campo foto), quindi
@@ -230,6 +232,51 @@ const SupabaseClient = (() => {
         deleted:    true,
         updated_at: Utils.now()
       });
+    }
+  };
+
+  // ─── EXPENSE PHOTOS TABLE ───────────────────────────────────
+  // Foto compatta (max 900px / qualità 60%, ~30-50KB) collegata a un
+  // movimento — vedi db.js DB.photos per la versione qualità più alta
+  // che resta SOLO sul device di chi ha scattato la foto. Solo chi ha
+  // creato il movimento (created_by) può modificarla/eliminarla: il
+  // controllo è lato app (vedi evento.js/spesa.js), qui solo la lettura
+  // e la scrittura grezza.
+  const expensePhotos = {
+    async upsert(expenseId, photoBase64, createdBy) {
+      const existing = await request('GET', 'sp_expense_photos', null, { expense_id: `eq.${expenseId}`, select: 'expense_id' });
+      if (Array.isArray(existing) && existing.length) {
+        return request('PATCH', `sp_expense_photos?expense_id=eq.${expenseId}`, {
+          photo:      photoBase64,
+          updated_at: Utils.now()
+        });
+      }
+      return request('POST', 'sp_expense_photos', {
+        expense_id: expenseId,
+        photo:      photoBase64,
+        created_by: createdBy || null,
+        updated_at: Utils.now()
+      });
+    },
+
+    async delete(expenseId) {
+      return request('DELETE', `sp_expense_photos?expense_id=eq.${expenseId}`);
+    },
+
+    async getByExpense(expenseId) {
+      const r = await request('GET', 'sp_expense_photos', null, { expense_id: `eq.${expenseId}`, select: '*' });
+      return Array.isArray(r) ? (r[0] || null) : null;
+    },
+
+    // Batch: tutte le foto collegate a una lista di movimenti (usato dal
+    // pull di un evento, una sola chiamata invece di una per spesa).
+    async getByExpenseIds(expenseIds) {
+      if (!Array.isArray(expenseIds) || !expenseIds.length) return [];
+      const r = await request('GET', 'sp_expense_photos', null, {
+        expense_id: `in.(${expenseIds.join(',')})`,
+        select:     '*'
+      });
+      return Array.isArray(r) ? r : [];
     }
   };
 
@@ -486,6 +533,19 @@ CREATE TABLE IF NOT EXISTS sp_sync_status (
   enabled_by   VARCHAR(50)
 );
 
+-- TABELLA FOTO MOVIMENTI (v4.3) — versione compatta, max 900px / qualità
+-- 60% (~30-50KB). La foto a qualità piena resta SOLO sul device di chi
+-- l'ha scattata (mai sincronizzata): qui viaggia solo questa versione
+-- compressa apposta per essere leggera da sincronizzare su tutti i
+-- device. Solo chi ha creato il movimento può modificarla/eliminarla
+-- (controllo lato app, vedi evento.js/spesa.js).
+CREATE TABLE IF NOT EXISTS sp_expense_photos (
+  expense_id  UUID PRIMARY KEY REFERENCES sp_expenses(id) ON DELETE CASCADE,
+  photo       TEXT NOT NULL,
+  created_by  UUID REFERENCES sp_users(id),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ROW LEVEL SECURITY (opzionale, abilita se vuoi sicurezza extra)
 -- ALTER TABLE sp_events   ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE sp_users    ENABLE ROW LEVEL SECURITY;
@@ -499,6 +559,7 @@ GRANT SELECT, INSERT, UPDATE ON sp_expenses    TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_payments    TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_sync_status TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sp_push_subscriptions TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON sp_expense_photos TO anon;
 
 SELECT 'Schema WeGo installato correttamente!' AS status;
 `;
@@ -509,6 +570,7 @@ SELECT 'Schema WeGo installato correttamente!' AS status;
     events,
     users,
     expenses,
+    expensePhotos,
     payments,
     pushSubscriptions,
     syncStatus,
