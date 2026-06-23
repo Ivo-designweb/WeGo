@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — notifications.js v1.1
+// WeGo — notifications.js v1.2
 // Gestione notifiche push con Web Push (VAPID) + Supabase
+// v1.2: fix critico — _registerToken riusava una sottoscrizione del
+//       browser legata a una vecchia chiave VAPID pubblica anche dopo
+//       averla rigenerata sul server (il browser non se ne accorge da
+//       solo). Causava errori "VAPID public key mismatch" 401/403 lato
+//       Edge Function: i destinatari non ricevevano nulla pur risultando
+//       correttamente registrati. Ora la sottoscrizione viene confrontata
+//       con la chiave attualmente configurata e rinnovata se non coincide.
 // ═══════════════════════════════════════════════════════════════
 
 const Notifications = {
@@ -76,14 +83,40 @@ const Notifications = {
     if (!window._swRegistration) return;
 
     try {
-      // Riusa la sottoscrizione esistente se già presente (pushManager.subscribe
-      // è idempotente solo se richiamato con la stessa chiave; getSubscription
-      // evita di doverla rigenerare ad ogni apertura dell'app).
+      const desiredKey = Notifications._urlBase64ToUint8Array(Notifications._vapidKey);
+
+      // Riusa la sottoscrizione esistente SOLO se è legata alla stessa
+      // chiave VAPID pubblica attualmente configurata. Il browser non
+      // invalida da solo una sottoscrizione quando cambi la chiave sul
+      // server (es. dopo averla rigenerata): senza questo controllo,
+      // continuerebbe a restituire la vecchia sottoscrizione per sempre,
+      // e il server riceverebbe endpoint/chiavi che la nuova chiave
+      // privata non può più autenticare (errori 401/403 "VAPID public
+      // key mismatch" — nessun errore visibile qui, solo notifiche che
+      // non arrivano mai a destinazione).
       let subscription = await window._swRegistration.pushManager.getSubscription();
+      if (subscription) {
+        try {
+          const currentKey = new Uint8Array(subscription.options.applicationServerKey);
+          const sameKey = currentKey.length === desiredKey.length &&
+                          currentKey.every((b, i) => b === desiredKey[i]);
+          if (!sameKey) {
+            console.log('[Push] Chiave VAPID cambiata: rinnovo la sottoscrizione');
+            await subscription.unsubscribe();
+            subscription = null;
+          }
+        } catch (e) {
+          // Browser senza supporto a subscription.options (raro): non
+          // possiamo verificare la corrispondenza, manteniamo quella
+          // esistente com'era prima di questo fix.
+          console.warn('[Push] Impossibile verificare la chiave VAPID della sottoscrizione esistente:', e.message);
+        }
+      }
+
       if (!subscription) {
         subscription = await window._swRegistration.pushManager.subscribe({
           userVisibleOnly:      true,
-          applicationServerKey: Notifications._urlBase64ToUint8Array(Notifications._vapidKey)
+          applicationServerKey: desiredKey
         });
       }
 

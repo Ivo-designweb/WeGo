@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v3.9 (v3.3 per spesa.html/spesa.js) — Aggiornato: 21 giugno 2026**
+**Versione corrente: v4.0 (v3.3 per spesa.html/spesa.js) — Aggiornato: 22 giugno 2026****
 
 ---
 
@@ -12,7 +12,7 @@
 **Deploy live:** https://wegoivo.vercel.app
 **Deploy flow:** upload manuale dei file su GitHub (drag&drop su "Add file → Upload files") → Vercel rileva il push e pubblica da solo (30-90 secondi)
 **Backend database:** Supabase (free tier — PostgreSQL)
-**Push notifications:** Web Push (VAPID) — **lato client pronto, lato server NON ancora deployato** (vedi §11)
+**Push notifications:** Web Push (VAPID) — **lato client e lato server completati e deployati** (Edge Function `send-push-notification` pubblicata, Database Webhook su sp_expenses/sp_payments collegati, chiavi VAPID configurate). Vedi §6/§11 per i fix applicati durante l'attivazione (mismatch chiave VAPID, webhook con errore `supabase_functions`).
 **Funzionamento offline:** IndexedDB locale + sincronizzazione automatica nei momenti previsti (vedi §4)
 
 ---
@@ -26,9 +26,9 @@
 | Database locale | IndexedDB (`wego_db`) | Offline-first, 7 store (incluso `pending`) |
 | Database remoto | Supabase (PostgreSQL) | Tabelle prefissate `sp_` |
 | Sincronizzazione | REST API Supabase | Push + Pull bidirezionale, momenti precisi (vedi §4) |
-| Push notifications | Web Push API (VAPID) | Client pronto; serve Edge Function Supabase non ancora deployata |
+| Push notifications | Web Push API (VAPID) | Client + Edge Function `send-push-notification` deployata e funzionante (v4.0) |
 | Hosting | Vercel | HTTPS automatico, no build, deploy da GitHub |
-| Service Worker | sw.js v3.9 | Cache offline, Network-First per HTML/JS/CSS con fallback cache; `/api/*` sempre escluso dalla cache |
+| Service Worker | sw.js v4.0 | Cache offline, Network-First per HTML/JS/CSS con fallback cache; `/api/*` sempre escluso dalla cache |
 | Mappe | Link esterno Google Maps | Coordinate GPS salvate |
 | Pannello admin | admin.html v1.7 | Password verificata **lato server** (vedi §5, §11) — non più nel codice sorgente |
 | Funzioni serverless | Vercel `/api/*.js` (Node, **nuovo in v3.7**) | `admin-login.js`, `owner-verify.js`, `sync-status.js` — unico modo per nascondere segreti su un sito statico |
@@ -43,13 +43,13 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v3.9   Home: lista eventi, crea/unisciti
-├── evento.html          v3.9  Pagina evento: tab Movimenti / Saldi / Partecipanti
+├── index.html          v4.0   Home: lista eventi, crea/unisciti
+├── evento.html          v4.0  Pagina evento: tab Movimenti / Saldi / Partecipanti
 ├── spesa.html            v3.3 Registrazione / visualizzazione movimento
-├── impostazioni.html    v3.9   Impostazioni: tema, metodi pagamento, dispositivo proprietario, link Admin
+├── impostazioni.html    v4.0   Impostazioni: tema, metodi pagamento, dispositivo proprietario, link Admin
 ├── admin.html           v1.7   Pannello admin/debug — password verificata lato server + gestione sync esterni
-├── sw.js                v3.9   Service Worker (CACHE_NAME: wego-v3.9) — esclude /api/* dalla cache
-├── manifest.json        v3.9   PWA manifest
+├── sw.js                v4.0   Service Worker (CACHE_NAME: wego-v4.0) — esclude /api/* dalla cache
+├── manifest.json        v4.0   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
 ├── style.css            v1.4   Design system globale (font +15% rispetto a v1.3)
 ├── app.js                v2.11 Logica home: eventi, crea/unisciti, gating sync, menu tre punti
@@ -60,7 +60,7 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 ├── db.js                  v1.3 IndexedDB wrapper (events con gated/sync_allowed, users, expenses, photos, payments, pending, sessions)
 ├── utils.js               v1.2 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share…)
 ├── payments.js            v1.0 Metodi di pagamento (lista configurabile, default + custom)
-├── notifications.js      v1.1 Web Push: registrazione + salvataggio sottoscrizione su Supabase
+├── notifications.js      v1.2 Web Push: registrazione + salvataggio sottoscrizione su Supabase (fix mismatch chiave VAPID)
 ├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis)
 │   ├── admin-login.js          Verifica password admin contro env var ADMIN_PASSWORD
 │   ├── owner-verify.js         Verifica codice dispositivo proprietario contro env var OWNER_DEVICE_SECRET
@@ -257,11 +257,12 @@ dalla coda `pending` (usano il flag `synced: false`).
 | v3.0 | **Bug "DA SYNC" permanente**: `update_event` in `sync.js` non chiamava mai `markSynced()` dopo un push riuscito → il badge restava acceso per sempre anche dopo modifiche salvate correttamente. Stesso bug presente (e corretto) anche in `create_event`/`create_user` per gli utenti |
 | v3.1-3.3 | **Scroll fantasma in spesa.html**: causa reale = `min-height:100dvh` forzato su `html`, `body`, `.app-shell` (non solo `.app-shell` come pensato inizialmente). Su Chrome Android crea scroll anche a contenuto corto. Risolto a tutti i livelli |
 | v3.x | **Bug "N connessi" sempre 1**: basato su `DB.sessions`, dato locale al browser, mai sincronizzato. Introdotto `users.joined_at` (sincronizzato), self-heal automatico per utenti creati prima del fix |
-| v3.x | **Notifiche push mai arrivate**: 3 bug concreti — (1) token push creato ma il salvataggio server-side era commentato nel codice (mai implementato); (2) `window._swRegistration` non impostato in `impostazioni.html`; (3) registrazione SW in `evento.html` non aspettava `serviceWorker.ready` prima di usare `pushManager`. Tutti i 3 corretti lato client; **manca ancora il deploy della Edge Function lato server** (vedi §11) |
+| v3.x | **Notifiche push mai arrivate**: 3 bug concreti — (1) token push creato ma il salvataggio server-side era commentato nel codice (mai implementato); (2) `window._swRegistration` non impostato in `impostazioni.html`; (3) registrazione SW in `evento.html` non aspettava `serviceWorker.ready` prima di usare `pushManager`. Tutti i 3 corretti lato client; lato server completato e deployato in v4.0 (vedi riga v4.0) |
 | v3.6 | `admin.html`: path CSS/JS rotti (`/css/`, `/js/` inesistenti) + nessun accesso dall'app + nessuna password → tutti risolti |
 | v3.7 | **Password admin in chiaro nel codice**: spostata su `/api/admin-login.js` + env var Vercel `ADMIN_PASSWORD`. Introdotta sincronizzazione selettiva eventi esterni (`gated`/`sync_allowed` su `events`, tabella `sp_sync_status`, gestione da `admin.html`) |
 | v3.8 | **Banner sync persistente**: in `evento.html` restava visibile anche dopo l'abilitazione → rimosso, sostituito da un puntino di stato + popup solo su tap manuale. **Messaggio "Sincronizzato" impreciso**: mostrato anche se l'evento era ancora `gated` e non abilitato (sia in `evento.js` che in `app.js`) → corretto |
 | v3.9 | **Puntino sync giallo anche su eventi "propri"**: causa reale = eventi creati sul device PRIMA di attivare "Dispositivo proprietario" restavano `gated:true` per sempre (il flag si fissa solo alla creazione). Fix: tolto il giallo (ora solo verde/rosso, stesso schema del puntino di connessione) + sblocco retroattivo automatico in `configureOwnerDevice()` |
+| v4.0 | **Notifiche push mai consegnate dopo aver rigenerato le chiavi VAPID** (errori 401/403 "VAPID public key mismatch" lato Edge Function, nessun errore visibile sul device): `notifications.js` riusava la sottoscrizione push del browser anche quando era legata a una chiave VAPID pubblica diversa da quella attualmente configurata — il browser non se ne accorge da solo finché non gli si chiede esplicitamente di confrontarla. Fix: confronto byte-per-byte con la chiave attuale, `unsubscribe()` + nuova `subscribe()` se non corrisponde |
 
 ---
 
@@ -317,8 +318,8 @@ spesa.js          ← dipende da utils, db, supabase, sync, payments
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v3.9 (v3.3 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v3.9`
+**Versione attuale:** v4.0 (v3.3 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v4.0`
 
 ---
 
@@ -330,7 +331,7 @@ spesa.js          ← dipende da utils, db, supabase, sync, payments
   - `ADMIN_PASSWORD` → la password vera del pannello admin (sostituisce quella che prima era in chiaro nel codice)
   - `OWNER_DEVICE_SECRET` → il codice segreto da inserire UNA VOLTA in Impostazioni → Avanzate sui tuoi device, per marcarli come "proprietario" (eventi sempre sincronizzati)
 - [ ] **NUOVO v3.7 — Verificare che Vercel rilevi la cartella `/api/`** come funzioni serverless dopo il primo upload (dovrebbe essere automatico, nessuna configurazione aggiuntiva in `vercel.json` richiesta per il runtime Node di default)
-- [ ] **Deployare la Edge Function** `supabase-function/send-push-notification/` per far funzionare davvero le notifiche push (lato client è pronto da v3.x, ma senza questo pezzo server-side nessuna notifica arriva). Istruzioni complete in `supabase-function/NOTIFICHE-SETUP.md`: generare chiavi VAPID, `supabase secrets set`, `supabase functions deploy`, configurare 2 Database Webhook (sp_expenses + sp_payments → Insert → Edge Function)
+- [x] **Deployare la Edge Function** `supabase-function/send-push-notification/` — **fatto, v4.0**. Durante l'attivazione sono emersi e risolti 2 problemi non previsti: (1) il bottone "Create Webhook" della Dashboard dava errore `schema "supabase_functions" does not exist` (bug noto della piattaforma su alcuni progetti) → risolto con trigger manuale via `pg_net`/`net.http_post` direttamente in SQL; (2) dopo aver rigenerato le chiavi VAPID, le notifiche risultavano "inviate" senza errori lato client ma non arrivavano mai → causa: `notifications.js` riusava la sottoscrizione del browser legata alla VECCHIA chiave pubblica, mai confrontata con quella nuova (fix in `notifications.js` v1.2, vedi tabella fix v4.0)
 
 ### Idee non ancora implementate
 - [ ] `offline.html` — pagina mostrata dal SW quando si è offline e la pagina non è in cache
