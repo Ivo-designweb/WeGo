@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.12
+// WeGo — app.js v2.13
 // Logica principale pagina Home (index.html)
+// v2.13: bump updated_at nel self-heal joined_at (vedi db.js v1.5 — il
+//        fix preserva updated_at, quindi le modifiche reali vanno ora
+//        marcate esplicitamente con l'orario di adesso)
 // v2.12: card evento — avatar mostra il CREATORE invece dell'identità
 //        locale dell'utente; classe ev-card--linked per gli eventi non
 //        creati da me (sfondo arancione, vedi index.html)
@@ -22,7 +25,7 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v2.12 init');
+    console.log('[App] WeGo v2.13 init');
 
     // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
     // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
@@ -876,6 +879,7 @@ const App = {
       if (userRec && !userRec.joined_at) {
         userRec.joined_at = Utils.now();
         userRec.synced    = false;
+        userRec.updated_at = Utils.now();
         await DB.users.save(userRec);
         if (Utils.isOnline()) Sync.push().catch(() => {});
       }

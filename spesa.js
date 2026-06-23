@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v2.1
+// WeGo — spesa.js v2.2
 // Logica pagina inserimento / modifica spesa
+// v2.2: sincronizzazione foto movimenti — doppia compressione (alta
+//       qualità locale + compatta per il sync), permesso di modifica
+//       foto riservato al creatore del movimento, preservato created_by
+//       originale in fase di modifica (prima veniva sovrascritto da chi
+//       modificava per ultimo)
 // ═══════════════════════════════════════════════════════════════
 
 const SpesaApp = {
@@ -13,7 +18,11 @@ const SpesaApp = {
   _users:        [],
   _type:         'expense',   // 'expense' | 'transfer'
   _location:     null,        // { lat, lng, address }
-  _photo:        null,        // base64
+  _photo:        null,        // base64 — qualità alta, resta solo su questo device
+  _photoSync:    null,        // base64 — versione compatta (max 900px/60%) sincronizzata
+  _photoChanged: false,       // true se la foto è stata scattata/rimossa in questa sessione
+  _isPhotoOwner: true,        // false = movimento creato da un altro: foto solo visualizzabile
+  _originalCreatedBy: null,   // creatore originale del movimento (preservato in fase di modifica)
   _gettingGps:   false,
   _selectedPart: new Set(),   // userId selezionati come partecipanti
 
@@ -392,6 +401,7 @@ const SpesaApp = {
 
   // ─── FOTO ─────────────────────────────────────────────────
   pickPhoto() {
+    if (!SpesaApp._isPhotoOwner) return; // difesa, il bottone è già nascosto
     document.getElementById('photoInput').click();
   },
 
@@ -399,8 +409,18 @@ const SpesaApp = {
     const file = input.files[0];
     if (!file) return;
     try {
-      const compressed = await Utils.compressImage(file, 1200);
-      SpesaApp._photo = compressed;
+      // Due versioni dalla stessa foto originale:
+      // - "alta qualità" (1200px/82%, comportamento di sempre): resta SOLO
+      //   su questo device, mai inviata al server.
+      // - "compatta" (max 900px/qualità 60%, ~30-50KB): è quella che viene
+      //   sincronizzata su server e altri device (vedi sync.js).
+      const [compressed, compact] = await Promise.all([
+        Utils.compressImage(file, 1200),
+        Utils.compressImage(file, 900, 0.6)
+      ]);
+      SpesaApp._photo        = compressed;
+      SpesaApp._photoSync    = compact;
+      SpesaApp._photoChanged = true;
 
       const preview = document.getElementById('photoPreviewImg');
       const wrap    = document.getElementById('photoPreviewWrap');
@@ -414,7 +434,10 @@ const SpesaApp = {
   },
 
   removePhoto() {
-    SpesaApp._photo = null;
+    if (!SpesaApp._isPhotoOwner) return; // difesa, il bottone è già nascosto
+    SpesaApp._photo        = null;
+    SpesaApp._photoSync    = null;
+    SpesaApp._photoChanged = true;
     const wrap  = document.getElementById('photoPreviewWrap');
     const label = document.getElementById('photoLabel');
     const input = document.getElementById('photoInput');
@@ -432,8 +455,9 @@ const SpesaApp = {
     if (!lb || !img) return;
     img.src = SpesaApp._photo;
     lb.style.display = 'flex';
-    // Bottone elimina: solo in edit mode (non in view mode)
-    if (delWrap) delWrap.style.display = SpesaApp._viewMode ? 'none' : '';
+    // Bottone elimina: solo in edit mode (non in view mode) e solo a chi
+    // ha creato il movimento.
+    if (delWrap) delWrap.style.display = (SpesaApp._viewMode || !SpesaApp._isPhotoOwner) ? 'none' : '';
   },
 
   closePhotoLightbox() {
@@ -499,7 +523,8 @@ const SpesaApp = {
     // Foto
     const savedPhoto = await DB.photos.getByExpense(SpesaApp._expenseId);
     if (savedPhoto?.data) {
-      SpesaApp._photo = savedPhoto.data;
+      SpesaApp._photo     = savedPhoto.data;
+      SpesaApp._photoSync = savedPhoto.sync_data || null;
       const preview = document.getElementById('photoPreviewImg');
       const wrap    = document.getElementById('photoPreviewWrap');
       const label   = document.getElementById('photoLabel');
@@ -507,6 +532,28 @@ const SpesaApp = {
       if (wrap)    wrap.style.display = 'block';
       if (label)   label.textContent  = 'Cambia foto';
     }
+
+    // Permesso foto: SOLO chi ha CREATO il movimento può cambiarla o
+    // eliminarla — anche se l'evento permette ad altri (es. il creatore
+    // dell'evento) di modificare il resto del movimento. Non si applica
+    // se il movimento non ha ancora una foto: chiunque possa modificare
+    // il movimento può aggiungerne una.
+    const session = DB.sessions.get(SpesaApp._eventId);
+    SpesaApp._originalCreatedBy = expense.created_by || null;
+    SpesaApp._isPhotoOwner = !SpesaApp._photo || expense.created_by === (session?.userId || null);
+    if (SpesaApp._photo && !SpesaApp._isPhotoOwner) {
+      SpesaApp._lockPhotoControls();
+    }
+  },
+
+  // Nasconde i controlli di modifica/rimozione foto (la miniatura resta
+  // visibile e cliccabile per vederla a schermo intero) — usato quando il
+  // movimento ha già una foto creata da un'altra persona.
+  _lockPhotoControls() {
+    const pickBtn = document.getElementById('photoPickBtn');
+    const rmBtn   = document.querySelector('.photo-thumb__rm');
+    if (pickBtn) pickBtn.style.display = 'none';
+    if (rmBtn)   rmBtn.style.display   = 'none';
   },
 
   // ─── VALIDAZIONE ──────────────────────────────────────────
@@ -586,19 +633,37 @@ const SpesaApp = {
         location:       SpesaApp._location,
         has_photo:      !!SpesaApp._photo,
         notes,
-        created_by:     session?.userId || null,
+        // Preserva il creatore ORIGINALE quando si modifica un movimento
+        // esistente — altrimenti chi modifica per ultimo (es. il creatore
+        // dell'evento che corregge una spesa di un altro) ne diventerebbe
+        // il "proprietario", rompendo il controllo permessi sulla foto.
+        created_by:     SpesaApp._expenseId
+          ? (SpesaApp._originalCreatedBy ?? session?.userId ?? null)
+          : (session?.userId || null),
         synced:         false
       };
 
       // Salva spesa
       const saved = await DB.expenses.save(expenseData);
 
-      // Salva foto in locale
-      if (SpesaApp._photo) {
-        await DB.photos.save(saved.id, SpesaApp._photo);
-      } else if (SpesaApp._expenseId) {
-        // Rimozione foto se era presente
-        await DB.photos.delete(SpesaApp._expenseId);
+      // Foto: la tocchiamo SOLO se è stata davvero cambiata in questa
+      // sessione (nuova foto scattata, o rimossa) — se non l'hai toccata,
+      // lasciamo intatto il record esistente: niente re-upload inutile,
+      // niente reset del flag "synced" già sincronizzato.
+      if (SpesaApp._photoChanged) {
+        if (SpesaApp._photo) {
+          await DB.photos.save(saved.id, SpesaApp._photo, {
+            sync_data:  SpesaApp._photoSync,
+            created_by: expenseData.created_by,
+            synced:     false,
+            updated_at: Utils.now()
+          });
+        } else if (SpesaApp._expenseId) {
+          // Soft: segna come eliminata e DA PROPAGARE al server (vedi
+          // Sync.push) — un hard delete locale perderebbe la
+          // cancellazione se il device fosse offline in questo momento.
+          await DB.photos.markDeleted(SpesaApp._expenseId);
+        }
       }
 
       // Sincronizzazione automatica (push + pull) se online

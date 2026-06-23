@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v4.2
+// WeGo — sw.js v4.3
 // Service Worker — cache offline + background sync
 // v3.7: esclude /api/* dall'intercettazione (sempre rete, mai cache —
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v4.2';
+const CACHE_NAME = 'wego-v4.3';
 
 const STATIC_ASSETS = [
   '/',
@@ -29,7 +29,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v4.2');
+  console.log('[SW] Install v4.3');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -55,7 +55,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v4.2');
+  console.log('[SW] Activate v4.3');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — db.js v1.4
+// WeGo — db.js v1.5
 // Gestione dati locali con IndexedDB (offline-first)
+// v1.5: fix critico più ampio — lo stesso bug di events.save() (v1.4)
+//       era presente anche in put() a livello generico (sovrascriveva
+//       SEMPRE updated_at, neutralizzando di fatto anche il fix v1.4) e
+//       in users.save()/expenses.save()/payments.save(). Corretti tutti.
+//       Store "photos" riprogettato per la sincronizzazione delle foto
+//       dei movimenti (sync_data, synced, markDeleted, markSynced,
+//       getUnsynced) — vedi sync.js / supabase.js.
 // v1.4: fix critico — events.save() sovrascriveva SEMPRE updated_at con
 //       l'orario locale, anche quando arrivava un pull dal server col
 //       valore reale. Rompeva il confronto "il server ha una versione più
@@ -98,7 +105,17 @@ const DB = (() => {
 
   async function put(storeName, item) {
     const store = await tx(storeName, 'readwrite');
-    return promisify(store.put({ ...item, updated_at: Utils.now() }));
+    // FIX: prima sovrascriveva SEMPRE updated_at con l'orario locale, anche
+    // quando il chiamante (es. *.save() dopo un pull) aveva già calcolato
+    // correttamente il valore da preservare — questo neutralizzava del
+    // tutto il fix v4.1 su events.save(), perché qualunque valore venisse
+    // passato qui sotto veniva comunque rimpiazzato. Ora rispetta
+    // l'updated_at già presente nell'item; lo imposta a "ora" SOLO se
+    // manca del tutto (es. primissima creazione di un record).
+    const record = item.updated_at !== undefined && item.updated_at !== null
+      ? item
+      : { ...item, updated_at: Utils.now() };
+    return promisify(store.put(record));
   }
 
   async function remove(storeName, key) {
@@ -204,7 +221,7 @@ const DB = (() => {
         name:       user.name || '',
         color_idx:  user.color_idx ?? Utils.avatarColorIndex(user.name),
         created_at: user.created_at || Utils.now(),
-        updated_at: Utils.now(),
+        updated_at: user.updated_at || Utils.now(),
         synced:     user.synced || false,
         active:     user.active !== false,
         // Quando questo utente ha effettuato il "join" (selezionato il
@@ -272,7 +289,7 @@ const DB = (() => {
         settled:        expense.settled || false,
         created_at:     expense.created_at || Utils.now(),
         created_by:     expense.created_by || null,
-        updated_at:     Utils.now(),
+        updated_at:     expense.updated_at || Utils.now(),
         synced:         expense.synced || false,
         deleted:        expense.deleted || false
       };
@@ -301,23 +318,66 @@ const DB = (() => {
   };
 
   // ─── PHOTOS ───────────────────────────────────────────────
+  // ─── PHOTOS (foto dei movimenti) ───────────────────────────
+  // "data" = versione qualità più alta, resta SOLO sul device di chi ha
+  //   scattato la foto (non viene mai inviata al server).
+  // "sync_data" = versione compatta (max 900px / qualità 60%, ~30-50KB)
+  //   generata apposta per la sincronizzazione: questa sì viene inviata
+  //   al server e scaricata dagli altri device (vedi sync.js).
   const photos = {
     async getByExpense(expenseId) {
       const all = await getAll('photos', 'expense_id', IDBKeyRange.only(expenseId));
       return all[0] || null;
     },
 
-    async save(expenseId, base64Data) {
+    async save(expenseId, base64Data, opts = {}) {
+      const existing = await photos.getByExpense(expenseId);
       const item = {
         id:         `photo_${expenseId}`,
         expense_id: expenseId,
         data:       base64Data,
-        created_at: Utils.now()
+        sync_data:  opts.sync_data  !== undefined ? opts.sync_data  : (existing?.sync_data  ?? null),
+        created_by: opts.created_by !== undefined ? opts.created_by : (existing?.created_by ?? null),
+        created_at: existing?.created_at || Utils.now(),
+        updated_at: opts.updated_at || Utils.now(),
+        synced:     opts.synced !== undefined ? opts.synced : (existing?.synced ?? false)
       };
       await put('photos', item);
       return item;
     },
 
+    // Segna la foto come eliminata e DA PROPAGARE al server (non la
+    // rimuove subito da IndexedDB: se il device è offline in questo
+    // momento, la cancellazione andrebbe persa — resta in coda finché
+    // Sync.push() non riesce a inviarla, esattamente come le altre
+    // entità soft-delete).
+    async markDeleted(expenseId) {
+      const existing = await photos.getByExpense(expenseId);
+      if (!existing) return;
+      existing.data      = null;
+      existing.sync_data = null;
+      existing.synced    = false;
+      existing.updated_at = Utils.now();
+      await put('photos', existing);
+    },
+
+    async markSynced(expenseId, syncData) {
+      const existing = await photos.getByExpense(expenseId);
+      if (existing) {
+        existing.synced = true;
+        if (syncData !== undefined) existing.sync_data = syncData;
+        await put('photos', existing);
+      }
+    },
+
+    async getUnsynced() {
+      const all = await getAll('photos');
+      return all.filter(p => !p.synced);
+    },
+
+    // Rimozione locale "fisica" — solo per pulizia (es. l'intero evento
+    // viene rimosso dal device) o dopo che il record collegato non esiste
+    // più: NON propaga nulla al server, usare markDeleted() per quello.
     async delete(expenseId) {
       return remove('photos', `photo_${expenseId}`);
     }
@@ -346,7 +406,7 @@ const DB = (() => {
         date:       payment.date || Utils.today(),
         deleted:    payment.deleted || false,
         created_at: payment.created_at || Utils.now(),
-        updated_at: Utils.now(),
+        updated_at: payment.updated_at || Utils.now(),
         synced:     payment.synced || false
       };
       await put('payments', item);
