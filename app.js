@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.13
+// WeGo — app.js v2.14
 // Logica principale pagina Home (index.html)
+// v2.14: introdotta gestione licenza Base/Pro (license.js) — limite di
+//        1 evento totale in versione Base (creato o collegato, blocco
+//        prima dell'apertura dei modal Crea/Unisciti) e limite
+//        partecipanti (15 Base / 50 Pro) in fase di creazione evento.
+//        Nuovo campo locale events.is_mine impostato a true alla
+//        creazione (vedi db.js v1.6) per contare correttamente gli
+//        eventi creati su questo device.
 // v2.13: bump updated_at nel self-heal joined_at (vedi db.js v1.5 — il
 //        fix preserva updated_at, quindi le modifiche reali vanno ora
 //        marcate esplicitamente con l'orario di adesso)
@@ -25,7 +32,7 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v2.13 init');
+    console.log('[App] WeGo v2.14 init');
 
     // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
     // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
@@ -545,7 +552,16 @@ const App = {
   },
 
   // ─── CREA EVENTO ──────────────────────────────────────────
-  showCreateEvent() {
+  async showCreateEvent() {
+    // Limite eventi (License.js — versione Base: 1 evento totale,
+    // versione Pro: 100 creati). Blocchiamo PRIMA di apparire il modal,
+    // così l'utente non perde tempo a compilare il form per poi essere
+    // bloccato al salvataggio.
+    if (typeof License !== 'undefined' && !(await License.canCreateEvent())) {
+      Utils.toast(License.msgMaxEvents(), 'error', 5000);
+      return;
+    }
+
     document.getElementById('newEventTitle').value    = '';
     document.getElementById('newEventDesc').value     = '';
     document.getElementById('newEventPhotoName').textContent = 'Nessuna';
@@ -569,6 +585,18 @@ const App = {
     const input = document.getElementById('inviteNewName');
     const name  = input.value.trim();
     if (!name) return;
+
+    // Limite partecipanti (License.js — 15 in Base, 50 in Pro). Il
+    // conteggio attuale (creatore + invitati già in lista) è quello da
+    // passare a canAddParticipant: se è già al limite, non si può
+    // aggiungere il prossimo.
+    if (typeof License !== 'undefined') {
+      const currentTotal = App._invitees.length + 1; // creatore + invitati attuali
+      if (!License.canAddParticipant(currentTotal)) {
+        Utils.toast(License.msgMaxParticipants(), 'error', 4500);
+        return;
+      }
+    }
 
     // Evita duplicati (case-insensitive)
     const nickname = document.getElementById('newEventNickname').value.trim();
@@ -650,6 +678,21 @@ const App = {
     btn.textContent = 'Creazione…';
 
     try {
+      // Controllo difensivo (già verificato all'apertura del modal in
+      // showCreateEvent, ma il modal potrebbe restare aperto a lungo: ri-
+      // verifichiamo qui prima di scrivere davvero su IndexedDB).
+      if (typeof License !== 'undefined' && !(await License.canCreateEvent())) {
+        Utils.toast(License.msgMaxEvents(), 'error', 5000);
+        return;
+      }
+      if (typeof License !== 'undefined') {
+        const totalPeople = App._invitees.length + 1; // creatore + invitati
+        if (totalPeople > License.getLimits().maxParticipants) {
+          Utils.toast(License.msgMaxParticipants(), 'error', 4500);
+          return;
+        }
+      }
+
       // ── SINCRONIZZAZIONE SELETTIVA EVENTI ESTERNI ──────────
       // Se questo device NON ha il codice "dispositivo proprietario"
       // configurato (Impostazioni → Avanzate), l'evento nasce "gated":
@@ -663,7 +706,11 @@ const App = {
         description: desc,
         photo:       App._pendingPhoto,
         created_by:  nickname,
-        gated:       !isOwnerDevice
+        gated:       !isOwnerDevice,
+        // LICENZA (v2.14): questo evento è creato su QUESTO device — conta
+        // verso il tetto dei 100 eventi della versione Pro (vedi db.js v1.6
+        // / license.js). Mai sincronizzato sul server.
+        is_mine:     true
       });
 
       // Crea utente creatore (joined_at = ora: sta usando l'app in questo momento)
@@ -786,7 +833,14 @@ const App = {
   },
 
   // ─── UNISCITI ─────────────────────────────────────────────
-  showJoinEvent() {
+  async showJoinEvent() {
+    // Limite eventi (License.js — versione Base: 1 evento totale,
+    // creato o collegato). Per la versione Pro nessun limite sui
+    // collegamenti. Blocchiamo prima di apparire il modal.
+    if (typeof License !== 'undefined' && !(await License.canJoinEvent())) {
+      Utils.toast(License.msgMaxEvents(), 'error', 5000);
+      return;
+    }
     document.getElementById('joinEventCode').value = '';
     document.getElementById('joinEventResult').classList.add('hidden');
     App.openModal('modalJoinEvent');

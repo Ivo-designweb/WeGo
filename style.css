@@ -1,7 +1,9 @@
 /* ═══════════════════════════════════════════════════════════════
-   WeGo v1.4 — Design System
+   WeGo v1.5 — Design System
    Stile professionale: compatto, preciso, icone calibrate
    Palette: Slate dark / light + Blu cobalto
+   v1.5: classe .btn--pro-locked per i bottoni di funzioni riservate
+         alla versione Pro (vedi license.js / spesa.js)
 ═══════════════════════════════════════════════════════════════ */
 
 /* ─── VARIABILI ────────────────────────────────────────────── */
@@ -432,6 +434,12 @@ body {
 .badge--amber  { background: rgba(245,158,11,0.12); color: #FCD34D; }
 .badge--purple { background: rgba(139,92,246,0.12); color: #A78BFA; }
 .badge--muted  { background: rgba(75,85,99,0.2);    color: var(--text-muted); }
+
+/* Bottoni di funzioni riservate alla versione Pro: restano visibili (per
+   far sapere che la funzione esiste) ma in stile "disattivato" — il
+   click resta attivo e mostra un avviso (vedi spesa.js pickPhoto()). */
+.btn--pro-locked { opacity: 0.55; }
+.btn--pro-locked:hover { opacity: 0.7; }
 
 /* Chip selezione partecipanti */
 .chip {

@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.13
+// WeGo — evento.js v2.14
 // Logica pagina dettaglio evento
+// v2.14: limite partecipanti (License.js — 15 Base / 50 Pro) applicato
+//        in addUser(); sincronizzazione foto movimenti disattivata per i
+//        device in versione Base (vedi sync.js / spesa.js)
 // v2.13: sincronizzazione foto movimenti — permesso di modifica/
 //        cancellazione foto basato su created_by (creatore), non più
 //        paid_by (pagatore, usati per due scopi diversi prima); foto
@@ -826,6 +829,12 @@ const EventoApp = {
 
   showAddUser() {
     EventoApp.closeEventMenu();
+    // Limite partecipanti (License.js — 15 in Base, 50 in Pro). Blocchiamo
+    // prima di apparire il modal, come per Crea/Unisciti evento in app.js.
+    if (typeof License !== 'undefined' && !License.canAddParticipant(EventoApp._users.length)) {
+      Utils.toast(License.msgMaxParticipants(), 'error', 4500);
+      return;
+    }
     document.getElementById('newUserName').value = '';
     EventoApp.openModal('modalAddUser');
     setTimeout(() => document.getElementById('newUserName').focus(), 300);
@@ -837,6 +846,15 @@ const EventoApp = {
 
     const exists = EventoApp._users.some(u => u.name.toLowerCase() === name.toLowerCase());
     if (exists) { Utils.toast('Nome già presente', 'error'); return; }
+
+    // Limite partecipanti (License.js — 15 in Base, 50 in Pro). Solo il
+    // creatore può arrivare qui (la voce di menu è nascosta agli altri,
+    // vedi _renderHero), quindi il limite applicato è quello di QUESTO
+    // device, come in fase di creazione evento.
+    if (typeof License !== 'undefined' && !License.canAddParticipant(EventoApp._users.length)) {
+      Utils.toast(License.msgMaxParticipants(), 'error', 4500);
+      return;
+    }
 
     try {
       const user = await DB.users.save({ event_id: EventoApp._eventId, name });

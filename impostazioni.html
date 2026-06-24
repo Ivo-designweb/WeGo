@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v4.3</title>
+  <title>Impostazioni — WeGo v4.4</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -369,6 +369,18 @@
       <div class="section-header"><span class="section-title">Avanzate</span></div>
       <div class="settings-group">
 
+        <div class="settings-row settings-row--static">
+          <div class="settings-row__icon" style="background:#F59E0B;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label" id="licenseTierLabel">Versione Base</div>
+            <div class="settings-row__value" id="licenseTierDetail">Verifica…</div>
+          </div>
+        </div>
+
         <div class="settings-row" onclick="SettingsApp.configureOwnerDevice()">
           <div class="settings-row__icon" style="background:#10B981;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -411,7 +423,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 4.3</div>
+        <div class="about-ver">Versione 4.4</div>
 
         <div class="about-div"></div>
 
@@ -492,6 +504,7 @@
 
 <script src="/utils.js"></script>
 <script src="/db.js"></script>
+<script src="/license.js"></script>
 <script src="/supabase.js"></script>
 <script src="/payments.js"></script>
 <script src="/notifications.js"></script>
@@ -521,6 +534,27 @@ const SettingsApp = {
     SettingsApp._renderAll();
     SettingsApp._renderSWVersion();
     SettingsApp._renderOwnerDeviceStatus();
+    SettingsApp._renderLicenseInfo();
+  },
+
+  // ─── LICENZA (Base/Pro) ────────────────────────────────────
+  // Solo informativo in questa fase: il meccanismo di richiesta/
+  // abilitazione della versione Pro arriva in una fase successiva (vedi
+  // license.js v1.0 e situazione.md §11).
+  _renderLicenseInfo() {
+    const labelEl  = document.getElementById('licenseTierLabel');
+    const detailEl = document.getElementById('licenseTierDetail');
+    if (!labelEl || !detailEl || typeof License === 'undefined') return;
+
+    const isPro  = License.isPro();
+    const limits = License.getLimits();
+
+    labelEl.textContent = isPro ? 'Versione Pro' : 'Versione Base';
+    labelEl.style.color = isPro ? 'var(--amber)' : '';
+
+    detailEl.textContent = isPro
+      ? `Fino a ${limits.maxEvents} eventi creati · max ${limits.maxParticipants} partecipanti per evento · foto sincronizzate`
+      : `1 evento attivo (creato o collegato) · max ${limits.maxParticipants} partecipanti · foto non sincronizzate`;
   },
 
   // ─── DISPOSITIVO PROPRIETARIO (sincronizzazione selettiva) ──

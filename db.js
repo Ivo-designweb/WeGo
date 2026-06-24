@@ -1,6 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — db.js v1.5
+// WeGo — db.js v1.6
 // Gestione dati locali con IndexedDB (offline-first)
+// v1.6: nuovo campo locale events.is_mine (mai sincronizzato) per
+//       distinguere eventi CREATI su questo device da eventi a cui ci
+//       si è solo uniti — serve a License (license.js) per il tetto
+//       eventi della versione Pro e per il badge "Pro N" in home.
 // v1.5: fix critico più ampio — lo stesso bug di events.save() (v1.4)
 //       era presente anche in put() a livello generico (sovrascriveva
 //       SEMPRE updated_at, neutralizzando di fatto anche il fix v1.4) e
@@ -153,6 +157,19 @@ const DB = (() => {
         currency:    event.currency || Utils.getConfig('currency') || 'EUR',
         created_at:  event.created_at || Utils.now(),
         created_by:  event.created_by || null,
+        // ── LICENZA DISPOSITIVO (v1.6) ─────────────────────────────
+        // true SOLO se questo evento è stato CREATO su questo device
+        // (impostato esplicitamente in App.createEvent — vedi app.js).
+        // Campo SOLO locale, mai inviato a Supabase (vedi supabase.js
+        // events.create()/update(), che inviano un payload esplicito e
+        // non lo includono): usato da License.countMyEvents() per il
+        // tetto di eventi creati della versione Pro e per il badge "Pro
+        // N" in home. Gli eventi a cui ci si è solo uniti restano
+        // is_mine:false. Va preservato durante un pull: Sync.pullEvent
+        // parte SEMPRE dal record locale esistente (che già contiene
+        // questo campo) prima di applicare i valori remoti — qui basta
+        // riproporlo se presente, come già si fa con updated_at sotto.
+        is_mine:     event.is_mine || false,
         // FIX: preserva updated_at se viene passato esplicitamente (es. da
         // Sync.pullEvent con il valore reale del server, o da saveEditEvent
         // che lo imposta a "ora" apposta). Prima veniva sempre sovrascritto

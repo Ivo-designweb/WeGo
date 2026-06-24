@@ -1,11 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v4.3
+// WeGo — sw.js v4.4
 // Service Worker — cache offline + background sync
+// v4.4: aggiunto /license.js alla lista di precache (gestione licenza
+//       Base/Pro — vedi license.js, db.js v1.6, sync.js v1.7)
 // v3.7: esclude /api/* dall'intercettazione (sempre rete, mai cache —
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v4.3';
+const CACHE_NAME = 'wego-v4.4';
 
 const STATIC_ASSETS = [
   '/',
@@ -18,6 +20,7 @@ const STATIC_ASSETS = [
   '/style.css',
   '/utils.js',
   '/db.js',
+  '/license.js',
   '/supabase.js',
   '/sync.js',
   '/notifications.js',
@@ -29,7 +32,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v4.3');
+  console.log('[SW] Install v4.4');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -55,7 +58,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v4.3');
+  console.log('[SW] Activate v4.4');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

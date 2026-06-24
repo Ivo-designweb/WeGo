@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v4.3 (v3.4 per spesa.html/spesa.js) — Aggiornato: 23 giugno 2026**
+**Versione corrente: v4.4 (v3.5 per spesa.html/spesa.js) — Aggiornato: 24 giugno 2026**
 
 ---
 
@@ -43,21 +43,22 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v4.3   Home: lista eventi, crea/unisciti
-├── evento.html          v4.3  Pagina evento: tab Movimenti / Saldi / Partecipanti
-├── spesa.html            v3.4 Registrazione / visualizzazione movimento, foto sincronizzata
-├── impostazioni.html    v4.3   Impostazioni: tema, metodi pagamento, dispositivo proprietario, link Admin
+├── index.html          v4.4   Home: lista eventi, crea/unisciti
+├── evento.html          v4.4  Pagina evento: tab Movimenti / Saldi / Partecipanti
+├── spesa.html            v3.5 Registrazione / visualizzazione movimento, foto sincronizzata
+├── impostazioni.html    v4.4   Impostazioni: tema, metodi pagamento, dispositivo proprietario, stato licenza, link Admin
 ├── admin.html           v1.7   Pannello admin/debug — password verificata lato server + gestione sync esterni
-├── sw.js                v4.3   Service Worker (CACHE_NAME: wego-v4.3) — esclude /api/* dalla cache
-├── manifest.json        v4.3   PWA manifest
+├── sw.js                v4.4   Service Worker (CACHE_NAME: wego-v4.4) — esclude /api/* dalla cache
+├── manifest.json        v4.4   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
-├── style.css            v1.4   Design system globale (font +15% rispetto a v1.3)
-├── app.js                v2.13 Logica home: eventi, crea/unisciti, gating sync, avatar creatore, card colorate
-├── evento.js             v2.13 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync, foto
-├── spesa.js               v2.2 Logica form registrazione/visualizzazione movimento, doppia compressione foto
-├── sync.js                v1.6 Sincronizzazione bidirezionale locale ↔ Supabase + gating eventi esterni + foto movimenti
+├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
+├── app.js                v2.14 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro, avatar creatore, card colorate
+├── evento.js             v2.14 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync, foto, limite partecipanti
+├── spesa.js               v2.3 Logica form registrazione/visualizzazione movimento, doppia compressione foto, blocco foto Base
+├── license.js             v1.0 NUOVO — gestione livello dispositivo Base/Pro (limiti eventi/partecipanti/foto), vedi §11bis
+├── sync.js                v1.7 Sincronizzazione bidirezionale locale ↔ Supabase + gating eventi esterni + foto movimenti (disattivata in versione Base)
 ├── supabase.js            v1.6 Client REST Supabase (tutte le entity + push subscriptions + sp_sync_status + expensePhotos)
-├── db.js                  v1.5 IndexedDB wrapper (events con gated/sync_allowed, users, expenses, photos con sync_data/synced, payments, pending, sessions)
+├── db.js                  v1.6 IndexedDB wrapper (events con gated/sync_allowed/is_mine, users, expenses, photos con sync_data/synced, payments, pending, sessions)
 ├── utils.js               v1.2 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share…)
 ├── payments.js            v1.0 Metodi di pagamento (lista configurabile, default + custom)
 ├── notifications.js      v1.2 Web Push: registrazione + salvataggio sottoscrizione su Supabase (fix mismatch chiave VAPID)
@@ -273,6 +274,91 @@ dalla coda `pending` (usano il flag `synced: false`).
 
 ---
 
+## 5bis. Licenza dispositivo: Base vs Pro (NUOVO v4.4 — in corso, sviluppo a fasi)
+
+Decisione di prodotto: ogni dispositivo (browser/installazione PWA — non esiste login/account,
+vedi nota più sotto) ha un **tier** — `base` (default, gratuito) o `pro` (abilitato dall'admin).
+Gestito interamente da **`license.js`** (nuovo file), che NON tocca lo schema Supabase per i
+limiti stessi (sono regole applicative) — solo l'abilitazione Pro (fase 2/3) introdurrà una
+nuova tabella.
+
+| | **Base** (default) | **Pro** (abilitata dall'admin) |
+|---|---|---|
+| Eventi | **1 totale** (creato o collegato — contano allo stesso modo) | **100 creati** (i collegati NON contano) |
+| Partecipanti per evento creato | 15 | 50 |
+| Sincronizzazione foto (copertina evento + movimenti) | **Disattivata** (né invio né ricezione, foto restano locali) | Attiva (comportamento v4.2/v4.3 invariato) |
+| Foto movimento (scatto) | Bottone visibile ma disattivato — badge "PRO", click mostra avviso | Disponibile |
+
+**Nota identità "device fisico"**: una PWA non può leggere identificativi hardware reali (il
+browser non lo permette). Il tier è quindi legato a *questa installazione del browser* — stesso
+identico livello di robustezza già accettato per "Dispositivo proprietario" (si "perde" solo
+cancellando manualmente i dati del sito o disinstallando/reinstallando la PWA).
+
+**Campo locale `events.is_mine`** (db.js v1.6): `true` solo se l'evento è stato CREATO su questo
+device (impostato in `App.createEvent`), mai sincronizzato su Supabase. Distingue in modo
+affidabile "creato da me" da "a cui mi sono unito", necessario perché il tetto dei 100 eventi
+Pro conta solo i creati. Preservato automaticamente nei pull (`Sync.pullEvent` parte sempre dal
+record locale esistente prima di applicare i valori remoti).
+
+### Fase 1 — Limiti versione Base (FATTA, v4.4)
+- `license.js` (nuovo): `getTier()`/`isPro()`/`getLimits()`/`setTier()` (tier sempre `base` in
+  questa fase — il meccanismo di abilitazione arriva in Fase 2/3), `canCreateEvent()`,
+  `canJoinEvent()`, `canAddParticipant()`, `photoSyncAllowed()`, messaggi standard
+- `app.js`: blocco apertura modal Crea/Unisciti se il device ha già 1 evento (Base) o ha
+  raggiunto 100 creati (Pro); tetto partecipanti (15/50) in creazione evento; `is_mine:true`
+  alla creazione
+- `evento.js`: tetto partecipanti su "Aggiungi partecipante" (stesso limite di chi crea)
+- `spesa.js`: bottone "Foto Scontrino" resta visibile ma con stile disattivato
+  (`.btn--pro-locked` + badge "PRO" in style.css) — al click, se Base, mostra solo l'avviso
+  invece di aprire la fotocamera/galleria
+- `sync.js`: per i device Base, **niente sync foto in nessuna direzione** — `_executePending`
+  invia sempre `photo:null` per create/update evento; `pullEvent` non adotta mai una foto
+  remota (copertina o movimento) anche se sincronizzata da un partecipante Pro dello stesso
+  evento; il blocco di push delle foto movimenti viene saltato del tutto
+- `impostazioni.html`: nuova riga in "Avanzate" che mostra il tier corrente e i relativi limiti
+  (solo informativo in questa fase — nessuna azione, vedi Fase 2)
+- **Nessuna migrazione**: non essendoci ancora utenti realmente in produzione su questi limiti,
+  si riparte "pulito" — nessuna logica di compatibilità per eventi/foto pregressi
+
+### Fase 2 — Infrastruttura abilitazione (DA FARE)
+- Nuova tabella `sp_device_license` (device_id, label/nota, enabled, **expires_at obbligatorio**
+  — una data lontana nel tempo per "senza scadenza", una data reale per abilitazioni a termine,
+  impostata dall'admin in fase di abilitazione — niente proroga automatica silenziosa)
+- Nuova funzione serverless `/api/device-license.js` (stesso pattern di `/api/sync-status.js`:
+  password admin verificata lato server per enable/disable, lettura pubblica via anon key)
+- `license.js`: controllo periodico (stesso ciclo di `_refreshGatedEvents` in sync.js) che
+  confronta `now()` con `expires_at` e aggiorna il tier locale di conseguenza
+- `impostazioni.html`: sezione "Richiedi soluzione completa" — genera/mostra il codice
+  richiesta del device, permette di condividerlo (WhatsApp/sistema, come già si fa per il
+  codice di sincronizzazione eventi esterni)
+
+### Fase 3 — Pannello Admin (DA FARE)
+- `admin.html`: sezione "Soluzione completa" — lista richieste pendenti/abilitate, bottone
+  Abilita (con campo data "fino al") / Disabilita
+
+### Fase 4 — Downgrade Pro→Base (disabilitazione o scadenza) (DA FARE)
+Logica concordata col cliente (non ancora implementata):
+1. Al rilevamento del downgrade (admin disabilita, oppure `expires_at` superata), se il device
+   ha più di 1 evento totale, la app mostra una schermata **bloccante** (prima di qualunque
+   altra cosa, sia in index.html che in evento.html — analoga ad `AdminGate`) che indica QUALE
+   evento resterà: **quello con la data di creazione/adesione più vecchia** tra tutti quelli
+   presenti sul device (creato o collegato)
+2. Due sole uscite possibili dalla schermata:
+   - **"Conferma — mantieni solo [Nome evento]"**: procede con la cancellazione di tutti gli
+     altri eventi (per quelli creati da questo device: cancellazione completa anche dal
+     server, cascata già presente nello schema SQL; per quelli a cui si è solo uniti:
+     scollegamento locale, dati intatti sul server per gli altri partecipanti) — poi la app
+     riparte normalmente con il solo evento rimasto
+   - **"Richiedi una nuova abilitazione"**: invia una nuova richiesta di abilitazione (Fase 2) e
+     NON cancella nulla — l'utente resta sulla schermata bloccante (può chiudere l'app e
+     riaprirla con calma in un altro momento). Alla riapertura successiva, se l'admin ha
+     abilitato nel frattempo, il blocco si rimuove senza alcuna cancellazione; altrimenti la
+     stessa schermata riappare
+3. Nessuna cancellazione automatica/silenziosa: l'unico modo per entrare nell'app restando con
+   1 solo evento è la scelta esplicita (1), oppure attendere una nuova abilitazione (2)
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -297,6 +383,7 @@ dalla coda `pending` (usano il flag `synced: false`).
 | v4.1 | **Titolo evento non si aggiornava mai dopo una modifica del creatore** (nemmeno scollegando/ricollegando): `db.js` → `events.save()` sovrascriveva SEMPRE `updated_at` con l'orario locale del device, anche durante un pull dal server col valore reale — bastava un minimo disallineamento tra gli orologi dei device perché il confronto "il server ha una versione più recente?" diventasse permanentemente falso su quell'evento. Fix: preserva `updated_at` se passato esplicitamente (pull/edit), default a "ora" solo per eventi nuovi. **Avatar sbagliato in home**: la card di un evento collegato (creato da altri) mostrava la TUA iniziale invece di quella del creatore — `_eventCardHtml()` usava l'identità locale (`session.userName`) invece di `ev.created_by`. **Estetica**: nuova classe `.ev-card--linked` (sfondo arancione chiaro) per distinguere a colpo d'occhio gli eventi collegati da quelli creati da me (verde chiaro, invariato) |
 | v4.2 | **CAUSA VERA E PIÙ GRAVE del bug titolo (oltre al fix v4.1)**: `sp_events` sul server non ha mai avuto la colonna `photo`, ma `events.update()` la invia comunque in OGNI richiesta PATCH (insieme a titolo/descrizione). PostgREST rifiuta l'INTERA richiesta se una colonna non esiste — quindi ogni modifica all'evento falliva per intero lato server, titolo compreso, non solo la foto. La pending op restava in coda e ritentava ad ogni sync, fallendo sempre allo stesso modo (per questo "scollega/ricollega" non risolveva nulla: lato server non c'era mai arrivato niente). Fix: aggiunta colonna `photo TEXT` a `sp_events` (richiede di rieseguire lo schema SQL). **Foto evento mai sincronizzata neanche alla creazione**: `events.create()` non includeva affatto il campo `photo` nel payload — corretto anche questo, ora la foto viene inviata sia alla creazione che alle modifiche successive |
 | v4.3 | **NUOVA FUNZIONALITÀ — sincronizzazione foto movimenti** (tabella `sp_expense_photos`, doppia compressione, permesso limitato al creatore). **Fix generalizzato del bug updated_at**: lo stesso problema del v4.1 (limitato a `events.save()`) era presente anche in `put()` a livello generico — che con la sua sovrascrittura incondizionata aveva di fatto NEUTRALIZZATO il fix v4.1 — e in `users.save()`/`expenses.save()`/`payments.save()`. Tutti corretti. **Fix `created_by` sovrascritto**: modificare un movimento esistente reimpostava sempre `created_by` a chi stava modificando in quel momento, anche se diverso dal creatore originale — avrebbe reso inutile il controllo permessi sulla foto al primo intervento di un'altra persona (es. il creatore dell'evento). Ora preservato |
+| v4.4 | **NUOVA FUNZIONALITÀ — Fase 1 licenza Base/Pro** (vedi §5bis): nuovo file `license.js`; nuovo campo locale `events.is_mine` (db.js); limite di 1 evento totale e 15 partecipanti per i device in versione Base (default per tutti, finché non implementate le Fasi 2/3 di abilitazione); sincronizzazione foto (copertina evento + movimenti) completamente disattivata per la versione Base, in entrambe le direzioni; bottone foto movimento in `spesa.html` reso visibile-ma-disattivato (badge "PRO") invece che nascosto |
 
 ---
 
@@ -333,14 +420,17 @@ dalla coda `pending` (usano il flag `synced: false`).
 ```
 utils.js          ← nessuna dipendenza, primo sempre
 db.js             ← dipende da utils.js
+license.js        ← dipende da utils.js, db.js (NUOVO v4.4 — vedi §5ter)
 supabase.js       ← dipende da utils.js
-sync.js           ← dipende da db.js, supabase.js, utils.js
+sync.js           ← dipende da db.js, supabase.js, utils.js, license.js
 notifications.js  ← dipende da utils.js, supabase.js (per il salvataggio server-side)
 payments.js       ← dipende da utils.js
-app.js            ← dipende da tutti (solo index.html)
-evento.js         ← dipende da tutti tranne app.js
-spesa.js          ← dipende da utils, db, supabase, sync, payments
+app.js            ← dipende da tutti, incluso license.js (solo index.html)
+evento.js         ← dipende da tutti tranne app.js, incluso license.js
+spesa.js          ← dipende da utils, db, license, supabase, sync, payments
 ```
+
+Ordine di caricamento negli script tag: `utils.js → db.js → license.js → supabase.js → sync.js → notifications.js → payments.js → app.js/evento.js/spesa.js` (license.js va caricato dopo db.js perché conta gli eventi locali, e prima di app.js/evento.js/spesa.js che lo usano).
 
 ---
 
@@ -352,12 +442,17 @@ spesa.js          ← dipende da utils, db, supabase, sync, payments
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v4.3 (v3.4 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v4.3`
+**Versione attuale:** v4.4 (v3.5 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v4.4`
 
 ---
 
 ## 11. Cose da fare / lavori futuri — PRIORITÀ
+
+### 🆕 Licenza Base/Pro — Fasi 2/3/4 (DA FARE, vedi §5bis per il dettaglio completo)
+- [ ] Fase 2: tabella `sp_device_license` + `/api/device-license.js` + controllo periodico scadenza in `license.js`/`sync.js` + UI richiesta in `impostazioni.html`
+- [ ] Fase 3: sezione "Soluzione completa" in `admin.html` (lista richieste, abilita con data di scadenza, disabilita)
+- [ ] Fase 4: schermata bloccante di downgrade Pro→Base (scelta utente: mantieni 1 evento / richiedi nuova abilitazione), badge "Pro N" in home
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
 - [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, tabella `sp_sync_status`, colonna `sp_events.photo`, **tabella `sp_expense_photos` (NUOVA v4.3, per la sincronizzazione foto movimenti)**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "sincronizzazione selettiva eventi esterni", "modifica evento" e "sincronizzazione foto movimenti" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)

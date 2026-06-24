@@ -1,6 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v2.2
+// WeGo — spesa.js v2.3
 // Logica pagina inserimento / modifica spesa
+// v2.3: licenza dispositivo (license.js) — nella versione Base il
+//       bottone "Foto Scontrino" resta visibile ma disattivato (badge
+//       PRO): pickPhoto() mostra l'avviso invece di apri il selettore
+//       file, vedi _applyPhotoTierLock()
 // v2.2: sincronizzazione foto movimenti — doppia compressione (alta
 //       qualità locale + compatta per il sync), permesso di modifica
 //       foto riservato al creatore del movimento, preservato created_by
@@ -96,6 +100,11 @@ const SpesaApp = {
     const cur2 = document.getElementById('currencySymbol2');
     const cur1 = document.getElementById('currencySymbol');
     if (cur2 && cur1) cur2.textContent = cur1.textContent;
+
+    // Licenza (license.js): nella versione Base il bottone foto resta
+    // visibile ma disattivato, con etichetta "PRO", per far sapere che la
+    // funzione esiste — vedi _applyPhotoTierLock() e pickPhoto().
+    SpesaApp._applyPhotoTierLock();
 
     // Modalità modifica / sola lettura
     if (SpesaApp._expenseId) {
@@ -401,8 +410,26 @@ const SpesaApp = {
 
   // ─── FOTO ─────────────────────────────────────────────────
   pickPhoto() {
+    // Licenza (license.js): versione Base = foto movimento non
+    // disponibile. Il bottone resta visibile (per far sapere che la
+    // funzione esiste) ma cliccandolo mostra solo l'avviso.
+    if (typeof License !== 'undefined' && !License.photoSyncAllowed()) {
+      Utils.toast(License.msgPhotoLocked(), 'info');
+      return;
+    }
     if (!SpesaApp._isPhotoOwner) return; // difesa, il bottone è già nascosto
     document.getElementById('photoInput').click();
+  },
+
+  // Bottone foto visibile ma "disattivato" (dimmed + etichetta PRO) per i
+  // device in versione Base — non lo nascondiamo: deve restare visibile
+  // perché l'utente sappia che la funzione esiste con la versione Pro.
+  _applyPhotoTierLock() {
+    if (typeof License === 'undefined' || License.photoSyncAllowed()) return;
+    const btn = document.getElementById('photoPickBtn');
+    if (!btn || btn.querySelector('.badge--amber')) return;
+    btn.classList.add('btn--pro-locked');
+    btn.insertAdjacentHTML('beforeend', ' <span class="badge badge--amber" style="margin-left:4px;vertical-align:middle;">PRO</span>');
   },
 
   async onPhotoChange(input) {
