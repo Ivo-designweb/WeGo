@@ -1,13 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v4.4
+// WeGo — sw.js v4.5
 // Service Worker — cache offline + background sync
+// v4.5: nessuna modifica alla lista di precache (la nuova funzione
+//       /api/device-license.js è una funzione serverless, esclusa dalla
+//       cache come tutte le /api/* — vedi sync.js v1.8 / license.js v1.1)
 // v4.4: aggiunto /license.js alla lista di precache (gestione licenza
 //       Base/Pro — vedi license.js, db.js v1.6, sync.js v1.7)
 // v3.7: esclude /api/* dall'intercettazione (sempre rete, mai cache —
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v4.4';
+const CACHE_NAME = 'wego-v4.5';
 
 const STATIC_ASSETS = [
   '/',
@@ -32,7 +35,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v4.4');
+  console.log('[SW] Install v4.5');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -58,7 +61,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v4.4');
+  console.log('[SW] Activate v4.5');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

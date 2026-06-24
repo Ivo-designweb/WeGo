@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.6
+// WeGo — supabase.js v1.7
 // Client Supabase — lettura config da localStorage
+// v1.7: licenza dispositivo (Fase 2, v4.4) — nuovo namespace
+//       deviceLicense (request/getByDeviceId) + tabella sp_device_license
+//       nello schema SQL. Vedi license.js / impostazioni.html / admin.html.
 // v1.6: sincronizzazione foto movimenti — tabella sp_expense_photos +
 //       namespace expensePhotos (upsert/delete/getByExpense/getByExpenseIds)
 // v1.5: fix critico — sp_events non aveva la colonna "photo", ma
@@ -351,6 +354,38 @@ const SupabaseClient = (() => {
     }
   };
 
+  // ─── DEVICE LICENSE TABLE (licenza Base/Pro — NUOVO v1.7) ──────────
+  // Abilitazione "versione Pro" per singolo dispositivo (vedi license.js
+  // / impostazioni.html / admin.html). request() viene chiamato quando
+  // l'utente invia la richiesta da Impostazioni (anche in coda se
+  // offline, vedi License.requestPro() / sync.js); getByDeviceId() viene
+  // interrogato periodicamente da License.checkRemoteStatus() per sapere
+  // se è stato abilitato (e fino a quando, expires_at).
+  const deviceLicense = {
+    async request(deviceId, label) {
+      const existing = await request('GET', 'sp_device_license', null, { device_id: `eq.${deviceId}`, select: 'device_id' });
+      if (Array.isArray(existing) && existing.length) {
+        // Già registrato: aggiorna solo la nota, così l'admin vede sempre
+        // l'ultima usata anche se l'utente la cambia ri-inviando la richiesta.
+        if (label) {
+          await request('PATCH', `sp_device_license?device_id=eq.${deviceId}`, { label });
+        }
+        return existing[0];
+      }
+      return request('POST', 'sp_device_license', {
+        device_id:    deviceId,
+        label:        label || null,
+        requested_at: Utils.now(),
+        enabled:      false
+      });
+    },
+
+    async getByDeviceId(deviceId) {
+      const r = await request('GET', 'sp_device_license', null, { device_id: `eq.${deviceId}`, select: '*' });
+      return Array.isArray(r) ? (r[0] || null) : null;
+    }
+  };
+
   // ─── PUSH SUBSCRIPTIONS TABLE ──────────────────────────────
   // Collega un device (Web Push subscription) a un evento + utente, così
   // il server sa a chi inviare la notifica quando viene registrato un
@@ -546,6 +581,23 @@ CREATE TABLE IF NOT EXISTS sp_expense_photos (
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- TABELLA LICENZA DISPOSITIVO (v4.4) — abilitazione "versione Pro" per
+-- singolo dispositivo (vedi license.js / impostazioni.html / admin.html).
+-- device_id è generato dal client (localStorage), non dal database.
+-- expires_at è sempre impostato dall'admin quando abilita (una data
+-- lontana nel tempo equivale a "senza scadenza") — license.js confronta
+-- periodicamente la data corrente con questo campo per decidere se il
+-- dispositivo è ancora abilitato.
+CREATE TABLE IF NOT EXISTS sp_device_license (
+  device_id    VARCHAR(64) PRIMARY KEY,
+  label        VARCHAR(100),
+  requested_at TIMESTAMPTZ DEFAULT NOW(),
+  enabled      BOOLEAN DEFAULT FALSE,
+  expires_at   TIMESTAMPTZ,
+  enabled_at   TIMESTAMPTZ,
+  enabled_by   VARCHAR(50)
+);
+
 -- ROW LEVEL SECURITY (opzionale, abilita se vuoi sicurezza extra)
 -- ALTER TABLE sp_events   ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE sp_users    ENABLE ROW LEVEL SECURITY;
@@ -558,6 +610,7 @@ GRANT SELECT, INSERT, UPDATE ON sp_users       TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_expenses    TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_payments    TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_sync_status TO anon;
+GRANT SELECT, INSERT, UPDATE ON sp_device_license TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sp_push_subscriptions TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sp_expense_photos TO anon;
 
@@ -574,6 +627,7 @@ SELECT 'Schema WeGo installato correttamente!' AS status;
     payments,
     pushSubscriptions,
     syncStatus,
+    deviceLicense,
     SQL_SCHEMA
   };
 })();

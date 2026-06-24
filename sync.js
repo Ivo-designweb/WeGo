@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v1.7
+// WeGo — sync.js v1.8
 // Gestione sincronizzazione bidirezionale con Supabase
+// v1.8: licenza dispositivo (Fase 2, v4.4) — License.checkRemoteStatus()
+//       richiamato ad ogni push() (come _refreshGatedEvents); gestione
+//       della pending op 'request_device_license' (richiesta di
+//       abilitazione fatta offline da Impostazioni, vedi license.js
+//       requestPro())
 // v1.7: licenza dispositivo (license.js) — i device in versione Base non
 //       sincronizzano NESSUNA foto, né in invio né in ricezione (né
 //       copertina evento né foto movimenti): vedi _executePending
@@ -34,6 +39,14 @@ const Sync = {
       // (o disabilitati di nuovo) su sp_sync_status. Per gli eventi non
       // gated non fa nulla: zero query extra per l'uso normale.
       await Sync._refreshGatedEvents();
+
+      // Stesso principio per la licenza Pro di QUESTO device (vedi
+      // license.js v1.1): una query in più, solo per sapere se lo stato
+      // remoto (sp_device_license) è cambiato da quando l'abbiamo
+      // controllato l'ultima volta.
+      if (typeof License !== 'undefined') {
+        await License.checkRemoteStatus();
+      }
 
       const pendingOps = await DB.pending.getAll();
       console.log(`[Sync] Push: ${pendingOps.length} operazioni pending`);
@@ -188,6 +201,7 @@ const Sync = {
       case 'delete_user':        return p.eventId || null;
       case 'clear_joined':       return p.user?.event_id || null;
       case 'register_sync_request': return null;
+      case 'request_device_license': return null;
       default:                   return null;
     }
   },
@@ -247,6 +261,13 @@ const Sync = {
         // che il creatore lo comunichi via WhatsApp. Non crea l'evento
         // sul server: è solo un avviso informativo, idempotente.
         await SupabaseClient.syncStatus.request(payload.code, payload.title, payload.createdBy);
+        break;
+      case 'request_device_license':
+        // Richiesta di abilitazione Pro fatta offline da Impostazioni
+        // (vedi license.js → requestPro()): qui arriva solo se il
+        // tentativo diretto al momento dell'invio non era riuscito
+        // (utente offline o errore di rete). Idempotente come sopra.
+        await SupabaseClient.deviceLicense.request(payload.device_id, payload.label);
         break;
       default:
         console.warn('[Sync] Unknown pending type:', type);

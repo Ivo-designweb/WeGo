@@ -1,19 +1,23 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — license.js v1.0  (NUOVO FILE)
+// WeGo — license.js v1.1
 // Gestione del livello di abilitazione del dispositivo: 'base' (default,
 // gratuito) oppure 'pro' (soluzione completa, abilitata dall'admin).
 //
+// v1.1: Fase 2 — infrastruttura di richiesta/abilitazione:
+//       getDeviceId() (delega a Utils.getDeviceId(), già esistente),
+//       requestPro() (invia/accoda la richiesta su sp_device_license —
+//       vedi supabase.js v1.7), checkRemoteStatus() (confronta lo stato
+//       remoto con il tier locale e lo aggiorna — richiamato da
+//       Sync.push(), vedi sync.js v1.8). NOTA: qui aggiorniamo SOLO il
+//       tier locale; la schermata bloccante di downgrade Pro→Base con
+//       eventuale pulizia eventi in eccesso arriva nella Fase 4 (non
+//       ancora implementata).
 // v1.0: introduzione tier 'base'/'pro' e relativi limiti:
 //       - Base:  1 evento totale (creato o collegato), max 15
 //                partecipanti per evento creato, niente sincronizzazione
 //                foto (copertina evento + foto movimenti)
 //       - Pro:   max 100 eventi CREATI (i collegati non contano), max 50
 //                partecipanti per evento creato, foto sincronizzate
-// In questa fase il tier è sempre 'base': il meccanismo di richiesta/
-// abilitazione lato server (sp_device_license, admin.html) e il
-// controllo periodico di scadenza arriveranno nella fase successiva
-// (vedi situazione.md §11) — License.setTier() è già pronto per essere
-// richiamato da quel meccanismo senza dover toccare il resto dell'app.
 // ═══════════════════════════════════════════════════════════════
 
 const License = {
@@ -42,11 +46,112 @@ const License = {
   },
 
   /**
-   * Imposta il tier locale. Richiamata dal meccanismo di abilitazione
-   * (fase successiva) dopo aver verificato lo stato su sp_device_license.
+   * Imposta il tier locale. Richiamata da checkRemoteStatus() dopo aver
+   * verificato lo stato su sp_device_license.
    */
   setTier(tier) {
     Utils.setConfig('license_tier', tier === 'pro' ? 'pro' : 'base');
+  },
+
+  // ─── IDENTITÀ DISPOSITIVO ─────────────────────────────────
+  /**
+   * Identificativo univoco di QUESTO device. Delega a Utils.getDeviceId()
+   * (già esistente e già mostrato in Impostazioni → Generale → "Device
+   * ID", con bottone Copia) invece di generarne uno separato — un solo
+   * ID per device in tutta l'app. NON è un identificativo hardware reale
+   * (una PWA non può leggerne uno: il browser non lo permette) — è
+   * legato a questa installazione del browser, e si "perde" solo
+   * cancellando i dati del sito o disinstallando/reinstallando la PWA.
+   */
+  getDeviceId() {
+    return Utils.getDeviceId();
+  },
+
+  /**
+   * true se una data di scadenza è così lontana nel tempo da poter essere
+   * mostrata all'utente come "nessuna scadenza" (oltre 20 anni da oggi).
+   */
+  looksUnlimited(iso) {
+    if (!iso) return false;
+    const years = (new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 365);
+    return years > 20;
+  },
+
+  /** Data di scadenza della licenza Pro corrente (cache locale, solo informativa). */
+  getExpiresAt() {
+    return Utils.getConfig('license_expires_at', null);
+  },
+
+  // ─── RICHIESTA ABILITAZIONE (Fase 2) ──────────────────────
+  /**
+   * Invia (o accoda se offline) la richiesta di abilitazione alla
+   * versione Pro per questo device. `label` è una nota libera (es. il
+   * nickname dell'utente) per aiutare l'admin a riconoscere la richiesta
+   * nel pannello — vedi admin.html (Fase 3).
+   * Tentativo diretto se online (funziona anche su pagine che non
+   * caricano sync.js, es. impostazioni.html); altrimenti l'operazione
+   * resta in coda (DB.pending) e verrà inviata dal normale ciclo di
+   * sincronizzazione la prossima volta che l'app è online (vedi sync.js
+   * → _executePending 'request_device_license').
+   */
+  async requestPro(label) {
+    const deviceId = License.getDeviceId();
+    const payload  = { device_id: deviceId, label: label || null };
+
+    if (typeof Utils !== 'undefined' && Utils.isOnline() &&
+        typeof SupabaseClient !== 'undefined' && SupabaseClient.isConfigured()) {
+      try {
+        await SupabaseClient.deviceLicense.request(payload.device_id, payload.label);
+        return deviceId;
+      } catch (e) {
+        console.warn('[License] requestPro diretto fallito, lo accodo:', e.message);
+      }
+    }
+    if (typeof DB !== 'undefined' && DB.pending) {
+      await DB.pending.add({ type: 'request_device_license', payload });
+    }
+    return deviceId;
+  },
+
+  /**
+   * Confronta lo stato remoto (sp_device_license) con il tier locale e lo
+   * aggiorna di conseguenza. Richiamata da Sync.push() ad ogni ciclo di
+   * sincronizzazione (come _refreshGatedEvents per gli eventi esterni) —
+   * zero overhead extra oltre a una singola query.
+   * NOTA (Fase 2): qui aggiorniamo SOLO il tier locale. La gestione del
+   * downgrade Pro→Base con eventuale pulizia degli eventi in eccesso
+   * (schermata bloccante, vedi situazione.md §5bis Fase 4) non è ancora
+   * implementata — per ora il device torna semplicemente a comportarsi
+   * come "Base" per le azioni future, senza toccare nulla di esistente.
+   */
+  async checkRemoteStatus() {
+    if (typeof SupabaseClient === 'undefined' || !SupabaseClient.isConfigured()) return;
+    if (typeof Utils === 'undefined' || !Utils.isOnline()) return;
+
+    try {
+      const deviceId = License.getDeviceId();
+      const row = await SupabaseClient.deviceLicense.getByDeviceId(deviceId);
+      const effectivelyEnabled = !!(row && row.enabled && row.expires_at && new Date(row.expires_at) > new Date());
+      const newTier = effectivelyEnabled ? 'pro' : 'base';
+      const wasTier = License.getTier();
+
+      if (effectivelyEnabled) {
+        Utils.setConfig('license_expires_at', row.expires_at);
+      } else {
+        Utils.setConfig('license_expires_at', null);
+      }
+
+      if (newTier !== wasTier) {
+        License.setTier(newTier);
+        if (newTier === 'pro') {
+          Utils.toast('Versione Pro abilitata ✓', 'success', 4000);
+        }
+        // Downgrade pro→base: vedi nota Fase 4 sopra — nessuna azione
+        // distruttiva in questa fase, solo il tier locale cambia.
+      }
+    } catch (e) {
+      console.warn('[License] checkRemoteStatus error:', e);
+    }
   },
 
   // ─── CONTEGGIO EVENTI ─────────────────────────────────────

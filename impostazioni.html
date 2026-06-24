@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v4.4</title>
+  <title>Impostazioni — WeGo v4.5</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -381,6 +381,21 @@
           </div>
         </div>
 
+        <div class="settings-row" id="requestProRow" onclick="SettingsApp.showRequestPro()">
+          <div class="settings-row__icon" style="background:#F59E0B;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label" id="requestProLabel2">Richiedi soluzione completa</div>
+            <div class="settings-row__value" id="requestProDetail">Fino a 100 eventi, 50 partecipanti, foto sincronizzate</div>
+          </div>
+          <div class="settings-row__right settings-row__chevron" id="requestProChevron">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+
         <div class="settings-row" onclick="SettingsApp.configureOwnerDevice()">
           <div class="settings-row__icon" style="background:#10B981;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -423,7 +438,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 4.4</div>
+        <div class="about-ver">Versione 4.5</div>
 
         <div class="about-div"></div>
 
@@ -502,6 +517,35 @@
   </div>
 </div>
 
+<!-- MODAL: RICHIEDI SOLUZIONE COMPLETA -->
+<div class="modal-backdrop" id="modalRequestPro" onclick="SettingsApp.closeModal('modalRequestPro')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="bottom-sheet__handle"></div>
+    <h2 class="bottom-sheet__title">Richiedi soluzione completa</h2>
+    <p style="font-size:13.5px;color:var(--text-secondary);line-height:1.5;margin:-4px 0 14px;">
+      Invia una richiesta di abilitazione allo sviluppatore. Una volta abilitata, questo
+      dispositivo potrà usare fino a 100 eventi, 50 partecipanti per evento e la
+      sincronizzazione delle foto.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Il tuo nome (per farti riconoscere)</label>
+      <input type="text" class="form-input" id="requestProLabelInput"
+        placeholder="es. Mario - telefono personale" maxlength="60"
+        onkeydown="if(event.key==='Enter') SettingsApp.sendRequestPro()" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Codice dispositivo</label>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="text" class="form-input" id="requestProDeviceId" readonly
+          style="font-family:'Menlo','Monaco','Courier New',monospace;font-size:12px;" />
+        <button class="btn btn--ghost btn--sm" onclick="SettingsApp.copyDeviceId()" style="flex-shrink:0;">Copia</button>
+      </div>
+      <span class="form-hint">Puoi comunicarlo (o solo il tuo nome) allo sviluppatore via WhatsApp/email per velocizzare l'abilitazione</span>
+    </div>
+    <button class="btn btn--primary btn--full btn--xl" onclick="SettingsApp.sendRequestPro()">Invia richiesta</button>
+  </div>
+</div>
+
 <script src="/utils.js"></script>
 <script src="/db.js"></script>
 <script src="/license.js"></script>
@@ -538,9 +582,6 @@ const SettingsApp = {
   },
 
   // ─── LICENZA (Base/Pro) ────────────────────────────────────
-  // Solo informativo in questa fase: il meccanismo di richiesta/
-  // abilitazione della versione Pro arriva in una fase successiva (vedi
-  // license.js v1.0 e situazione.md §11).
   _renderLicenseInfo() {
     const labelEl  = document.getElementById('licenseTierLabel');
     const detailEl = document.getElementById('licenseTierDetail');
@@ -555,6 +596,56 @@ const SettingsApp = {
     detailEl.textContent = isPro
       ? `Fino a ${limits.maxEvents} eventi creati · max ${limits.maxParticipants} partecipanti per evento · foto sincronizzate`
       : `1 evento attivo (creato o collegato) · max ${limits.maxParticipants} partecipanti · foto non sincronizzate`;
+
+    // Riga "Richiedi soluzione completa" — diventa solo informativa (e
+    // mostra la scadenza) quando il device è già abilitato.
+    const reqLabel   = document.getElementById('requestProLabel2');
+    const reqDetail  = document.getElementById('requestProDetail');
+    const reqChevron = document.getElementById('requestProChevron');
+    if (reqLabel && reqDetail) {
+      if (isPro) {
+        const expIso = License.getExpiresAt();
+        reqLabel.textContent  = 'Soluzione completa attiva';
+        reqDetail.textContent = !expIso
+          ? 'Attiva'
+          : (License.looksUnlimited(expIso) ? 'Nessuna scadenza' : `Valida fino al ${Utils.formatDate(expIso)}`);
+        if (reqChevron) reqChevron.style.display = 'none';
+      } else {
+        reqLabel.textContent   = 'Richiedi soluzione completa';
+        reqDetail.textContent  = 'Fino a 100 eventi, 50 partecipanti, foto sincronizzate';
+        if (reqChevron) reqChevron.style.display = '';
+      }
+    }
+  },
+
+  // ─── RICHIEDI SOLUZIONE COMPLETA ───────────────────────────
+  showRequestPro() {
+    if (typeof License !== 'undefined' && License.isPro()) {
+      Utils.toast('Hai già la soluzione completa attiva su questo dispositivo', 'info');
+      return;
+    }
+    const savedNick = Utils.getConfig('default_nickname', '') || Utils.getConfig('nickname', '');
+    const labelInput = document.getElementById('requestProLabelInput');
+    const idInput    = document.getElementById('requestProDeviceId');
+    if (labelInput) labelInput.value = savedNick;
+    if (idInput)    idInput.value    = Utils.getDeviceId();
+    SettingsApp.openModal('modalRequestPro');
+    setTimeout(() => labelInput?.focus(), 300);
+  },
+
+  async sendRequestPro() {
+    const label = document.getElementById('requestProLabelInput').value.trim();
+    const btn = document.querySelector('#modalRequestPro .btn--primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Invio…'; }
+    try {
+      await License.requestPro(label);
+      SettingsApp.closeModal('modalRequestPro');
+      Utils.toast('Richiesta inviata! Riceverai l\'abilitazione appena verificata.', 'success', 4500);
+    } catch (e) {
+      Utils.toast('Errore invio richiesta: ' + e.message, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Invia richiesta'; }
+    }
   },
 
   // ─── DISPOSITIVO PROPRIETARIO (sincronizzazione selettiva) ──
