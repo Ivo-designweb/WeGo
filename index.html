@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>WeGo v4.5</title>
+  <title>WeGo v4.6</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -180,6 +180,7 @@
       <span class="app-header__title" style="font-size:28px;font-weight:800;letter-spacing:-0.5px;">WeGo</span>
     </div>
     <div class="app-header__actions">
+      <span class="badge badge--amber" id="proBadge" style="display:none;" title="Eventi Pro ancora disponibili (creati su 100)">Pro</span>
       <div id="connDot" style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;"></div>
       <button class="btn btn--icon" id="syncBtn" title="Sincronizza" onclick="App.syncNow()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -1,6 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.14
+// WeGo — app.js v2.15
 // Logica principale pagina Home (index.html)
+// v2.15: Fase 4 licenza Base/Pro — controllo License.renderDowngradeGateIfNeeded()
+//        subito dopo DB.open() (schermata bloccante se il device ha
+//        appena perso la versione Pro con troppi eventi); badge "Pro N"
+//        in header (License.renderProBadge(), vedi license.js v1.2)
 // v2.14: introdotta gestione licenza Base/Pro (license.js) — limite di
 //        1 evento totale in versione Base (creato o collegato, blocco
 //        prima dell'apertura dei modal Crea/Unisciti) e limite
@@ -32,7 +36,7 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v2.14 init');
+    console.log('[App] WeGo v2.15 init');
 
     // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
     // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
@@ -53,6 +57,15 @@ const App = {
     } catch (e) {
       console.error('[App] DB.open failed:', e);
       Utils.toast('Errore database locale', 'error');
+    }
+
+    // Licenza (Fase 4, license.js): se questo device ha appena perso la
+    // versione Pro e ha più eventi di quanti la versione Base ne
+    // permetta, mostra la schermata bloccante PRIMA di qualunque altra
+    // cosa (redirect, lista eventi…) — l'utente deve scegliere come
+    // continuare prima di poter usare l'app.
+    if (typeof License !== 'undefined' && await License.renderDowngradeGateIfNeeded()) {
+      return;
     }
 
     // ── Redirect automatico all'ultimo evento aperto ──────
@@ -176,6 +189,13 @@ const App = {
   // ─── RENDER ───────────────────────────────────────────────
   async _render() {
     const hasEvents = App._events.length > 0;
+
+    // Badge "Pro N" in alto a destra (Fase 4, license.js) — nascosto da
+    // solo se il device è in versione Base. Indipendente dal resto del
+    // render: lo aggiorniamo sempre, anche con welcomeScreen attivo.
+    if (typeof License !== 'undefined') {
+      License.renderProBadge('proBadge').catch(() => {});
+    }
 
     if (!hasEvents) {
       Utils.show('welcomeScreen');

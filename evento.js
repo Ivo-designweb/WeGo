@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.14
+// WeGo — evento.js v2.15
 // Logica pagina dettaglio evento
+// v2.15: Fase 4 licenza Base/Pro — controllo License.renderDowngradeGateIfNeeded()
+//        subito dopo DB.open() (schermata bloccante se il device ha
+//        appena perso la versione Pro con troppi eventi)
 // v2.14: limite partecipanti (License.js — 15 Base / 50 Pro) applicato
 //        in addUser(); sincronizzazione foto movimenti disattivata per i
 //        device in versione Base (vedi sync.js / spesa.js)
@@ -67,6 +70,13 @@ const EventoApp = {
     } catch (e) {
       console.error('[Evento] DB.open failed:', e);
       Utils.toast('Errore database locale', 'error');
+    }
+
+    // Licenza (Fase 4, license.js): stesso controllo di app.js — se il
+    // device ha appena perso la versione Pro con troppi eventi per la
+    // versione Base, blocca tutto qui prima di caricare l'evento.
+    if (typeof License !== 'undefined' && await License.renderDowngradeGateIfNeeded()) {
+      return;
     }
 
     // Salva come ultimo evento aperto

@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v4.5 (v3.5 per spesa.html/spesa.js) — Aggiornato: 24 giugno 2026**
+**Versione corrente: v4.6 (v3.5 per spesa.html/spesa.js) — Aggiornato: 24 giugno 2026**
 
 ---
 
@@ -43,19 +43,19 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v4.5   Home: lista eventi, crea/unisciti
-├── evento.html          v4.5  Pagina evento: tab Movimenti / Saldi / Partecipanti
+├── index.html          v4.6   Home: lista eventi, crea/unisciti, badge "Pro N"
+├── evento.html          v4.6  Pagina evento: tab Movimenti / Saldi / Partecipanti
 ├── spesa.html            v3.5 Registrazione / visualizzazione movimento, foto sincronizzata
-├── impostazioni.html    v4.5   Impostazioni: tema, metodi pagamento, dispositivo proprietario, licenza Base/Pro, link Admin
+├── impostazioni.html    v4.6   Impostazioni: tema, metodi pagamento, dispositivo proprietario, licenza Base/Pro, link Admin
 ├── admin.html           v1.8   Pannello admin/debug — password verificata lato server + gestione sync esterni + licenza Pro
-├── sw.js                v4.5   Service Worker (CACHE_NAME: wego-v4.5) — esclude /api/* dalla cache
-├── manifest.json        v4.5   PWA manifest
+├── sw.js                v4.6   Service Worker (CACHE_NAME: wego-v4.6) — esclude /api/* dalla cache
+├── manifest.json        v4.6   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
-├── app.js                v2.14 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro, avatar creatore, card colorate
-├── evento.js             v2.14 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync, foto, limite partecipanti
+├── app.js                v2.15 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro completa (Fasi 1-4), avatar creatore, card colorate
+├── evento.js             v2.15 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync, foto, limite partecipanti, gate downgrade
 ├── spesa.js               v2.3 Logica form registrazione/visualizzazione movimento, doppia compressione foto, blocco foto Base
-├── license.js             v1.1 Gestione livello dispositivo Base/Pro: limiti + (Fase 2) richiesta/verifica abilitazione — vedi §5bis
+├── license.js             v1.2 Gestione completa livello dispositivo Base/Pro: limiti, richiesta/verifica abilitazione, schermata bloccante di downgrade, badge "Pro N" — vedi §5bis (Fasi 1-4 tutte FATTE)
 ├── sync.js                v1.8 Sincronizzazione bidirezionale locale ↔ Supabase + gating eventi esterni + foto movimenti (disattivata in versione Base) + verifica periodica licenza
 ├── supabase.js            v1.7 Client REST Supabase (tutte le entity + push subscriptions + sp_sync_status + expensePhotos + deviceLicense)
 ├── db.js                  v1.6 IndexedDB wrapper (events con gated/sync_allowed/is_mine, users, expenses, photos con sync_data/synced, payments, pending, sessions)
@@ -66,7 +66,7 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 │   ├── admin-login.js          Verifica password admin contro env var ADMIN_PASSWORD
 │   ├── owner-verify.js         Verifica codice dispositivo proprietario contro env var OWNER_DEVICE_SECRET
 │   ├── sync-status.js          Lista/abilita/disabilita codici evento esterni (sp_sync_status)
-│   └── device-license.js       NUOVO (Fase 2, v4.5) — Lista/abilita/disabilita licenze Pro per dispositivo (sp_device_license)
+│   └── device-license.js       Lista/abilita/disabilita licenze Pro per dispositivo (sp_device_license)
 └── icon*.png                  Icone PWA (72, 96, 128, 144, 152, 192, 384, 512 px)
 
 supabase-function/  (NON sul sito — va deployata separatamente su Supabase, vedi §11)
@@ -358,26 +358,42 @@ record locale esistente prima di applicare i valori remoti).
   la pulizia con scelta dell'utente (Fase 4) non è ancora implementata, il dialog di conferma
   lo dice esplicitamente
 
-### Fase 4 — Downgrade Pro→Base (disabilitazione o scadenza) (DA FARE)
-Logica concordata col cliente (non ancora implementata):
-1. Al rilevamento del downgrade (admin disabilita, oppure `expires_at` superata), se il device
-   ha più di 1 evento totale, la app mostra una schermata **bloccante** (prima di qualunque
-   altra cosa, sia in index.html che in evento.html — analoga ad `AdminGate`) che indica QUALE
-   evento resterà: **quello con la data di creazione/adesione più vecchia** tra tutti quelli
-   presenti sul device (creato o collegato)
-2. Due sole uscite possibili dalla schermata:
-   - **"Conferma — mantieni solo [Nome evento]"**: procede con la cancellazione di tutti gli
-     altri eventi (per quelli creati da questo device: cancellazione completa anche dal
-     server, cascata già presente nello schema SQL; per quelli a cui si è solo uniti:
-     scollegamento locale, dati intatti sul server per gli altri partecipanti) — poi la app
-     riparte normalmente con il solo evento rimasto
-   - **"Richiedi una nuova abilitazione"**: invia una nuova richiesta di abilitazione (Fase 2) e
-     NON cancella nulla — l'utente resta sulla schermata bloccante (può chiudere l'app e
-     riaprirla con calma in un altro momento). Alla riapertura successiva, se l'admin ha
-     abilitato nel frattempo, il blocco si rimuove senza alcuna cancellazione; altrimenti la
-     stessa schermata riappare
-3. Nessuna cancellazione automatica/silenziosa: l'unico modo per entrare nell'app restando con
-   1 solo evento è la scelta esplicita (1), oppure attendere una nuova abilitazione (2)
+### Fase 4 — Downgrade Pro→Base (disabilitazione o scadenza) (FATTA, v4.6)
+Implementata esattamente come concordato:
+1. `license.js` → `checkRemoteStatus()` (richiamata ad ogni `Sync.push()`): quando rileva un VERO
+   downgrade (era 'pro', ora è 'base' — disabilitazione admin o `expires_at` superata) E il
+   device ha più eventi di quanti la versione Base ne permetta, NON cancella nulla — imposta
+   solo il flag `license_downgrade_pending` e ricarica la pagina (`window.location.reload()`)
+2. `license.js` → `renderDowngradeGateIfNeeded()`: richiamata come PRIMA cosa subito dopo
+   `DB.open()` sia in `App.init()` (app.js) sia in `EventoApp.init()` (evento.js) — se il flag è
+   attivo, mostra una schermata bloccante a schermo intero (overlay creato via JS, stesso
+   livello z-index/approccio di `AdminGate`) che indica **quale evento resterebbe** (il più
+   vecchio per `created_at`, creato o collegato indifferentemente) e la lista di quelli che
+   verrebbero eliminati
+3. Due sole uscite dalla schermata, esattamente come richiesto:
+   - **"Conferma — mantieni solo questo evento"** (`_confirmDowngradeCleanup`): rimuove tutti
+     gli altri con lo STESSO comportamento già usato altrove nell'app — `_removeEventLocally()`
+     replica `App.confirmDeleteFromMenu` per gli eventi creati da questo device (cancellazione
+     completa anche dal server, cascata SQL) e `App.leaveEvent` per quelli a cui si era solo
+     uniti (scollegamento locale + pulizia `joined_at` sul server per il proprio utente, dati
+     del gruppo intatti per gli altri). Pulisce il flag e ricarica
+   - **"Richiedi una nuova abilitazione"** (`_requestProFromGate`): chiama `License.requestPro()`
+     (stesso meccanismo della Fase 2) e basta — NESSUNA cancellazione, l'utente resta sulla
+     schermata bloccante (può chiudere l'app e riaprirla con calma). Alla riapertura successiva,
+     se l'admin ha abilitato nel frattempo, `checkRemoteStatus()` rileva il nuovo `newTier==='pro'`
+     e il blocco si rimuove da solo (nessuna pulizia, flag non toccato perché la diramazione
+     "downgrade" non viene nemmeno raggiunta); altrimenti la stessa schermata riappare
+4. **Badge "Pro N" in home**: nuovo elemento `#proBadge` nell'header di `index.html` (arancione,
+   `.badge--amber`), aggiornato da `License.renderProBadge()` richiamata in `App._render()` —
+   nascosto del tutto in versione Base, mostra "Pro N" dove N = 100 − eventi CREATI da questo
+   device (`License.eventsRemaining()`, già pronta dalla Fase 2)
+
+**Limite noto**: il controllo gira solo su index.html ed evento.html (come da specifica). Un
+accesso diretto a spesa.html o impostazioni.html durante una finestra di downgrade non
+mostrerebbe il blocco — caso limite ritenuto accettabile, dato che si arriva quasi sempre a
+spesa.html passando da evento.html.
+
+**🎉 Licenza Base/Pro completa — tutte le 4 fasi implementate.**
 
 ---
 
@@ -408,6 +424,7 @@ Logica concordata col cliente (non ancora implementata):
 | v4.4 | **NUOVA FUNZIONALITÀ — Fase 1 licenza Base/Pro** (vedi §5bis): nuovo file `license.js`; nuovo campo locale `events.is_mine` (db.js); limite di 1 evento totale e 15 partecipanti per i device in versione Base (default per tutti, finché non implementate le Fasi 2/3 di abilitazione); sincronizzazione foto (copertina evento + movimenti) completamente disattivata per la versione Base, in entrambe le direzioni; bottone foto movimento in `spesa.html` reso visibile-ma-disattivato (badge "PRO") invece che nascosto |
 | v4.5 | **NUOVA FUNZIONALITÀ — Fase 2 licenza Base/Pro** (vedi §5bis): tabella `sp_device_license` + nuova funzione serverless `/api/device-license.js` (stesso pattern di `/api/sync-status.js`); `supabase.js` → namespace `deviceLicense`; `license.js` → `requestPro()`/`checkRemoteStatus()` (riusa `Utils.getDeviceId()` già esistente, non ne crea uno nuovo); `sync.js` → verifica periodica licenza ad ogni push; nuova riga "Richiedi soluzione completa" in Impostazioni → Avanzate. **Ancora SOLO infrastruttura**: l'abilitazione vera e propria si fa per ora a mano su Supabase (Fase 3 = pannello Admin, Fase 4 = gestione del downgrade) |
 | admin.html v1.8 | **NUOVA FUNZIONALITÀ — Fase 3 licenza Base/Pro** (vedi §5bis): nuova sezione "Soluzione completa (Pro)" in admin.html — abilitazione/disabilitazione dispositivi con data di scadenza obbligatoria, lista dispositivi registrati. Nessun impatto sulla versione globale dell'app (solo admin.html è cambiato) |
+| v4.6 | **NUOVA FUNZIONALITÀ — Fase 4 licenza Base/Pro, FASE FINALE** (vedi §5bis): schermata bloccante di downgrade Pro→Base (`license.js` → `renderDowngradeGateIfNeeded()`, richiamata subito dopo `DB.open()` in app.js/evento.js) con le due scelte concordate (mantieni solo l'evento più vecchio / richiedi nuova abilitazione, nessuna cancellazione automatica); badge arancione "Pro N" in home. **Tutte le 4 fasi della licenza Base/Pro sono complete.** |
 
 ---
 
@@ -469,16 +486,16 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v4.5 (v3.5 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v4.5`
+**Versione attuale:** v4.6 (v3.5 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v4.6`
 
 ---
 
 ## 11. Cose da fare / lavori futuri — PRIORITÀ
 
-### 🆕 Licenza Base/Pro — Fase 4 (DA FARE, vedi §5bis per il dettaglio completo — Fasi 1/2/3 FATTE in v4.4 / v4.5 / admin.html v1.8)
-- [ ] Fase 4: schermata bloccante di downgrade Pro→Base (scelta utente: mantieni 1 evento / richiedi nuova abilitazione), badge "Pro N" in home
-- [ ] Nota: oggi l'abilitazione/disabilitazione da admin.html funziona già (Fase 3), ma disabilitare o lasciare scadere un dispositivo Pro NON pulisce ancora gli eventi in eccesso — resta solo il cambio di tier locale (vedi `license.js` → `checkRemoteStatus()`). La pulizia con scelta dell'utente è proprio l'oggetto della Fase 4
+### ✅ Licenza Base/Pro — COMPLETA (tutte le 4 fasi fatte, vedi §5bis per il dettaglio)
+Nessuna azione residua lato codice. Resta solo da fare lato Supabase (vedi sotto): eseguire lo
+schema SQL aggiornato con la tabella `sp_device_license`, se non già fatto.
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
 - [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, tabella `sp_sync_status`, colonna `sp_events.photo`, tabella `sp_expense_photos` (per la sincronizzazione foto movimenti), **tabella `sp_device_license` (NUOVA v4.5, per la licenza Base/Pro)**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "sincronizzazione selettiva eventi esterni", "modifica evento", "sincronizzazione foto movimenti" e "richiesta soluzione completa" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)
