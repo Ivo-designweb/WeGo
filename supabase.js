@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.7
+// WeGo — supabase.js v1.8
 // Client Supabase — lettura config da localStorage
+// v1.8: MODIFICA SICUREZZA — syncStatus.request() e deviceLicense.request()
+//       non scrivono più direttamente su Supabase con la anon key:
+//       passano da /api/sync-status.js e /api/device-license.js, che
+//       usano una chiave server-only (SUPABASE_SERVICE_KEY). Schema SQL
+//       aggiornato: la anon key ha ora SOLO il permesso SELECT su
+//       sp_sync_status e sp_device_license (REVOKE espliciti per chi
+//       aveva già eseguito lo schema precedente). getByCode()/
+//       getByDeviceId() restano letture dirette, invariate.
 // v1.7: licenza dispositivo (Fase 2, v4.4) — nuovo namespace
 //       deviceLicense (request/getByDeviceId) + tabella sp_device_license
 //       nello schema SQL. Vedi license.js / impostazioni.html / admin.html.
@@ -335,17 +343,23 @@ const SupabaseClient = (() => {
   // finché il suo codice non è abilitato qui (admin.html). request() viene
   // chiamato in automatico alla creazione dell'evento (vedi app.js); getByCode()
   // viene interrogato da Sync ad ogni ciclo per sapere se è stato abilitato.
+  //
+  // MODIFICA SICUREZZA (v1.8): request() NON scrive più direttamente su
+  // Supabase con la anon key (che ora ha SOLO il permesso SELECT su
+  // questa tabella, vedi schema SQL) — passa da /api/sync-status.js,
+  // che usa una chiave server-only per scrivere. getByCode() resta una
+  // lettura diretta: la anon key può ancora leggere (SELECT è concesso),
+  // solo le scritture sono bloccate.
   const syncStatus = {
     async request(code, title, createdBy) {
-      const existing = await request('GET', 'sp_sync_status', null, { code: `eq.${code}`, select: 'code' });
-      if (Array.isArray(existing) && existing.length) return existing[0];
-      return request('POST', 'sp_sync_status', {
-        code,
-        title:        title || null,
-        created_by:   createdBy || null,
-        requested_at: Utils.now(),
-        enabled:      false
+      const res = await fetch('/api/sync-status', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ action: 'request', code, title, createdBy })
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error((data && data.error) || `Errore HTTP ${res.status}`);
+      return data;
     },
 
     async getByCode(code) {
@@ -361,23 +375,27 @@ const SupabaseClient = (() => {
   // offline, vedi License.requestPro() / sync.js); getByDeviceId() viene
   // interrogato periodicamente da License.checkRemoteStatus() per sapere
   // se è stato abilitato (e fino a quando, expires_at).
+  //
+  // MODIFICA SICUREZZA (v1.8): stessa logica di syncStatus sopra —
+  // request() passa da /api/device-license.js invece di scrivere
+  // direttamente su Supabase. Prima di questa modifica, chiunque avesse
+  // la anon key pubblica (sempre scaricabile da chiavi.json) avrebbe
+  // potuto scrivere direttamente enabled:true su questa tabella,
+  // auto-abilitandosi alla versione Pro senza passare da admin.html.
+  // Ora la anon key ha SOLO il permesso SELECT: getByDeviceId() (sotto)
+  // continua a funzionare come lettura diretta, ma ogni scrittura
+  // (richiesta, abilitazione, disabilitazione) passa solo dalla funzione
+  // serverless, con una chiave diversa che il browser non vedrà mai.
   const deviceLicense = {
     async request(deviceId, label) {
-      const existing = await request('GET', 'sp_device_license', null, { device_id: `eq.${deviceId}`, select: 'device_id' });
-      if (Array.isArray(existing) && existing.length) {
-        // Già registrato: aggiorna solo la nota, così l'admin vede sempre
-        // l'ultima usata anche se l'utente la cambia ri-inviando la richiesta.
-        if (label) {
-          await request('PATCH', `sp_device_license?device_id=eq.${deviceId}`, { label });
-        }
-        return existing[0];
-      }
-      return request('POST', 'sp_device_license', {
-        device_id:    deviceId,
-        label:        label || null,
-        requested_at: Utils.now(),
-        enabled:      false
+      const res = await fetch('/api/device-license', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ action: 'request', device_id: deviceId, label })
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error((data && data.error) || `Errore HTTP ${res.status}`);
+      return data;
     },
 
     async getByDeviceId(deviceId) {
@@ -609,10 +627,24 @@ GRANT SELECT, INSERT, UPDATE ON sp_events      TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_users       TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_expenses    TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_payments    TO anon;
-GRANT SELECT, INSERT, UPDATE ON sp_sync_status TO anon;
-GRANT SELECT, INSERT, UPDATE ON sp_device_license TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sp_push_subscriptions TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sp_expense_photos TO anon;
+
+-- sp_sync_status e sp_device_license sono un caso diverso: governano
+-- "chi è abilitato a cosa" (sincronizzazione esterna, versione Pro), e
+-- sono gestite SOLO dalle funzioni server /api/sync-status.js e
+-- /api/device-license.js con una chiave separata (SUPABASE_SERVICE_KEY,
+-- SOLO su Vercel, mai nel browser). La anon key pubblica può leggerle
+-- (serve al client per sapere il proprio stato) ma NON può scriverle:
+-- se potesse, chiunque trovasse la anon key (è scaricabile da
+-- chiavi.json, è normale che lo sia) potrebbe auto-abilitarsi senza
+-- passare da admin.html. Le REVOKE sono indispensabili se hai già
+-- eseguito una versione precedente di questo schema: GRANT da solo non
+-- toglie permessi già concessi in precedenza.
+REVOKE INSERT, UPDATE, DELETE ON sp_sync_status    FROM anon;
+REVOKE INSERT, UPDATE, DELETE ON sp_device_license FROM anon;
+GRANT SELECT ON sp_sync_status    TO anon;
+GRANT SELECT ON sp_device_license TO anon;
 
 SELECT 'Schema WeGo installato correttamente!' AS status;
 `;

@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v4.6 (v3.5 per spesa.html/spesa.js) — Aggiornato: 24 giugno 2026**
+**Versione corrente: v4.7 (v3.5 per spesa.html/spesa.js) — Aggiornato: 25 giugno 2026**
 
 ---
 
@@ -43,30 +43,30 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v4.6   Home: lista eventi, crea/unisciti, badge "Pro N"
-├── evento.html          v4.6  Pagina evento: tab Movimenti / Saldi / Partecipanti
+├── index.html          v4.7   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo
+├── evento.html          v4.7  Pagina evento: tab Movimenti / Saldi / Partecipanti
 ├── spesa.html            v3.5 Registrazione / visualizzazione movimento, foto sincronizzata
-├── impostazioni.html    v4.6   Impostazioni: tema, metodi pagamento, dispositivo proprietario, licenza Base/Pro, link Admin
+├── impostazioni.html    v4.7   Impostazioni: tema, metodi pagamento, dispositivo proprietario, licenza Base/Pro, link Admin
 ├── admin.html           v1.8   Pannello admin/debug — password verificata lato server + gestione sync esterni + licenza Pro
-├── sw.js                v4.6   Service Worker (CACHE_NAME: wego-v4.6) — esclude /api/* dalla cache
-├── manifest.json        v4.6   PWA manifest
+├── sw.js                v4.7   Service Worker (CACHE_NAME: wego-v4.7) — esclude /api/* dalla cache
+├── manifest.json        v4.7   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.15 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro completa (Fasi 1-4), avatar creatore, card colorate
 ├── evento.js             v2.15 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync, foto, limite partecipanti, gate downgrade
 ├── spesa.js               v2.3 Logica form registrazione/visualizzazione movimento, doppia compressione foto, blocco foto Base
-├── license.js             v1.2 Gestione completa livello dispositivo Base/Pro: limiti, richiesta/verifica abilitazione, schermata bloccante di downgrade, badge "Pro N" — vedi §5bis (Fasi 1-4 tutte FATTE)
+├── license.js             v1.2 Gestione completa livello dispositivo Base/Pro: limiti, richiesta/verifica abilitazione, schermata bloccante di downgrade, badge "Pro N"
 ├── sync.js                v1.8 Sincronizzazione bidirezionale locale ↔ Supabase + gating eventi esterni + foto movimenti (disattivata in versione Base) + verifica periodica licenza
-├── supabase.js            v1.7 Client REST Supabase (tutte le entity + push subscriptions + sp_sync_status + expensePhotos + deviceLicense)
+├── supabase.js            v1.8 Client REST Supabase — MODIFICA SICUREZZA: request() su sync_status/device_license passa da /api/*, non più scrittura diretta anon
 ├── db.js                  v1.6 IndexedDB wrapper (events con gated/sync_allowed/is_mine, users, expenses, photos con sync_data/synced, payments, pending, sessions)
 ├── utils.js               v1.2 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId…)
 ├── payments.js            v1.0 Metodi di pagamento (lista configurabile, default + custom)
 ├── notifications.js      v1.2 Web Push: registrazione + salvataggio sottoscrizione su Supabase (fix mismatch chiave VAPID)
-├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis)
+├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis e §5quater)
 │   ├── admin-login.js          Verifica password admin contro env var ADMIN_PASSWORD
 │   ├── owner-verify.js         Verifica codice dispositivo proprietario contro env var OWNER_DEVICE_SECRET
-│   ├── sync-status.js          Lista/abilita/disabilita codici evento esterni (sp_sync_status)
-│   └── device-license.js       Lista/abilita/disabilita licenze Pro per dispositivo (sp_device_license)
+│   ├── sync-status.js          v2 — Lista/abilita/disabilita/registra codici evento esterni (sp_sync_status), ora con SUPABASE_SERVICE_KEY
+│   └── device-license.js       v2 — Lista/abilita/disabilita/registra licenze Pro per dispositivo (sp_device_license), ora con SUPABASE_SERVICE_KEY
 └── icon*.png                  Icone PWA (72, 96, 128, 144, 152, 192, 384, 512 px)
 
 supabase-function/  (NON sul sito — va deployata separatamente su Supabase, vedi §11)
@@ -397,6 +397,51 @@ spesa.html passando da evento.html.
 
 ---
 
+## 5quater. Modifica di sicurezza: blocco scritture su sp_sync_status e sp_device_license (v4.7)
+
+**Problema risolto**: prima di questa modifica, la anon key di Supabase (pubblica, scaricabile
+da `chiavi.json` senza alcuna autenticazione) aveva i permessi `INSERT`/`UPDATE` su
+`sp_sync_status` e `sp_device_license`. Chiunque trovasse quella chiave poteva scrivere
+direttamente su Supabase — ad esempio impostare `enabled:true` sul proprio `device_id` in
+`sp_device_license` — **senza passare da admin.html e senza conoscere la password admin**. La
+password proteggeva solo chi usava il pannello, non il database in sé.
+
+**Soluzione adottata — niente RLS, solo permessi di tabella + una chiave server-only**:
+- Nuova variabile d'ambiente Vercel **`SUPABASE_SERVICE_KEY`** (la "service role key" di
+  Supabase, Settings → API — diversa dalla anon key, pensata per essere usata solo da un
+  server: bypassa i permessi normali). **Da aggiungere tu su Vercel** — vedi §11.
+- Schema SQL (`supabase.js` → `SQL_SCHEMA`): aggiunte `REVOKE INSERT, UPDATE, DELETE ... FROM
+  anon` su entrambe le tabelle + `GRANT SELECT` (le letture dirette dal client restano
+  permesse: il device deve poter leggere il proprio stato). **Va rieseguito su Supabase** — le
+  REVOKE sono indispensabili, un semplice GRANT non rimuove permessi già concessi in precedenza.
+- `/api/sync-status.js` e `/api/device-license.js` (entrambi diventati "v2"): non usano più la
+  anon key per le scritture, usano `SUPABASE_SERVICE_KEY`. Aggiunta una terza azione, **`request`**,
+  che NON richiede password admin (è solo "mettimi in lista d'attesa") ma scrive comunque solo
+  tramite la funzione server — prima questa scrittura partiva direttamente dal client.
+- `supabase.js` → `syncStatus.request()` e `deviceLicense.request()`: non scrivono più
+  direttamente su Supabase, chiamano invece `/api/sync-status` e `/api/device-license` con
+  `action:'request'`. `getByCode()`/`getByDeviceId()` (letture) restano invariate.
+- **Nessuna modifica** a `license.js`, `sync.js`, `app.js`, `admin.html`: tutti questi file
+  chiamano le stesse funzioni di `supabase.js` con la stessa firma — è cambiato solo cosa
+  succede "dentro" quelle funzioni.
+
+**Risultato**: nessun client (devtools, localStorage, chiamata diretta a Supabase con la anon
+key) può più auto-abilitarsi alla sincronizzazione esterna o alla versione Pro. L'unico punto
+di scrittura per enable/disable è la funzione server con la password verificata; l'unico modo
+di "richiedere" è comunque tramite la funzione server (mai più scrittura diretta del client).
+
+**Cosa NON è stato toccato (deciso consapevolmente, vedi conversazione)**: la anon key resta
+visibile in `chiavi.json` e continua a poter leggere/scrivere `sp_events`, `sp_users`,
+`sp_expenses`, `sp_payments` come sempre — è il funzionamento normale offline-first dell'app, e
+nasconderla del tutto richiederebbe una riscrittura completa del livello dati (proxy di tutte le
+operazioni attraverso funzioni server) sproporzionata al contesto d'uso (app tra amici, non
+un prodotto con utenti non controllati). I limiti Base/Pro (1/100 eventi, 15/50 partecipanti,
+foto) restano controlli lato client in `license.js` — bloccare anche questi richiederebbe
+tracciare il device_id direttamente sulle righe di `sp_events` e validarlo lato server, un
+salto di complessità non richiesto in questa fase.
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -425,6 +470,7 @@ spesa.html passando da evento.html.
 | v4.5 | **NUOVA FUNZIONALITÀ — Fase 2 licenza Base/Pro** (vedi §5bis): tabella `sp_device_license` + nuova funzione serverless `/api/device-license.js` (stesso pattern di `/api/sync-status.js`); `supabase.js` → namespace `deviceLicense`; `license.js` → `requestPro()`/`checkRemoteStatus()` (riusa `Utils.getDeviceId()` già esistente, non ne crea uno nuovo); `sync.js` → verifica periodica licenza ad ogni push; nuova riga "Richiedi soluzione completa" in Impostazioni → Avanzate. **Ancora SOLO infrastruttura**: l'abilitazione vera e propria si fa per ora a mano su Supabase (Fase 3 = pannello Admin, Fase 4 = gestione del downgrade) |
 | admin.html v1.8 | **NUOVA FUNZIONALITÀ — Fase 3 licenza Base/Pro** (vedi §5bis): nuova sezione "Soluzione completa (Pro)" in admin.html — abilitazione/disabilitazione dispositivi con data di scadenza obbligatoria, lista dispositivi registrati. Nessun impatto sulla versione globale dell'app (solo admin.html è cambiato) |
 | v4.6 | **NUOVA FUNZIONALITÀ — Fase 4 licenza Base/Pro, FASE FINALE** (vedi §5bis): schermata bloccante di downgrade Pro→Base (`license.js` → `renderDowngradeGateIfNeeded()`, richiamata subito dopo `DB.open()` in app.js/evento.js) con le due scelte concordate (mantieni solo l'evento più vecchio / richiedi nuova abilitazione, nessuna cancellazione automatica); badge arancione "Pro N" in home. **Tutte le 4 fasi della licenza Base/Pro sono complete.** |
+| v4.7 | **MODIFICA DI SICUREZZA** (vedi §5quater): `sp_sync_status` e `sp_device_license` non più scrivibili dalla anon key pubblica — solo da `/api/sync-status.js`/`/api/device-license.js` con una nuova `SUPABASE_SERVICE_KEY` (solo su Vercel). Nessuna RLS. **Badge "Pro N"**: spostato dal gruppo icone a destra a fianco della scritta "WeGo" nell'header, ora solo testo arancione trasparente (stessa dimensione/colore di prima, senza più lo sfondo a pillola) |
 
 ---
 
@@ -486,19 +532,28 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v4.6 (v3.5 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v4.6`
+**Versione attuale:** v4.7 (v3.5 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v4.7`
 
 ---
 
 ## 11. Cose da fare / lavori futuri — PRIORITÀ
 
 ### ✅ Licenza Base/Pro — COMPLETA (tutte le 4 fasi fatte, vedi §5bis per il dettaglio)
-Nessuna azione residua lato codice. Resta solo da fare lato Supabase (vedi sotto): eseguire lo
-schema SQL aggiornato con la tabella `sp_device_license`, se non già fatto.
+Nessuna azione residua lato codice.
+
+### 🔒 Modifica di sicurezza v4.7 — vedi §5quater per il dettaglio completo
+**ATTENZIONE ALL'ORDINE DI DEPLOY** — se carichi il nuovo codice senza prima fare questi due
+passaggi, "Richiedi soluzione completa" e la sincronizzazione di eventi esterni si romperanno
+(la anon key non avrà più i permessi, e la funzione server non avrà ancora la chiave nuova):
+1. [ ] Recupera la **service role key** di Supabase (Settings → API, sotto la anon key — diversa, più lunga, NON quella che già usi)
+2. [ ] Aggiungi una nuova variabile d'ambiente su Vercel: `SUPABASE_SERVICE_KEY` = quella chiave, poi rideploy
+3. [ ] Esegui di nuovo lo schema SQL aggiornato (Admin → Schema SQL → copia → Supabase SQL Editor → Run) — contiene le `REVOKE` indispensabili, un semplice re-deploy del codice non le applica da solo
+4. [ ] Solo dopo i punti 1-3, carica i file nuovi su GitHub/Vercel
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
-- [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, tabella `sp_sync_status`, colonna `sp_events.photo`, tabella `sp_expense_photos` (per la sincronizzazione foto movimenti), **tabella `sp_device_license` (NUOVA v4.5, per la licenza Base/Pro)**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "sincronizzazione selettiva eventi esterni", "modifica evento", "sincronizzazione foto movimenti" e "richiesta soluzione completa" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)
+- [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, tabella `sp_sync_status`, colonna `sp_events.photo`, tabella `sp_expense_photos` (per la sincronizzazione foto movimenti), tabella `sp_device_license` (per la licenza Base/Pro), **le `REVOKE` su sp_sync_status/sp_device_license (v4.7, vedi sopra)**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "sincronizzazione selettiva eventi esterni", "modifica evento", "sincronizzazione foto movimenti" e "richiesta soluzione completa" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)
+- [ ] **NUOVO v4.7 — Impostare `SUPABASE_SERVICE_KEY` su Vercel** (vedi sopra)
 - [ ] **NUOVO v3.7 — Impostare 2 variabili d'ambiente su Vercel** (Project → Settings → Environment Variables), poi rideployare:
   - `ADMIN_PASSWORD` → la password vera del pannello admin (sostituisce quella che prima era in chiaro nel codice)
   - `OWNER_DEVICE_SECRET` → il codice segreto da inserire UNA VOLTA in Impostazioni → Avanzate sui tuoi device, per marcarli come "proprietario" (eventi sempre sincronizzati)
