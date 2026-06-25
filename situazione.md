@@ -47,7 +47,7 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 ├── evento.html          v4.5  Pagina evento: tab Movimenti / Saldi / Partecipanti
 ├── spesa.html            v3.5 Registrazione / visualizzazione movimento, foto sincronizzata
 ├── impostazioni.html    v4.5   Impostazioni: tema, metodi pagamento, dispositivo proprietario, licenza Base/Pro, link Admin
-├── admin.html           v1.7   Pannello admin/debug — password verificata lato server + gestione sync esterni (Fase 3 licenza: ancora da fare)
+├── admin.html           v1.8   Pannello admin/debug — password verificata lato server + gestione sync esterni + licenza Pro
 ├── sw.js                v4.5   Service Worker (CACHE_NAME: wego-v4.5) — esclude /api/* dalla cache
 ├── manifest.json        v4.5   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
@@ -344,9 +344,19 @@ record locale esistente prima di applicare i valori remoti).
   nota libera (precompilata col nickname) + codice dispositivo copiabile; dopo l'abilitazione
   la riga diventa informativa e mostra la scadenza ("Valida fino al…" o "Nessuna scadenza")
 
-### Fase 3 — Pannello Admin (DA FARE)
-- `admin.html`: sezione "Soluzione completa" — lista richieste pendenti/abilitate, bottone
-  Abilita (con campo data "fino al") / Disabilita
+### Fase 3 — Pannello Admin (FATTA, admin.html v1.8)
+- Nuova sezione "Soluzione completa (Pro)" in `admin.html`, stesso identico pattern della
+  sezione "Sincronizzazione eventi esterni" già esistente: campo per inserire un `device_id`
+  (anche manualmente, non serve un'attesa richiesta) + campo data "fino al" (**obbligatorio**,
+  bottone rapido "Usa senza scadenza (31/12/2099)", default precompilato a un anno da oggi) +
+  bottone Abilita; lista sotto con tutti i dispositivi registrati (in attesa / Pro attivo con
+  scadenza mostrata / Pro scaduto) e bottone Abilita-rapido o Disabilita per ciascuno
+- Tutte le scritture passano da `/api/device-license.js` (password admin verificata lato
+  server, stesso meccanismo di `/api/sync-status.js`) — `AdminGate.password` già gestito dal
+  resto della pagina, nessuna modifica lì necessaria
+- **Disabilitare un dispositivo Pro qui NON cancella ancora nulla** (nessun evento toccato):
+  la pulizia con scelta dell'utente (Fase 4) non è ancora implementata, il dialog di conferma
+  lo dice esplicitamente
 
 ### Fase 4 — Downgrade Pro→Base (disabilitazione o scadenza) (DA FARE)
 Logica concordata col cliente (non ancora implementata):
@@ -397,6 +407,7 @@ Logica concordata col cliente (non ancora implementata):
 | v4.3 | **NUOVA FUNZIONALITÀ — sincronizzazione foto movimenti** (tabella `sp_expense_photos`, doppia compressione, permesso limitato al creatore). **Fix generalizzato del bug updated_at**: lo stesso problema del v4.1 (limitato a `events.save()`) era presente anche in `put()` a livello generico — che con la sua sovrascrittura incondizionata aveva di fatto NEUTRALIZZATO il fix v4.1 — e in `users.save()`/`expenses.save()`/`payments.save()`. Tutti corretti. **Fix `created_by` sovrascritto**: modificare un movimento esistente reimpostava sempre `created_by` a chi stava modificando in quel momento, anche se diverso dal creatore originale — avrebbe reso inutile il controllo permessi sulla foto al primo intervento di un'altra persona (es. il creatore dell'evento). Ora preservato |
 | v4.4 | **NUOVA FUNZIONALITÀ — Fase 1 licenza Base/Pro** (vedi §5bis): nuovo file `license.js`; nuovo campo locale `events.is_mine` (db.js); limite di 1 evento totale e 15 partecipanti per i device in versione Base (default per tutti, finché non implementate le Fasi 2/3 di abilitazione); sincronizzazione foto (copertina evento + movimenti) completamente disattivata per la versione Base, in entrambe le direzioni; bottone foto movimento in `spesa.html` reso visibile-ma-disattivato (badge "PRO") invece che nascosto |
 | v4.5 | **NUOVA FUNZIONALITÀ — Fase 2 licenza Base/Pro** (vedi §5bis): tabella `sp_device_license` + nuova funzione serverless `/api/device-license.js` (stesso pattern di `/api/sync-status.js`); `supabase.js` → namespace `deviceLicense`; `license.js` → `requestPro()`/`checkRemoteStatus()` (riusa `Utils.getDeviceId()` già esistente, non ne crea uno nuovo); `sync.js` → verifica periodica licenza ad ogni push; nuova riga "Richiedi soluzione completa" in Impostazioni → Avanzate. **Ancora SOLO infrastruttura**: l'abilitazione vera e propria si fa per ora a mano su Supabase (Fase 3 = pannello Admin, Fase 4 = gestione del downgrade) |
+| admin.html v1.8 | **NUOVA FUNZIONALITÀ — Fase 3 licenza Base/Pro** (vedi §5bis): nuova sezione "Soluzione completa (Pro)" in admin.html — abilitazione/disabilitazione dispositivi con data di scadenza obbligatoria, lista dispositivi registrati. Nessun impatto sulla versione globale dell'app (solo admin.html è cambiato) |
 
 ---
 
@@ -465,9 +476,9 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 
 ## 11. Cose da fare / lavori futuri — PRIORITÀ
 
-### 🆕 Licenza Base/Pro — Fasi 3/4 (DA FARE, vedi §5bis per il dettaglio completo — Fase 2 FATTA in v4.5)
-- [ ] Fase 3: sezione "Soluzione completa" in `admin.html` (lista richieste, abilita con data di scadenza, disabilita) — fino a quando non è pronta, l'abilitazione va fatta a mano direttamente su Supabase (tabella `sp_device_license`) o chiamando `/api/device-license.js` con un client REST (es. Postman/curl)
+### 🆕 Licenza Base/Pro — Fase 4 (DA FARE, vedi §5bis per il dettaglio completo — Fasi 1/2/3 FATTE in v4.4 / v4.5 / admin.html v1.8)
 - [ ] Fase 4: schermata bloccante di downgrade Pro→Base (scelta utente: mantieni 1 evento / richiedi nuova abilitazione), badge "Pro N" in home
+- [ ] Nota: oggi l'abilitazione/disabilitazione da admin.html funziona già (Fase 3), ma disabilitare o lasciare scadere un dispositivo Pro NON pulisce ancora gli eventi in eccesso — resta solo il cambio di tier locale (vedi `license.js` → `checkRemoteStatus()`). La pulizia con scelta dell'utente è proprio l'oggetto della Fase 4
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
 - [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, tabella `sp_sync_status`, colonna `sp_events.photo`, tabella `sp_expense_photos` (per la sincronizzazione foto movimenti), **tabella `sp_device_license` (NUOVA v4.5, per la licenza Base/Pro)**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "sincronizzazione selettiva eventi esterni", "modifica evento", "sincronizzazione foto movimenti" e "richiesta soluzione completa" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
-  <title>Admin — WeGo v1.7</title>
+  <title>Admin — WeGo v1.8</title>
   <link rel="stylesheet" href="/style.css" />
   <style>
     .admin-section { margin-bottom: 22px; }
@@ -339,6 +339,40 @@
       </div>
     </div>
 
+    <!-- LICENZA PRO (Soluzione completa) -->
+    <div class="admin-section">
+      <div class="section-header"><span class="section-title">Soluzione completa (Pro)</span></div>
+      <div class="admin-group" style="margin-bottom:10px;">
+        <div class="admin-row">
+          <p class="config-note">
+            Versione Base (default): 1 evento, max 15 partecipanti, niente foto sincronizzate.
+            Versione Pro (abilitata qui): fino a 100 eventi creati, 50 partecipanti per evento,
+            foto sincronizzate. Devi <b>sempre indicare una data "fino al"</b> — per
+            un'abilitazione senza scadenza usa una data molto lontana (bottone sotto).
+          </p>
+        </div>
+        <div class="admin-row" style="display:flex;flex-direction:column;gap:8px;">
+          <input type="text" class="form-input" id="enableDeviceId" placeholder="Codice dispositivo (da Impostazioni → Generale, o dalla lista sotto)"
+            style="font-family:monospace;font-size:12.5px;" />
+          <div style="display:flex;gap:8px;">
+            <input type="date" class="form-input" id="enableDeviceUntil" style="flex:1;" />
+            <button class="btn btn--primary" onclick="AdminApp.enableDeviceLicense()" style="flex-shrink:0;">Abilita</button>
+          </div>
+          <button class="btn btn--ghost btn--sm" onclick="AdminApp.setUnlimitedDate()" style="align-self:flex-start;">
+            Usa "senza scadenza" (31/12/2099)
+          </button>
+        </div>
+        <div class="test-result" id="enableDeviceResult"></div>
+      </div>
+      <div class="admin-group">
+        <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:14px;font-weight:600;color:var(--text-primary);">Dispositivi in attesa / abilitati</span>
+          <button class="btn btn--ghost btn--sm" onclick="AdminApp.loadDeviceLicenseList()">Aggiorna</button>
+        </div>
+        <div id="deviceLicenseList"><p class="config-note">Caricamento…</p></div>
+      </div>
+    </div>
+
     <!-- FIREBASE FCM -->
     <div class="admin-section">
       <div class="section-header">
@@ -415,7 +449,7 @@
     <div class="admin-about">
       <div class="admin-about__logo">WG</div>
       <div class="admin-about__title">WeGo</div>
-      <div class="admin-about__ver">Versione 1.7 — Pannello Amministratore</div>
+      <div class="admin-about__ver">Versione 1.8 — Pannello Amministratore</div>
       <div class="admin-about__sep"></div>
       <div class="admin-about__dev">Sviluppato da</div>
       <div class="admin-about__name">Ivo Taffarel</div>
@@ -439,6 +473,17 @@ const AdminApp = {
     AdminApp._checkStatus();
     AdminApp._renderSQL();
     AdminApp.loadSyncStatusList();
+    AdminApp.loadDeviceLicenseList();
+
+    // Default comodo per il campo "fino al": oggi + 1 anno (caso d'uso più
+    // frequente). L'admin può comunque cambiarlo o usare il bottone
+    // "senza scadenza" prima di premere Abilita.
+    const untilInput = document.getElementById('enableDeviceUntil');
+    if (untilInput && !untilInput.value) {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 1);
+      untilInput.value = d.toISOString().slice(0, 10);
+    }
   },
 
   _loadSavedCredentials() {
@@ -621,6 +666,108 @@ const AdminApp = {
             : `<button class="btn btn--primary btn--sm" style="flex-shrink:0;" onclick="AdminApp.enableEventCodeQuick('${item.code}')">Abilita</button>`}
         </div>
       `).join('');
+    } catch (e) {
+      container.innerHTML = `<p class="config-note" style="color:var(--red);">Errore: ${Utils.escapeHtml(e.message)}</p>`;
+    }
+  },
+
+  // ── LICENZA PRO (Soluzione completa) ───────────────────
+  // Tutte le operazioni di scrittura (enable/disable) passano da
+  // /api/device-license.js, che verifica AdminGate.password lato server
+  // contro ADMIN_PASSWORD prima di toccare il database — stesso identico
+  // pattern della sincronizzazione eventi esterni qui sopra.
+  setUnlimitedDate() {
+    document.getElementById('enableDeviceUntil').value = '2099-12-31';
+  },
+
+  async enableDeviceLicense() {
+    const idInput   = document.getElementById('enableDeviceId');
+    const dateInput = document.getElementById('enableDeviceUntil');
+    const deviceId  = idInput.value.trim();
+    const until     = dateInput.value;
+    const el = document.getElementById('enableDeviceResult');
+    if (!deviceId) { Utils.toast('Inserisci il codice dispositivo', 'error'); return; }
+    if (!until)    { Utils.toast('Indica una data "fino al" (anche lontana, per "senza scadenza")', 'error'); return; }
+    el.style.display = 'block'; el.className = 'test-result'; el.textContent = 'Abilitazione in corso…';
+    try {
+      const res = await fetch('/api/device-license', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': AdminGate.password || '' },
+        body:    JSON.stringify({ action: 'enable', device_id: deviceId, expires_at: until })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        el.className = 'test-result ok';
+        el.textContent = `Dispositivo abilitato alla versione Pro fino al ${Utils.formatDate(new Date(until).toISOString())}.`;
+        idInput.value = '';
+        AdminApp.loadDeviceLicenseList();
+      } else {
+        el.className = 'test-result error';
+        el.textContent = data.error || 'Errore abilitazione';
+      }
+    } catch (e) {
+      el.className = 'test-result error';
+      el.textContent = 'Errore di connessione: ' + e.message;
+    }
+  },
+
+  async enableDeviceLicenseQuick(deviceId) {
+    document.getElementById('enableDeviceId').value = deviceId;
+    document.getElementById('enableDeviceUntil').focus();
+    Utils.toast('Imposta la data "fino al" e premi Abilita', 'info', 3500);
+  },
+
+  async disableDeviceLicense(deviceId) {
+    if (!confirm('Disabilitare la versione Pro per questo dispositivo?\n\nTorna alla versione Base (max 1 evento). Gli eventi/dati già presenti NON vengono toccati in questa fase: la pulizia automatica con scelta dell\'utente arriva in una fase successiva.')) return;
+    try {
+      const res = await fetch('/api/device-license', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': AdminGate.password || '' },
+        body:    JSON.stringify({ action: 'disable', device_id: deviceId })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) { Utils.toast('Versione Pro disabilitata', 'success'); AdminApp.loadDeviceLicenseList(); }
+      else Utils.toast(data.error || 'Errore disabilitazione', 'error');
+    } catch (e) { Utils.toast('Errore: ' + e.message, 'error'); }
+  },
+
+  async loadDeviceLicenseList() {
+    const container = document.getElementById('deviceLicenseList');
+    if (!container) return;
+    container.innerHTML = '<p class="config-note">Caricamento…</p>';
+    try {
+      const res = await fetch('/api/device-license', {
+        headers: { 'x-admin-password': AdminGate.password || '' }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !Array.isArray(data.items)) {
+        container.innerHTML = `<p class="config-note" style="color:var(--red);">Errore caricamento: ${Utils.escapeHtml(data.error || String(res.status))}</p>`;
+        return;
+      }
+      if (!data.items.length) {
+        container.innerHTML = '<p class="config-note">Nessun dispositivo registrato.</p>';
+        return;
+      }
+      const now = Date.now();
+      container.innerHTML = data.items.map(item => {
+        const isActive = !!(item.enabled && item.expires_at && new Date(item.expires_at).getTime() > now);
+        const farFuture = item.expires_at && (new Date(item.expires_at).getFullYear() > new Date().getFullYear() + 20);
+        const expLabel  = item.expires_at ? (farFuture ? 'nessuna scadenza' : ('fino al ' + Utils.formatDate(item.expires_at))) : '';
+        const statusTxt = isActive ? `Pro · ${expLabel}` : (item.enabled ? 'Pro scaduto' : 'in attesa');
+        return `
+        <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div style="min-width:0;">
+            <div style="font-size:12.5px;font-weight:700;font-family:monospace;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:175px;" title="${Utils.escapeHtml(item.device_id)}">${Utils.escapeHtml(item.device_id)}</div>
+            <div style="font-size:12.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">
+              ${Utils.escapeHtml(item.label || 'Senza nota')} · ${statusTxt}
+            </div>
+          </div>
+          ${isActive
+            ? `<button class="btn btn--ghost btn--sm" style="color:var(--red);flex-shrink:0;" onclick="AdminApp.disableDeviceLicense('${item.device_id}')">Disabilita</button>`
+            : `<button class="btn btn--primary btn--sm" style="flex-shrink:0;" onclick="AdminApp.enableDeviceLicenseQuick('${item.device_id}')">Abilita</button>`}
+        </div>
+      `;
+      }).join('');
     } catch (e) {
       container.innerHTML = `<p class="config-note" style="color:var(--red);">Errore: ${Utils.escapeHtml(e.message)}</p>`;
     }
