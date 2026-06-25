@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — utils.js v1.2
+// WeGo — utils.js v1.3
 // Funzioni di utilità condivise da tutti i moduli
+// v1.3: calculateBalances() — nuovo ramo per il tipo 'cashier'
+//       ("+Cassiere", spesa.html/spesa.js): si comporta come una spesa
+//       normale (paid_by = "A" il cassiere, participants = "Da" chi
+//       versa, importo diviso tra loro) ma con il segno OPPOSTO —
+//       il cassiere riceve quindi va in debito (-importo), chi versa
+//       va in credito (+quota) — vedi situazione.md
 // ═══════════════════════════════════════════════════════════════
 
 const Utils = {
@@ -517,6 +523,23 @@ const Utils = {
       if (exp.type === 'transfer') {
         balances[exp.paid_by]  = (balances[exp.paid_by]  || 0) + parseFloat(exp.amount);
         balances[exp.paid_for] = (balances[exp.paid_for] || 0) - parseFloat(exp.amount);
+        continue;
+      }
+
+      // "+Cassiere": funziona esattamente come una spesa (paid_by = "A"
+      // il cassiere, participants = "Da" chi versa, importo diviso tra
+      // loro) ma con il segno OPPOSTO rispetto a una spesa normale —
+      // il cassiere INCASSA quindi va in debito (-importo, dovrà
+      // restituirlo/spenderlo per il gruppo), chi versa va in credito
+      // (+quota, ha tirato fuori soldi di tasca propria).
+      if (exp.type === 'cashier') {
+        const cashierParts = exp.participants || [];
+        if (cashierParts.length === 0) continue;
+        const cashierShare = parseFloat(exp.amount) / cashierParts.length;
+        balances[exp.paid_by] = (balances[exp.paid_by] || 0) - parseFloat(exp.amount);
+        cashierParts.forEach(uid => {
+          balances[uid] = (balances[uid] || 0) + cashierShare;
+        });
         continue;
       }
 

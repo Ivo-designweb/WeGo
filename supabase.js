@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.9
+// WeGo — supabase.js v1.10
 // Client Supabase — lettura config da localStorage
+// v1.10: FIX CRITICO — expenses.update() non inviava i campi "type" e
+//        "paid_for" nel PATCH: cambiare il tipo di un movimento
+//        esistente (es. Spesa → Trasf.) sembrava non salvarsi, perché
+//        il pull successivo riscriveva sopra col vecchio type rimasto
+//        sul server. Aggiunti entrambi i campi. Nessuna nuova colonna
+//        SQL necessaria per "+Cassiere" (vedi spesa.js/evento.js): è
+//        solo un nuovo valore della colonna "type" già esistente
+//        (VARCHAR, nessun vincolo CHECK).
 // v1.9: fix licenza foto per-evento — events.create()/update() inviano
 //       ora anche photo_sync_enabled (vedi license.js v1.3/sync.js);
 //       nuovi campi expenses.category e expenses.is_forecast (campo
@@ -219,10 +227,18 @@ const SupabaseClient = (() => {
 
     async update(expense) {
       return request('PATCH', `sp_expenses?id=eq.${expense.id}`, {
+        // FIX v1.10: "type" e "paid_for" mancavano qui (erano presenti
+        // solo in create()) — cambiare il tipo di un movimento esistente
+        // (es. Spesa → Trasf. / +Cassiere) non veniva mai inviato al
+        // server: il pull successivo lo sovrascriveva col vecchio valore
+        // rimasto su Supabase, dando l'impressione che il salvataggio
+        // non avesse effetto.
+        type:           expense.type || 'expense',
         title:          expense.title,
         description:    expense.description,
         amount:         expense.amount,
         paid_by:        expense.paid_by,
+        paid_for:       expense.paid_for || null,
         participants:   expense.participants,
         payment_method: expense.payment_method,
         category:       expense.category || null,

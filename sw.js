@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v4.8
+// WeGo — sw.js v4.9
 // Service Worker — cache offline + background sync
+// v4.9: nessuna modifica alla lista di precache — nuovo terzo tipo
+//       movimento "+Cassiere" (versamento alla cassa comune, segno
+//       opposto a una spesa nei saldi/totali), bottone "Trasf." (ex
+//       "Mov. cassa"), fix bug type/paid_for non salvati in modifica
+//       movimento (supabase.js v1.10), tutto interno ai file già
+//       precaricati
 // v4.8: nessuna modifica alla lista di precache — campo "Previsione" e
 //       "Tipo" (categoria spesa) nel form movimento, 4 totali in alto
 //       nei movimenti (Totale/Previsione/Spese/Pro capite), colonna
@@ -23,7 +29,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v4.8';
+const CACHE_NAME = 'wego-v4.9';
 
 const STATIC_ASSETS = [
   '/',
@@ -48,7 +54,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v4.8');
+  console.log('[SW] Install v4.9');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -74,7 +80,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v4.8');
+  console.log('[SW] Activate v4.9');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

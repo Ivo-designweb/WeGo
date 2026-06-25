@@ -1,6 +1,25 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.16
+// WeGo — evento.js v2.17
 // Logica pagina dettaglio evento
+// v2.17: NUOVO terzo tipo movimento "+Cassiere" (type:'cashier', vedi
+//        spesa.html/spesa.js v2.5): si comporta come una spesa normale
+//        (paid_by = "A" il cassiere, participants = "Da" chi versa,
+//        diviso tra loro) ma con il segno OPPOSTO nei saldi (vedi
+//        utils.js v1.3 calculateBalances) — il cassiere va in debito,
+//        chi versa va in credito. Considerato come un movimento
+//        normale anche nei 4 totali di Movimenti: il suo importo viene
+//        SOTTRATTO da "Spese"/"Totale"/"Pro capite" invece che
+//        sommato (è cassa che rientra nel gruppo, non una spesa reale —
+//        evita il doppio conteggio quando il cassiere la spenderà poi
+//        per una spesa vera). Stesso trattamento nel riepilogo
+//        condivisibile (shareRiepilogo) e nel calcolo "Versato"/
+//        "Incassato" (_calcUserContribution): chi versa conta come
+//        "transfersOut" (la propria quota), il cassiere come
+//        "transfersIn" (l'intero importo) — stesso schema già usato
+//        per "Trasf.". Badge verde "cassiere" nell'elenco movimenti,
+//        analogo a quello arancione "previsione". NON compare in
+//        "Pagamenti tra utenti" (quella sezione assume una coppia
+//        singola Da→A, qui "Da" può essere più persone).
 // v2.16: campo "Previsione" — escluso da _calcBalances() (mai diviso/
 //        conteggiato nei saldi); 4 totali in alto (Totale/Previsione/
 //        Spese/Pro capite, Pro capite invariato: Spese ÷ partecipanti);
@@ -339,13 +358,18 @@ const EventoApp = {
     // Le spese di tipo 'expense' si dividono in reali e "Previsione" (non
     // vanno divise né contano nei saldi/pro capite — vedi spesa.js
     // toggleForecast() e _renderSaldi() più sotto). I trasferimenti non
-    // contano in nessuno dei 4 totali.
+    // contano in nessuno dei 4 totali. "+Cassiere" invece conta come un
+    // movimento normale ma con segno OPPOSTO (vedi situazione.md): il suo
+    // importo viene SOTTRATTO da Spese/Totale/Pro capite invece che
+    // sommato — è cassa che rientra nel gruppo, non una spesa reale.
     const expenseTypeOnly = expenses.filter(e => (e.type || 'expense') === 'expense');
+    const cashierMovements = expenses.filter(e => e.type === 'cashier');
     const forecastExpenses    = expenseTypeOnly.filter(e => e.is_forecast);
     const nonForecastExpenses = expenseTypeOnly.filter(e => !e.is_forecast);
 
     const forecastTotale = forecastExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const speseTotale    = nonForecastExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    const cashierTotale  = cashierMovements.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    const speseTotale    = nonForecastExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0) - cashierTotale;
     const totaleGenerale = speseTotale + forecastTotale;
     const count           = nonForecastExpenses.length;
 
@@ -380,7 +404,7 @@ const EventoApp = {
 
     for (const exp of expenses) {
       movements.push({
-        kind:    (exp.type === 'transfer') ? 'transfer' : 'expense',
+        kind:    (exp.type === 'transfer') ? 'transfer' : (exp.type === 'cashier') ? 'cashier' : 'expense',
         id:      exp.id,
         date:    exp.date || Utils.formatDate(exp.created_at),
         created: exp.created_at || '',
@@ -488,7 +512,7 @@ const EventoApp = {
             <div class="avatar avatar-${idx} avatar--sm">${from ? Utils.initials(from.name) : '?'}</div>
           </div>
           <div class="exp-info">
-            <div class="exp-title">${Utils.escapeHtml(m.data.title || 'Movimento cassa')}</div>
+            <div class="exp-title">${Utils.escapeHtml(m.data.title || 'Trasferimento')}</div>
             <div class="exp-meta">
               <span class="exp-badge">trasferimento</span>
               <span class="exp-meta-txt">${fromName} → ${toName}</span>${syncBadge}
@@ -496,6 +520,39 @@ const EventoApp = {
           </div>
           <div class="exp-amount">
             <div class="exp-amount__val">${amountStr}</div>
+          </div>
+        </div>`;
+    }
+
+    // ── "+CASSIERE" (versamento alla cassa comune) ──
+    // Stessa forma dati di una spesa (paid_by = "A" il cassiere,
+    // participants = "Da" chi versa) ma segno opposto nei saldi — vedi
+    // utils.js calculateBalances(). Badge verde, analogo a quello
+    // arancione "previsione".
+    if (m.kind === 'cashier') {
+      const cashierExp = m.data;
+      const cashier    = userMap[cashierExp.paid_by];
+      const cashierIdx = cashier ? Utils.avatarColorIndex(cashier.name) : 0;
+      const cashierInit = cashier ? Utils.initials(cashier.name) : '?';
+      const nDepositors = (cashierExp.participants || []).length;
+      const syncBadge = cashierExp.synced === false ? `<span class="exp-badge exp-badge--sync">sync</span>` : '';
+      const cashierBadge = `<span class="exp-badge" style="color:var(--green);background:rgba(16,185,129,0.12);">cassiere</span>`;
+      return `
+        <div class="exp-item" onclick="EventoApp.editExpense('${cashierExp.id}')">
+          <div class="exp-avatar">
+            <div class="avatar avatar-${cashierIdx} avatar--sm" title="${cashier ? Utils.escapeHtml(cashier.name) : '?'}">${cashierInit}</div>
+          </div>
+          <div class="exp-info">
+            <div class="exp-title">${Utils.escapeHtml(cashierExp.title || 'Versamento cassiere')}</div>
+            <div class="exp-meta">
+              ${cashierBadge}
+              ${cashier ? `<span class="exp-meta-txt">A: ${Utils.escapeHtml(cashier.name)}</span>` : ''}
+              ${nDepositors ? `<span class="exp-meta-txt">· versato da ${nDepositors}</span>` : ''}
+              ${syncBadge}
+            </div>
+          </div>
+          <div class="exp-amount">
+            <div class="exp-amount__val" style="color:var(--green);">${amountStr}</div>
           </div>
         </div>`;
     }
@@ -558,6 +615,16 @@ const EventoApp = {
       if (exp.type === 'transfer') {
         if (exp.paid_by  === userId) transfersOut += amount;
         if (exp.paid_for === userId) transfersIn  += amount;
+      } else if (exp.type === 'cashier') {
+        // Chi versa ("Da", i participants) conta come "transfersOut" per
+        // la propria quota; il cassiere ("A", paid_by) conta come
+        // "transfersIn" per l'intero importo — stesso schema di "Trasf.",
+        // solo che qui può versare più di una persona insieme.
+        const parts = exp.participants || [];
+        if (parts.length > 0 && parts.includes(userId)) {
+          transfersOut += amount / parts.length;
+        }
+        if (exp.paid_by === userId) transfersIn += amount;
       } else {
         if (exp.paid_by === userId) paidExpenses += amount;
       }
@@ -763,7 +830,7 @@ const EventoApp = {
       }
     }
 
-    // Pagamenti tra utenti (movimenti tipo 'transfer' = Mov. cassa) — SEMPRE VISIBILE
+    // Pagamenti tra utenti (movimenti tipo 'transfer' = Trasf.) — SEMPRE VISIBILE
     const transferPayments = EventoApp._expenses.filter(e => e.type === 'transfer');
     const cassaList    = document.getElementById('cassaList');
 
@@ -786,7 +853,7 @@ const EventoApp = {
                   </svg>
                   <b>${Utils.escapeHtml(toName)}</b>
                 </div>
-                <div class="settled-meta">${Utils.escapeHtml(t.title || 'Mov. cassa')} · ${Utils.formatDate(t.date)}</div>
+                <div class="settled-meta">${Utils.escapeHtml(t.title || 'Trasferimento')} · ${Utils.formatDate(t.date)}</div>
               </div>
               <div class="settled-amount">${Utils.formatAmount(t.amount, currency)}</div>
             </div>`;
@@ -1188,7 +1255,9 @@ const EventoApp = {
 
     // Le "Previsione" non vanno mai divise né conteggiate (stesso criterio
     // di _calcBalances() — vedi situazione.md): escluse anche qui.
-    const realExpenses = expenses.filter(e => e.type !== 'transfer' && !e.is_forecast);
+    // "+Cassiere" gestito a parte, con segno invertito (vedi sotto).
+    const realExpenses    = expenses.filter(e => e.type !== 'transfer' && e.type !== 'cashier' && !e.is_forecast);
+    const cashierMovements = expenses.filter(e => e.type === 'cashier');
 
     realExpenses.forEach(exp => {
       const amount = parseFloat(exp.amount) || 0;
@@ -1199,13 +1268,28 @@ const EventoApp = {
         balances[uid] = (balances[uid] || 0) - share;
       });
     });
+    // "+Cassiere": stesso meccanismo, segno opposto — il cassiere
+    // (paid_by) va in debito, chi versa (participants) va in credito.
+    cashierMovements.forEach(exp => {
+      const amount = parseFloat(exp.amount) || 0;
+      const nPart  = (exp.participants || []).length || 1;
+      const share  = amount / nPart;
+      if (exp.paid_by) balances[exp.paid_by] = (balances[exp.paid_by] || 0) - amount;
+      (exp.participants || []).forEach(uid => {
+        balances[uid] = (balances[uid] || 0) + share;
+      });
+    });
     payments.forEach(p => {
       balances[p.from_user] = (balances[p.from_user] || 0) + parseFloat(p.amount);
       balances[p.to_user]   = (balances[p.to_user]   || 0) - parseFloat(p.amount);
     });
 
     const txs    = Utils.calculateMinimalTransactions(balances, usersMap);
-    const totale = realExpenses.reduce((s, e) => s + parseFloat(e.amount), 0);
+    // Totale netto: spese reali meno i versamenti al cassiere (cassa che
+    // rientra nel gruppo, non una spesa reale — evita il doppio conteggio
+    // quando il cassiere la spenderà poi per una spesa vera).
+    const cashierTotale = cashierMovements.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    const totale = realExpenses.reduce((s, e) => s + parseFloat(e.amount), 0) - cashierTotale;
 
     let text = '📊 Riepilogo WeGo — ' + (ev?.title || 'Evento') + '\n';
     text += 'Totale: ' + Utils.formatAmount(totale, cur) + ' · ' + realExpenses.length + ' spese\n\n';

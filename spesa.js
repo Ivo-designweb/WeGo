@@ -1,6 +1,19 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v2.4
+// WeGo — spesa.js v2.5
 // Logica pagina inserimento / modifica spesa
+// v2.5: NUOVO terzo tipo "+Cassiere" (setType('cashier')) — usa la
+//       STESSA sezione/i campi della Spesa (paid_by + participants[])
+//       ma con etichette invertite: "A:" (chi riceve, ex "Paga:") e
+//       "Da *" (chi versa e si divide l'importo, ex "Divide tra *").
+//       Saldo calcolato da Utils.calculateBalances() con segno OPPOSTO
+//       a una spesa normale (vedi utils.js v1.3): il cassiere va in
+//       debito, chi versa va in credito. GPS/Foto/Tipo/Previsione
+//       nascosti come per "Trasf.". FIX: il checkbox nativo
+//       dell'interruttore "Previsione" in _activateViewMode() veniva
+//       reso parzialmente visibile (opacity 0.8 sovrascriveva lo
+//       opacity:0 di .toggle input via CSS), apparendo "fuori posto"
+//       quando si apriva un movimento esistente — ora viene escluso
+//       esplicitamente dal reset di opacità generico.
 // v2.4: campo "Previsione" (toggle, solo tipo Spesa) — etichetta
 //       Descrizione diventa "PREVISIONE" in arancione, "Divide tra"
 //       disattivato (vedi toggleForecast/_setDivideTraEnabled);
@@ -28,7 +41,7 @@ const SpesaApp = {
   _viewMode:     false,  // true = sola lettura (aperto da lista movimenti)
   _event:        null,
   _users:        [],
-  _type:         'expense',   // 'expense' | 'transfer'
+  _type:         'expense',   // 'expense' | 'transfer' | 'cashier'
   _isForecast:   false,       // true = "Previsione" — non va divisa, non conta nei saldi
   _location:     null,        // { lat, lng, address }
   _photo:        null,        // base64 — qualità alta, resta solo su questo device
@@ -149,6 +162,19 @@ const SpesaApp = {
       el.disabled = true;
       el.style.pointerEvents = 'none';
       el.style.opacity = '0.8';
+    });
+
+    // FIX: la riga sopra impostava opacity:0.8 inline anche sulla
+    // checkbox NATIVA dell'interruttore "Previsione" (#forecastToggle,
+    // selettore generico "input") — quella checkbox va invece SEMPRE
+    // mantenuta invisibile (opacity:0, vedi style.css ".toggle input"),
+    // perché l'aspetto dell'interruttore è disegnato dal solo
+    // ".toggle-slider" accanto. Lo stile inline ha priorità sulla
+    // classe CSS, quindi la checkbox "ricompariva" sovrapposta allo
+    // slider, fuori posizione, ogni volta che si apriva un movimento
+    // esistente. La ripristiniamo qui, subito dopo il reset generico.
+    document.querySelectorAll('.toggle input').forEach(el => {
+      el.style.opacity = '0';
     });
 
     // Nasconde saveBtn (header) e saveSpeaBtn (accanto alle note)
@@ -323,39 +349,56 @@ const SpesaApp = {
 
     const btnExp  = document.getElementById('typeExpense');
     const btnTr   = document.getElementById('typeTransfer');
+    const btnCash = document.getElementById('typeCashier');
     const secExp  = document.getElementById('sectionExpense');
     const secTr   = document.getElementById('sectionTransfer');
 
     btnExp.classList.toggle('active',          type === 'expense');
     btnTr.classList.toggle('active-transfer',  type === 'transfer');
     btnTr.classList.toggle('active',           false);
-    secExp.style.display  = type === 'expense'  ? '' : 'none';
+    if (btnCash) btnCash.classList.toggle('active-cashier', type === 'cashier');
+
+    // "+Cassiere" usa la STESSA sezione della Spesa (paid_by + participants),
+    // solo con le etichette invertite (vedi sotto) — non quella di Trasf.
+    secExp.style.display  = (type === 'expense' || type === 'cashier') ? '' : 'none';
     secTr.style.display   = type === 'transfer' ? '' : 'none';
 
-    // Nascondi GPS e foto per Mov. cassa: non pertinenti
+    // Etichette "Paga:"/"Divide tra *" → "A:"/"Da *" per "+Cassiere": è
+    // il cassiere che RICEVE (campo "A", ex paid_by) mentre gli altri
+    // utenti VERSANO e si dividono l'importo (campo "Da *", ex
+    // participants) — stesso identico meccanismo della Spesa, solo
+    // segno del saldo invertito (vedi utils.js calculateBalances).
+    const paidByLabel    = document.getElementById('paidByLabel');
+    const divideTraLabel = document.getElementById('divideTraLabel');
+    if (paidByLabel)    paidByLabel.textContent    = type === 'cashier' ? 'A:'     : 'Paga:';
+    if (divideTraLabel) divideTraLabel.textContent = type === 'cashier' ? 'Da *'   : 'Divide tra *';
+
+    // Nascondi GPS e foto per Trasf./+Cassiere: non pertinenti, non sono
+    // uno scontrino/spesa reale.
     const gpsCard   = document.getElementById('locationBar')?.closest('.form-card');
     const photoCard = document.getElementById('photoInput')?.closest('.form-card');
-    if (gpsCard)   gpsCard.style.display   = type === 'transfer' ? 'none' : '';
-    if (photoCard) photoCard.style.display = type === 'transfer' ? 'none' : '';
+    if (gpsCard)   gpsCard.style.display   = type === 'expense' ? '' : 'none';
+    if (photoCard) photoCard.style.display = type === 'expense' ? '' : 'none';
 
-    // Previsione e Tipo: solo per "Spesa", non per "Mov. cassa" (un
-    // trasferimento è cassa reale, non una previsione/categoria di spesa).
+    // Previsione e Tipo: solo per "Spesa", non per "Trasf."/"+Cassiere"
+    // (un trasferimento o un versamento al cassiere sono cassa reale,
+    // non una previsione/categoria di spesa).
     const forecastRow = document.getElementById('forecastRow');
     const categoryRow = document.getElementById('categoryRow');
     if (forecastRow) forecastRow.style.display = type === 'expense' ? '' : 'none';
     if (categoryRow) categoryRow.style.display = type === 'expense' ? '' : 'none';
-    if (type === 'transfer' && SpesaApp._isForecast) {
-      // Si passa a Mov. cassa con Previsione attiva: la disattiviamo, non
-      // avrebbe senso lasciarla "appesa" su un movimento di cassa.
+    if (type !== 'expense' && SpesaApp._isForecast) {
+      // Si passa a Trasf./+Cassiere con Previsione attiva: la disattiviamo,
+      // non avrebbe senso lasciarla "appesa" su un movimento di cassa.
       const toggle = document.getElementById('forecastToggle');
       if (toggle) toggle.checked = false;
       SpesaApp.toggleForecast(false);
     }
 
     SpesaApp._setPageTitle(
-      type === 'expense'
-        ? (SpesaApp._expenseId ? 'Modifica spesa' : 'Nuova spesa')
-        : 'Movimento cassa'
+      type === 'expense'  ? (SpesaApp._expenseId ? 'Modifica spesa' : 'Nuova spesa') :
+      type === 'cashier'  ? (SpesaApp._expenseId ? 'Modifica versamento' : 'Nuovo versamento cassiere') :
+      'Trasferimento'
     );
   },
 
@@ -687,8 +730,11 @@ const SpesaApp = {
       return false;
     }
 
-    if (SpesaApp._type === 'expense' && !SpesaApp._isForecast && SpesaApp._selectedPart.size === 0) {
-      Utils.toast('Seleziona almeno un partecipante', 'error');
+    if ((SpesaApp._type === 'expense' || SpesaApp._type === 'cashier') && !SpesaApp._isForecast && SpesaApp._selectedPart.size === 0) {
+      Utils.toast(
+        SpesaApp._type === 'cashier' ? 'Seleziona almeno chi versa ("Da")' : 'Seleziona almeno un partecipante',
+        'error'
+      );
       return false;
     }
 
@@ -715,6 +761,7 @@ const SpesaApp = {
 
     try {
       const isTransfer = SpesaApp._type === 'transfer';
+      const isCashier  = SpesaApp._type === 'cashier';
       const amount     = Utils.parseAmount(document.getElementById('expenseAmount').value);
       const title      = document.getElementById('expenseTitle').value.trim();
       const date       = document.getElementById('expenseDate').value || Utils.today();
@@ -724,7 +771,7 @@ const SpesaApp = {
 
       const paidBy = isTransfer
         ? document.getElementById('transferFrom').value
-        : document.getElementById('expensePaidBy').value;
+        : document.getElementById('expensePaidBy').value; // per "+Cassiere": campo "A" (il cassiere)
 
       const paidFor = isTransfer
         ? document.getElementById('transferTo').value
@@ -732,6 +779,8 @@ const SpesaApp = {
 
       // Previsione: non va divisa, quindi nessun partecipante anche se la
       // griglia ne ha ancora alcuni selezionati da prima del toggle.
+      // "+Cassiere": i partecipanti sono il campo "Da" (chi versa e si
+      // divide l'importo) — stesso meccanismo della Spesa, mai forzato a [].
       const participants = (isTransfer || SpesaApp._isForecast)
         ? []
         : Array.from(SpesaApp._selectedPart);
@@ -747,8 +796,13 @@ const SpesaApp = {
         paid_for:       paidFor,
         participants,
         payment_method: method,
-        category:       isTransfer ? null : category,
-        is_forecast:    !isTransfer && SpesaApp._isForecast,
+        // Categoria (Tipo) e Previsione: solo per il tipo "Spesa" — per
+        // Trasf./+Cassiere restano sempre null/false anche se la select
+        // categoria avesse ancora un valore residuo da prima del cambio
+        // tipo (la riga è nascosta, ma il valore selezionato resterebbe
+        // nel DOM finché non si ricarica la pagina).
+        category:       (isTransfer || isCashier) ? null : category,
+        is_forecast:    (!isTransfer && !isCashier) && SpesaApp._isForecast,
         date,
         location:       SpesaApp._location,
         has_photo:      !!SpesaApp._photo,

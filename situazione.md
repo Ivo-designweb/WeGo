@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v4.8 (v3.6 per spesa.html/spesa.js) — Aggiornato: 25 giugno 2026**
+**Versione corrente: v4.9 (v3.7 per spesa.html/spesa.js) — Aggiornato: 26 giugno 2026**
 
 ---
 
@@ -43,23 +43,23 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v4.8   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo
-├── evento.html          v4.8  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev.
-├── spesa.html            v3.6 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata
-├── impostazioni.html    v4.8   Impostazioni: tema, metodi pagamento, categorie spesa, dispositivo proprietario, licenza Base/Pro, link Admin
+├── index.html          v4.9   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo
+├── evento.html          v4.9  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev.
+├── spesa.html            v3.7 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere"
+├── impostazioni.html    v4.9   Impostazioni: tema, metodi pagamento, categorie spesa, dispositivo proprietario, licenza Base/Pro, link Admin
 ├── admin.html           v1.8   Pannello admin/debug — password verificata lato server + gestione sync esterni + licenza Pro
-├── sw.js                v4.8   Service Worker (CACHE_NAME: wego-v4.8) — esclude /api/* dalla cache
-├── manifest.json        v4.8   PWA manifest
+├── sw.js                v4.9   Service Worker (CACHE_NAME: wego-v4.9) — esclude /api/* dalla cache
+├── manifest.json        v4.9   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.16 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro completa, fix photo_sync_enabled per-evento
-├── evento.js             v2.16 Logica pagina evento: movimenti, saldi (con Prev.), partecipanti, ricerca, foto, 4 totali, gate downgrade
-├── spesa.js               v2.4 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, fix licenza foto per-evento
+├── evento.js             v2.17 Logica pagina evento: movimenti, saldi (con Prev. e "+Cassiere"), partecipanti, ricerca, foto, 4 totali, gate downgrade
+├── spesa.js               v2.5 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", fix licenza foto per-evento
 ├── license.js             v1.3 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() (fix foto per-evento)
 ├── sync.js                v1.9 Sincronizzazione bidirezionale + gating eventi esterni + foto movimenti PER EVENTO + verifica periodica licenza
-├── supabase.js            v1.9 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast, events.photo_sync_enabled
+├── supabase.js            v1.10 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast, events.photo_sync_enabled, FIX type/paid_for in update()
 ├── db.js                  v1.7 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast
-├── utils.js               v1.2 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId…)
+├── utils.js               v1.3 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier')
 ├── payments.js            v1.1 Metodi di pagamento + NUOVO ExpenseCategories (categorie di spesa, stesso pattern)
 ├── notifications.js      v1.2 Web Push: registrazione + salvataggio sottoscrizione su Supabase (fix mismatch chiave VAPID)
 ├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis e §5quater)
@@ -201,7 +201,7 @@ dalla coda `pending` (usano il flag `synced: false`).
 
 ---
 
-## 5. Funzionalità implementate (stato a v3.6)
+## 5. Funzionalità implementate (stato a v3.7)
 
 ### Home (index.html / app.js)
 - Lista eventi con card; **avatar proprietario a sinistra del titolo** (era a destra e copriva i tre puntini — fix: rimosso `flex:1` dal titolo che lo spingeva comunque a destra anche col nuovo ordine nel DOM)
@@ -519,6 +519,69 @@ cliente per una sessione futura, vedi §11.
 
 ---
 
+## 5sexies. Terzo tipo movimento "+Cassiere" + fix type/paid_for (v4.9 / v3.7 spesa)
+
+### Bottone "+Cassiere" (spesa.html/spesa.js)
+Terza scelta in alto a destra in spesa.html, accanto a "Spesa" e "Trasf." (ex "Mov.
+cassa" — rinominato, icona invariata a sinistra del testo). Usato per registrare un
+versamento di uno o più utenti a un utente che fa da cassa comune/cassiere per
+pagamenti futuri.
+
+- **Stessa identica forma dati di una Spesa** (non del Trasferimento): `paid_by` +
+  `participants[]`, diviso tra loro — riusa la sezione `sectionExpense` già esistente,
+  solo con le etichette invertite: **"A:"** (ex "Paga:", chi RICEVE — il cassiere) e
+  **"Da \*"** (ex "Divide tra \*", chi VERSA e si divide l'importo). Salvato con
+  `type: 'cashier'` (nuovo valore della colonna `type`, già un VARCHAR senza vincoli
+  CHECK — **nessuna migrazione SQL necessaria**).
+- **Segno OPPOSTO a una spesa normale** in `Utils.calculateBalances()` (utils.js
+  v1.3): il cassiere (`paid_by`) va in DEBITO per l'intero importo, chi versa
+  (`participants`) va in CREDITO per la propria quota. Esempio: Marco (cassiere, "A")
+  riceve 90€ da Anna e Luca (45€ a testa, "Da") → saldo Marco **−90€**, saldo Anna
+  **+45€**, saldo Luca **+45€**.
+- **Considerato come un movimento normale nei 4 totali** di Movimenti (decisione
+  esplicita, diversa da "Trasf." che resta escluso): l'importo viene SOTTRATTO da
+  "Spese"/"Totale"/"Pro capite" invece che sommato (è cassa che rientra nel gruppo,
+  non una spesa reale — evita il doppio conteggio quando il cassiere la spenderà poi
+  per una spesa vera). Stesso trattamento nel riepilogo condivisibile
+  (`shareRiepilogo`).
+- **"Versato"/"Incassato"** (Partecipanti, `_calcUserContribution`): chi versa conta
+  come `transfersOut` per la propria quota, il cassiere come `transfersIn` per
+  l'intero importo — stesso schema già usato per "Trasf.", solo che qui possono
+  versare più persone insieme.
+- **NON compare in "Pagamenti tra utenti"** (quella sezione assume una coppia singola
+  Da→A; qui "Da" può essere più persone — resta filtrata solo su `type === 'transfer'`).
+- **Badge verde "cassiere"** nell'elenco Movimenti, stesso pattern del badge arancione
+  "previsione" già esistente. Bottone "+Cassiere" evidenziato in verde quando attivo
+  (`.type-btn.active-cashier`), stesso pattern di Spesa=blu/Trasf.=viola.
+- GPS, Foto, "Tipo" (categoria) e "Previsione" nascosti per "+Cassiere", come già per
+  "Trasf." (non è uno scontrino/spesa reale).
+- I 3 bottoni tipo sono stati compressi (gap/padding/font ridotti) per fare spazio al
+  terzo senza andare a capo.
+
+### Fix critico: `type`/`paid_for` non salvati in modifica movimento
+`SupabaseClient.expenses.update()` (supabase.js) non includeva i campi `type` e
+`paid_for` nel PATCH — erano presenti solo in `create()`. Cambiare il tipo di un
+movimento esistente (es. Spesa → Trasf./+Cassiere) sembrava non avere effetto: il
+salvataggio locale era corretto, ma il pull successivo (`Sync.pullEvent`)
+sovrascriveva col vecchio `type` rimasto sul server. Aggiunti entrambi i campi al
+payload PATCH.
+
+### Altre modifiche minori (spesa.html/spesa.js)
+- Campo "Tipo" (categoria spesa) sotto Importo: select ristretta (non più `flex:1`),
+  più corta, subito a destra dell'etichetta, tutto su una riga (era già così
+  strutturalmente, solo più larga del necessario).
+- Riga "Previsione": ricompattata su un'unica riga (etichetta + nota + interruttore,
+  prima etichetta/nota erano sopra l'una all'altra).
+- **Fix bug visivo**: in `_activateViewMode()` (sola lettura) il selettore generico
+  che disabilita tutti gli `<input>` della pagina impostava `opacity:0.8` inline anche
+  sulla checkbox NATIVA dell'interruttore "Previsione" — quella checkbox va invece
+  sempre mantenuta invisibile (`opacity:0` da CSS, l'aspetto è disegnato dallo
+  `.toggle-slider` accanto), e lo stile inline ha priorità sulla classe. La checkbox
+  "ricompariva" quindi sovrapposta allo slider, fuori posizione, ogni volta che si
+  apriva un movimento esistente. Esclusa esplicitamente dal reset di opacità generico.
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -549,6 +612,7 @@ cliente per una sessione futura, vedi §11.
 | v4.6 | **NUOVA FUNZIONALITÀ — Fase 4 licenza Base/Pro, FASE FINALE** (vedi §5bis): schermata bloccante di downgrade Pro→Base (`license.js` → `renderDowngradeGateIfNeeded()`, richiamata subito dopo `DB.open()` in app.js/evento.js) con le due scelte concordate (mantieni solo l'evento più vecchio / richiedi nuova abilitazione, nessuna cancellazione automatica); badge arancione "Pro N" in home. **Tutte le 4 fasi della licenza Base/Pro sono complete.** |
 | v4.7 | **MODIFICA DI SICUREZZA** (vedi §5quater): `sp_sync_status` e `sp_device_license` non più scrivibili dalla anon key pubblica — solo da `/api/sync-status.js`/`/api/device-license.js` con una nuova `SUPABASE_SERVICE_KEY` (solo su Vercel). Nessuna RLS. **Badge "Pro N"**: spostato dal gruppo icone a destra a fianco della scritta "WeGo" nell'header, ora solo testo arancione trasparente (stessa dimensione/colore di prima, senza più lo sfondo a pillola) |
 | v4.8 | **NUOVA FUNZIONALITÀ** (vedi §5quinquies): campo "Previsione" (spesa futura, non divisa, esclusa da saldi/totali da dividere, evidenziata a parte); campo "Tipo" (categoria spesa, facoltativo, gestita in Impostazioni come i metodi di pagamento); 4 totali nei Movimenti (Totale/Previsione/Spese/Pro capite); colonna "Prev." nei Saldi. **FIX**: licenza foto per-evento — un device Base collegato a un evento ospitato da un creatore Pro può ora sincronizzare le foto su quell'evento specifico (`License.photoSyncAllowedForEvent()`, nuovo campo `events.photo_sync_enabled`) |
+| v4.9 | **NUOVA FUNZIONALITÀ — terzo tipo movimento "+Cassiere"** (vedi §5sexies): si comporta come una spesa normale (paid_by="A" il cassiere, participants="Da" chi versa, diviso tra loro) ma con segno OPPOSTO nei saldi/totali (`Utils.calculateBalances()` v1.3) — il cassiere va in debito, chi versa va in credito; considerato nei 4 totali di Movimenti (sottratto, non escluso come "Trasf."); badge verde nell'elenco movimenti. Bottone "Mov. cassa" rinominato "Trasf.". **FIX CRITICO**: `SupabaseClient.expenses.update()` non inviava `type`/`paid_for` al server — cambiare il tipo di un movimento esistente non si salvava davvero (veniva sovrascritto al pull successivo). **FIX**: checkbox nativa dell'interruttore "Previsione" visibile/fuori posizione in sola lettura (opacity inline sovrascriveva la classe CSS) |
 
 ---
 
@@ -610,8 +674,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v4.8 (v3.6 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v4.8`
+**Versione attuale:** v4.9 (v3.7 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v4.9`
 
 ---
 
