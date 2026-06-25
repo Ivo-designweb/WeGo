@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — payments.js v1.0
-// Gestione metodi di pagamento configurabili
+// WeGo — payments.js v1.1
+// Gestione metodi di pagamento configurabili + categorie di spesa
+// v1.1: aggiunto ExpenseCategories — stesso identico pattern di
+//       PaymentMethods, per il campo "Tipo" nel form spesa (vedi
+//       spesa.html/spesa.js) e la gestione in Impostazioni
 // ═══════════════════════════════════════════════════════════════
 
 const PaymentMethods = {
@@ -149,3 +152,94 @@ const PaymentMethods = {
 };
 
 window.PaymentMethods = PaymentMethods;
+
+// ═══════════════════════════════════════════════════════════════
+// ExpenseCategories — categorie di spesa (campo "Tipo" in spesa.html)
+// Stesso identico pattern di PaymentMethods qui sopra: lista di default
+// modificabile da Impostazioni → Categorie spesa (abilita/disabilita,
+// aggiungi/rimuovi personalizzate). Facoltativo: a differenza dei metodi
+// di pagamento, una spesa può non avere nessuna categoria.
+// ═══════════════════════════════════════════════════════════════
+
+const ExpenseCategories = {
+
+  DEFAULTS: [
+    { id: 'cibo',       label: 'Cibo',       enabled: true },
+    { id: 'trasporti',  label: 'Trasporti',  enabled: true },
+    { id: 'alloggio',   label: 'Alloggio',   enabled: true },
+    { id: 'ingressi',   label: 'Ingressi',   enabled: true },
+    { id: 'souvenir',   label: 'Souvenir',   enabled: true },
+    { id: 'altro',      label: 'Altro',      enabled: true }
+  ],
+
+  getEnabled() {
+    const saved = Utils.getConfig('expense_categories');
+    if (!saved) return ExpenseCategories.DEFAULTS.filter(c => c.enabled);
+
+    const merged = ExpenseCategories.DEFAULTS.map(d => {
+      const s = saved.find(s => s.id === d.id);
+      return s ? { ...d, ...s } : d;
+    });
+    const custom = saved.filter(s => !ExpenseCategories.DEFAULTS.some(d => d.id === s.id));
+    return [...merged, ...custom].filter(c => c.enabled);
+  },
+
+  getAll() {
+    const saved = Utils.getConfig('expense_categories');
+    if (!saved) return [...ExpenseCategories.DEFAULTS];
+
+    const merged = ExpenseCategories.DEFAULTS.map(d => {
+      const s = saved.find(s => s.id === d.id);
+      return s ? { ...d, ...s } : d;
+    });
+    const custom = saved.filter(s => !ExpenseCategories.DEFAULTS.some(d => d.id === s.id));
+    return [...merged, ...custom];
+  },
+
+  save(categories) {
+    Utils.setConfig('expense_categories', categories);
+  },
+
+  toggle(id) {
+    const all = ExpenseCategories.getAll();
+    const cat = all.find(c => c.id === id);
+    if (cat) cat.enabled = !cat.enabled;
+    ExpenseCategories.save(all);
+    return cat;
+  },
+
+  addCustom(label) {
+    if (!label || label.trim() === '') return null;
+    const all = ExpenseCategories.getAll();
+    const id  = label.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    if (all.some(c => c.id === id)) {
+      Utils.toast('Categoria già esistente', 'error');
+      return null;
+    }
+    const cat = { id, label: label.trim(), enabled: true, custom: true };
+    all.push(cat);
+    ExpenseCategories.save(all);
+    return cat;
+  },
+
+  removeCustom(id) {
+    const all = ExpenseCategories.getAll().filter(c => !(c.custom && c.id === id));
+    ExpenseCategories.save(all);
+  },
+
+  getById(id) {
+    return ExpenseCategories.getAll().find(c => c.id === id) ||
+      { id, label: id, enabled: true };
+  },
+
+  /** <select> con le categorie abilitate, con opzione vuota iniziale (facoltativo). */
+  selectHtml(selectedId = '', elementId = 'expenseCategory') {
+    const cats = ExpenseCategories.getEnabled();
+    const options = '<option value="">—</option>' + cats.map(c =>
+      `<option value="${Utils.escapeHtml(c.id)}" ${c.id === selectedId ? 'selected' : ''}>${Utils.escapeHtml(c.label)}</option>`
+    ).join('');
+    return `<select class="form-select" id="${elementId}" name="${elementId}">${options}</select>`;
+  }
+};
+
+window.ExpenseCategories = ExpenseCategories;

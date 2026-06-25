@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v4.7</title>
+  <title>Impostazioni — WeGo v4.8</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -240,6 +240,22 @@
       </div>
     </div>
 
+    <!-- ─── SEZIONE: CATEGORIE SPESA ─── -->
+    <div class="settings-section">
+      <div class="section-header">
+        <span class="section-title">Categorie spesa</span>
+        <button class="btn btn--ghost btn--sm" onclick="SettingsApp.addExpenseCategory()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+          Aggiungi
+        </button>
+      </div>
+      <div class="settings-group" id="expenseCategoriesList">
+        <!-- Generato da JS -->
+      </div>
+    </div>
+
     <!-- ─── SEZIONE: NOTIFICHE ─── -->
     <div class="settings-section">
       <div class="section-header"><span class="section-title">Notifiche</span></div>
@@ -438,7 +454,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 4.7</div>
+        <div class="about-ver">Versione 4.8</div>
 
         <div class="about-div"></div>
 
@@ -514,6 +530,21 @@
         onkeydown="if(event.key==='Enter') SettingsApp.saveNewMethod()" />
     </div>
     <button class="btn btn--primary btn--full btn--xl" onclick="SettingsApp.saveNewMethod()">Aggiungi</button>
+  </div>
+</div>
+
+<!-- MODAL: AGGIUNGI CATEGORIA SPESA -->
+<div class="modal-backdrop" id="modalAddCategory" onclick="SettingsApp.closeModal('modalAddCategory')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="bottom-sheet__handle"></div>
+    <h2 class="bottom-sheet__title">Aggiungi categoria</h2>
+    <div class="form-group">
+      <label class="form-label">Nome categoria *</label>
+      <input type="text" class="form-input" id="newCategoryName"
+        placeholder="es. Noleggio auto" maxlength="30"
+        onkeydown="if(event.key==='Enter') SettingsApp.saveNewCategory()" />
+    </div>
+    <button class="btn btn--primary btn--full btn--xl" onclick="SettingsApp.saveNewCategory()">Aggiungi</button>
   </div>
 </div>
 
@@ -875,6 +906,9 @@ const SettingsApp = {
 
     // Metodi pagamento
     SettingsApp._renderPaymentMethods();
+
+    // Categorie spesa
+    SettingsApp._renderExpenseCategories();
   },
 
   // ─── TEMA ───────────────────────────────────────────────
@@ -961,6 +995,56 @@ const SettingsApp = {
     PaymentMethods.removeCustom(id);
     SettingsApp._renderPaymentMethods();
     Utils.toast('Metodo rimosso', 'success', 1500);
+  },
+
+  // ─── CATEGORIE SPESA (campo "Tipo") ─────────────────────
+  _renderExpenseCategories() {
+    const container = document.getElementById('expenseCategoriesList');
+    if (!container || typeof ExpenseCategories === 'undefined') return;
+    const cats = ExpenseCategories.getAll();
+    container.innerHTML = cats.map(c => `
+      <div class="method-item">
+        <span class="method-item__label">${Utils.escapeHtml(c.label)}</span>
+        ${c.custom ? `<button class="btn btn--ghost btn--sm" style="color:var(--red);border-color:transparent;"
+          onclick="SettingsApp.removeCategory('${c.id}')">Rimuovi</button>` : ''}
+        <label class="toggle" style="margin-left:${c.custom ? '0' : 'auto'};">
+          <input type="checkbox" ${c.enabled ? 'checked' : ''}
+            onchange="SettingsApp.toggleCategory('${c.id}', this.checked)" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>`
+    ).join('');
+  },
+
+  toggleCategory(id, enabled) {
+    const all = ExpenseCategories.getAll();
+    const c   = all.find(x => x.id === id);
+    if (c) { c.enabled = enabled; ExpenseCategories.save(all); }
+    Utils.toast(`${enabled ? 'Abilitata' : 'Disabilitata'}`, 'success', 1200);
+  },
+
+  addExpenseCategory() {
+    document.getElementById('newCategoryName').value = '';
+    SettingsApp.openModal('modalAddCategory');
+    setTimeout(() => document.getElementById('newCategoryName').focus(), 300);
+  },
+
+  saveNewCategory() {
+    const name = document.getElementById('newCategoryName').value.trim();
+    if (!name) { Utils.toast('Inserisci un nome', 'error'); return; }
+    const result = ExpenseCategories.addCustom(name);
+    if (result) {
+      SettingsApp.closeModal('modalAddCategory');
+      SettingsApp._renderExpenseCategories();
+      Utils.toast(`"${name}" aggiunta`, 'success');
+    }
+  },
+
+  removeCategory(id) {
+    if (!confirm('Rimuovere questa categoria?')) return;
+    ExpenseCategories.removeCustom(id);
+    SettingsApp._renderExpenseCategories();
+    Utils.toast('Categoria rimossa', 'success', 1500);
   },
 
   // ─── NOTIFICHE ──────────────────────────────────────────

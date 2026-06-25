@@ -1,6 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — db.js v1.6
+// WeGo — db.js v1.7
 // Gestione dati locali con IndexedDB (offline-first)
+// v1.7: nuovo campo events.photo_sync_enabled (sincronizzato, a
+//       differenza di is_mine) — fix licenza foto per-evento, vedi
+//       license.js v1.3 / sync.js / app.js; nuovi campi expenses.category
+//       e expenses.is_forecast (campo "Tipo" e flag "Previsione")
 // v1.6: nuovo campo locale events.is_mine (mai sincronizzato) per
 //       distinguere eventi CREATI su questo device da eventi a cui ci
 //       si è solo uniti — serve a License (license.js) per il tetto
@@ -154,6 +158,15 @@ const DB = (() => {
         title:       event.title || '',
         description: event.description || '',
         photo:       event.photo || null,
+        // Fix licenza foto (v1.7 db.js / license.js v1.3): true se il
+        // CREATORE di questo evento aveva la versione Pro al momento
+        // della creazione/ultima modifica (impostato in App.createEvent
+        // / saveEditEvent, vedi app.js). A differenza di is_mine, questo
+        // campo SINCRONIZZA con il server (sp_events.photo_sync_enabled):
+        // permette a un partecipante con device Base di usare comunque le
+        // foto SOLO su questo evento, perché è il creatore ad essere Pro
+        // (vedi License.photoSyncAllowedForEvent in license.js).
+        photo_sync_enabled: !!event.photo_sync_enabled,
         currency:    event.currency || Utils.getConfig('currency') || 'EUR',
         created_at:  event.created_at || Utils.now(),
         created_by:  event.created_by || null,
@@ -299,6 +312,15 @@ const DB = (() => {
         paid_for:       expense.paid_for || null,    // userId (solo per 'transfer')
         participants:   expense.participants || [],  // [userId, ...]
         payment_method: expense.payment_method || 'contanti',
+        // Categoria di spesa (campo "Tipo") — facoltativa, lista gestita
+        // in Impostazioni (vedi payments.js → ExpenseCategories). null se
+        // non impostata o per i trasferimenti.
+        category:       expense.category || null,
+        // Previsione: spesa futura, non va divisa né conteggiata nei
+        // saldi/totali da dividere — solo evidenziata a parte (vedi
+        // evento.js _renderSpese/_renderSaldi). Sempre false per i
+        // trasferimenti (impostato così già in spesa.js).
+        is_forecast:    !!expense.is_forecast,
         date:           expense.date || Utils.today(),
         location:       expense.location || null,   // { lat, lng, address }
         has_photo:      expense.has_photo || false,

@@ -1,8 +1,8 @@
 {
   "name": "WeGo",
   "short_name": "WeGo",
-  "description": "Condividi spese con il tuo gruppo — v4.7",
-  "version": "4.7",
+  "description": "Condividi spese con il tuo gruppo — v4.8",
+  "version": "4.8",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0F172A",

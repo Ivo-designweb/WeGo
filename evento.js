@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.15
+// WeGo — evento.js v2.16
 // Logica pagina dettaglio evento
+// v2.16: campo "Previsione" — escluso da _calcBalances() (mai diviso/
+//        conteggiato nei saldi); 4 totali in alto (Totale/Previsione/
+//        Spese/Pro capite, Pro capite invariato: Spese ÷ partecipanti);
+//        colonna "Prev." nei Saldi (solo se > 0 per quell'utente,
+//        somma delle previsioni dove è "Paga"); badge "previsione"
+//        nell'elenco movimenti
 // v2.15: Fase 4 licenza Base/Pro — controllo License.renderDowngradeGateIfNeeded()
 //        subito dopo DB.open() (schermata bloccante se il device ha
 //        appena perso la versione Pro con troppi eventi)
@@ -170,8 +176,13 @@ const EventoApp = {
 
   // ─── CALCOLA SALDI ────────────────────────────────────────
   _calcBalances() {
+    // Le spese "Previsione" non vanno mai divise né conteggiate nei saldi
+    // (vedi spesa.js toggleForecast() e situazione.md) — escluse qui,
+    // PRIMA di passare l'elenco a Utils.calculateBalances. I trasferimenti
+    // non sono affetti: is_forecast è sempre false per quel tipo.
+    const balanceableExpenses = EventoApp._expenses.filter(e => !e.is_forecast);
     EventoApp._balances = Utils.calculateBalances(
-      EventoApp._expenses,
+      balanceableExpenses,
       EventoApp._users
     );
     for (const pay of EventoApp._payments) {
@@ -325,16 +336,28 @@ const EventoApp = {
     const userMap = {};
     users.forEach(u => { userMap[u.id] = u; });
 
-    // Solo le spese reali concorrono al totale e alla media (NO trasferimenti/pagamenti)
-    const realExpenses = expenses.filter(e => (e.type || 'expense') === 'expense');
-    const totale = realExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const count  = realExpenses.length;
+    // Le spese di tipo 'expense' si dividono in reali e "Previsione" (non
+    // vanno divise né contano nei saldi/pro capite — vedi spesa.js
+    // toggleForecast() e _renderSaldi() più sotto). I trasferimenti non
+    // contano in nessuno dei 4 totali.
+    const expenseTypeOnly = expenses.filter(e => (e.type || 'expense') === 'expense');
+    const forecastExpenses    = expenseTypeOnly.filter(e => e.is_forecast);
+    const nonForecastExpenses = expenseTypeOnly.filter(e => !e.is_forecast);
 
-    document.getElementById('summaryTotal').textContent = Utils.formatAmount(totale, currency);
-    document.getElementById('summaryCount').textContent = count;
-    document.getElementById('summaryAvg').textContent   =
+    const forecastTotale = forecastExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    const speseTotale    = nonForecastExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    const totaleGenerale = speseTotale + forecastTotale;
+    const count           = nonForecastExpenses.length;
+
+    document.getElementById('summaryTotal').textContent    = Utils.formatAmount(totaleGenerale, currency);
+    document.getElementById('summaryForecast').textContent = Utils.formatAmount(forecastTotale, currency);
+    document.getElementById('summarySpese').textContent    = Utils.formatAmount(speseTotale, currency);
+    // Pro capite: SOLO sulle spese reali (no previsioni) ÷ partecipanti —
+    // stessa identica formula di sempre, semplicemente la fonte ora si
+    // chiama "Spese" invece di "Totale" nelle 3 colonne di prima.
+    document.getElementById('summaryAvg').textContent =
       count > 0 && users.length > 0
-        ? Utils.formatAmount(totale / users.length, currency)
+        ? Utils.formatAmount(speseTotale / users.length, currency)
         : '—';
 
     // Quota personale: importo in grassetto, verde se a credito, rosso se a debito
@@ -493,6 +516,11 @@ const EventoApp = {
       : '';
     const gpsBadge   = (exp.location_lat || exp.location?.lat) ? `<span class="exp-badge">📍</span>` : '';
     const methodBadge = exp.payment_method ? `<span class="exp-badge">${Utils.escapeHtml(exp.payment_method)}</span>` : '';
+    // Previsione: piccolo richiamo visivo per distinguerla a colpo
+    // d'occhio nell'elenco — stesso pattern del badge "pagamento" sopra.
+    const forecastBadge = exp.is_forecast
+      ? `<span class="exp-badge" style="color:var(--amber);background:rgba(245,158,11,0.12);">previsione</span>`
+      : '';
     return `
       <div class="exp-item" onclick="EventoApp.editExpense('${exp.id}')">
         <div class="exp-avatar">
@@ -501,6 +529,7 @@ const EventoApp = {
         <div class="exp-info">
           <div class="exp-title">${Utils.escapeHtml(exp.title)}</div>
           <div class="exp-meta">
+            ${forecastBadge}
             ${payer ? `<span class="exp-meta-txt">${Utils.escapeHtml(payer.name)}</span>` : ''}
             ${nPart ? `<span class="exp-meta-txt">· diviso tra ${nPart}</span>` : ''}
             ${photoBadge}${gpsBadge}${methodBadge}${syncBadge}
@@ -644,6 +673,19 @@ const EventoApp = {
     const users    = EventoApp._users;
     const balances = EventoApp._balances;
 
+    // Previsioni per utente: somma delle spese "Previsione" dove l'utente
+    // è impostato come "Paga" (paid_by) — solo informativo, NON entra nei
+    // saldi (già esclude in _calcBalances). Mostrata solo per chi ha
+    // almeno una previsione (> 0) — altrimenti niente, solo il saldo.
+    const forecastByUser = {};
+    for (const exp of EventoApp._expenses) {
+      if (!exp.is_forecast || !exp.paid_by) continue;
+      forecastByUser[exp.paid_by] = (forecastByUser[exp.paid_by] || 0) + parseFloat(exp.amount || 0);
+    }
+    const anyForecast = Object.values(forecastByUser).some(v => v > 0);
+    const prevHeader = document.getElementById('balanceHeaderPrev');
+    if (prevHeader) prevHeader.style.display = anyForecast ? '' : 'none';
+
     // Lista saldi
     const balContainer = document.getElementById('balanceList');
     const sorted = [...users].sort((a, b) => (balances[b.id] || 0) - (balances[a.id] || 0));
@@ -655,6 +697,7 @@ const EventoApp = {
       const color = bal > 0 ? 'var(--green)' : bal < 0 ? 'var(--red)' : 'var(--text-muted)';
       const pct   = Math.round((Math.abs(bal) / maxAbs) * 100);
       const idx   = Utils.avatarColorIndex(u.name);
+      const prev  = forecastByUser[u.id] || 0;
       balHtml += `
         <div class="balance-item">
           <div class="avatar avatar-${idx} avatar--sm">${Utils.initials(u.name)}</div>
@@ -664,6 +707,7 @@ const EventoApp = {
               <div class="balance-bar" style="width:${pct}%;background:${color};"></div>
             </div>
           </div>
+          ${prev > 0 ? `<div class="balance-forecast">${Utils.formatAmount(prev, currency)}</div>` : ''}
           <div class="balance-val" style="color:${color};">
             ${bal > 0 ? '+' : ''}${Utils.formatAmount(bal, currency)}
           </div>
@@ -1142,7 +1186,11 @@ const EventoApp = {
     const balances = {};
     users.forEach(u => { balances[u.id] = 0; });
 
-    expenses.filter(e => e.type !== 'transfer').forEach(exp => {
+    // Le "Previsione" non vanno mai divise né conteggiate (stesso criterio
+    // di _calcBalances() — vedi situazione.md): escluse anche qui.
+    const realExpenses = expenses.filter(e => e.type !== 'transfer' && !e.is_forecast);
+
+    realExpenses.forEach(exp => {
       const amount = parseFloat(exp.amount) || 0;
       const nPart  = (exp.participants || []).length || 1;
       const share  = amount / nPart;
@@ -1157,12 +1205,10 @@ const EventoApp = {
     });
 
     const txs    = Utils.calculateMinimalTransactions(balances, usersMap);
-    const totale = expenses
-      .filter(e => e.type !== 'transfer')
-      .reduce((s, e) => s + parseFloat(e.amount), 0);
+    const totale = realExpenses.reduce((s, e) => s + parseFloat(e.amount), 0);
 
     let text = '📊 Riepilogo WeGo — ' + (ev?.title || 'Evento') + '\n';
-    text += 'Totale: ' + Utils.formatAmount(totale, cur) + ' · ' + expenses.length + ' spese\n\n';
+    text += 'Totale: ' + Utils.formatAmount(totale, cur) + ' · ' + realExpenses.length + ' spese\n\n';
 
     if (txs.length === 0) {
       text += '✅ Tutti i conti sono in pareggio!\n';

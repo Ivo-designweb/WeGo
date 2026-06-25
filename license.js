@@ -1,8 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — license.js v1.2
+// WeGo — license.js v1.3
 // Gestione del livello di abilitazione del dispositivo: 'base' (default,
 // gratuito) oppure 'pro' (soluzione completa, abilitata dall'admin).
 //
+// v1.3: FIX — un device Base collegato (con "Unisciti a un evento") a un
+//       evento ospitato da un creatore con versione Pro può ora usare e
+//       sincronizzare le foto SOLO su quell'evento — nuova funzione
+//       photoSyncAllowedForEvent(event), usata in sync.js e spesa.js
+//       invece di photoSyncAllowed() ovunque si tratti di foto. Tutti gli
+//       altri vincoli (1 evento totale, 15 partecipanti…) restano quelli
+//       del proprio tier, invariati.
 // v1.2: Fase 4 — downgrade Pro→Base (disabilitazione admin o scadenza):
 //       checkRemoteStatus() ora, quando rileva un VERO downgrade (era
 //       'pro', ora è 'base') con più eventi di quanti la versione Base ne
@@ -433,6 +440,23 @@ const License = {
   /** true se questo device sincronizza le foto (copertina evento + movimenti). */
   photoSyncAllowed() {
     return License.getLimits().photoSync;
+  },
+
+  /**
+   * FIX (v1.3): variante "per evento" di photoSyncAllowed(). Un device in
+   * versione Base può comunque usare/sincronizzare le foto SOLO su un
+   * evento specifico se quell'evento è ospitato da un creatore con
+   * versione Pro (event.photo_sync_enabled, impostato da chi crea/edita
+   * l'evento — vedi app.js createEvent()/saveEditEvent(), sincronizzato
+   * via sp_events, MAI un campo solo-locale come is_mine). Gli ALTRI
+   * vincoli della versione Base restano tutti invariati (1 evento totale,
+   * 15 partecipanti, ecc.) — questo riguarda SOLO la sincronizzazione
+   * delle foto, ed è per questo che serve una funzione a parte invece di
+   * cambiare il significato generale di getTier()/isPro().
+   */
+  photoSyncAllowedForEvent(event) {
+    if (License.photoSyncAllowed()) return true; // device Pro: vale ovunque
+    return !!(event && event.photo_sync_enabled); // device Base, ma evento ospitato da un Pro
   },
 
   // ─── MESSAGGI STANDARD (coerenza testi in app.js/evento.js/spesa.js) ──

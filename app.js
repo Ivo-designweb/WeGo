@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.15
+// WeGo — app.js v2.16
 // Logica principale pagina Home (index.html)
+// v2.16: FIX licenza foto per-evento (license.js v1.3) — createEvent()
+//        e saveEditEvent() impostano events.photo_sync_enabled in base
+//        al tier del creatore al momento, così i partecipanti con
+//        device Base possono usare le foto SOLO sugli eventi ospitati
+//        da un creatore Pro (vedi sync.js v1.9 / spesa.js v2.4)
 // v2.15: Fase 4 licenza Base/Pro — controllo License.renderDowngradeGateIfNeeded()
 //        subito dopo DB.open() (schermata bloccante se il device ha
 //        appena perso la versione Pro con troppi eventi); badge "Pro N"
@@ -542,6 +547,11 @@ const App = {
       if (App._pendingEditPhoto !== null) {
         ev.photo = App._pendingEditPhoto || null;  // '' → null (rimozione)
       }
+      // FIX licenza foto per-evento (v2.16, license.js v1.3): rinfresca
+      // ad ogni modifica, così se il creatore upgrada a Pro DOPO aver
+      // creato l'evento, basta un salvataggio per attivarlo anche per gli
+      // altri partecipanti (vedi App.createEvent per lo stesso campo).
+      ev.photo_sync_enabled = typeof License !== 'undefined' && License.isPro();
       ev.synced = false;
       ev.updated_at = Utils.now();
       await DB.events.save(ev);
@@ -730,7 +740,13 @@ const App = {
         // LICENZA (v2.14): questo evento è creato su QUESTO device — conta
         // verso il tetto dei 100 eventi della versione Pro (vedi db.js v1.6
         // / license.js). Mai sincronizzato sul server.
-        is_mine:     true
+        is_mine:     true,
+        // FIX licenza foto per-evento (v2.16, license.js v1.3): se questo
+        // device è Pro al momento della creazione, anche i partecipanti
+        // con device Base potranno usare le foto SU QUESTO evento (vedi
+        // License.photoSyncAllowedForEvent). A differenza di is_mine,
+        // QUESTO campo sincronizza sul server (sp_events.photo_sync_enabled).
+        photo_sync_enabled: typeof License !== 'undefined' && License.isPro()
       });
 
       // Crea utente creatore (joined_at = ora: sta usando l'app in questo momento)

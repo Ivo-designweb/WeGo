@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.8
+// WeGo — supabase.js v1.9
 // Client Supabase — lettura config da localStorage
+// v1.9: fix licenza foto per-evento — events.create()/update() inviano
+//       ora anche photo_sync_enabled (vedi license.js v1.3/sync.js);
+//       nuovi campi expenses.category e expenses.is_forecast (campo
+//       "Tipo" e flag "Previsione") in expenses.create()/update().
+//       Schema SQL: 3 nuove colonne (ALTER TABLE ADD COLUMN IF NOT EXISTS)
 // v1.8: MODIFICA SICUREZZA — syncStatus.request() e deviceLicense.request()
 //       non scrivono più direttamente su Supabase con la anon key:
 //       passano da /api/sync-status.js e /api/device-license.js, che
@@ -106,7 +111,8 @@ const SupabaseClient = (() => {
         // creazione dell'evento e non arrivava mai al server, quindi nessun
         // altro device la vedeva (events.update() invece la includeva già
         // correttamente, ma solo per le modifiche successive alla creazione).
-        photo:       event.photo || null
+        photo:       event.photo || null,
+        photo_sync_enabled: !!event.photo_sync_enabled
       });
     },
 
@@ -115,6 +121,7 @@ const SupabaseClient = (() => {
         title:       event.title,
         description: event.description,
         photo:       event.photo || null,
+        photo_sync_enabled: !!event.photo_sync_enabled,
         updated_at:  Utils.now()
       });
     },
@@ -194,6 +201,8 @@ const SupabaseClient = (() => {
         paid_for:       expense.paid_for || null,
         participants:   expense.participants || [],
         payment_method: expense.payment_method || 'contanti',
+        category:       expense.category || null,
+        is_forecast:    !!expense.is_forecast,
         date:           expense.date,
         location_lat:   expense.location?.lat || null,
         location_lng:   expense.location?.lng || null,
@@ -216,6 +225,8 @@ const SupabaseClient = (() => {
         paid_by:        expense.paid_by,
         participants:   expense.participants,
         payment_method: expense.payment_method,
+        category:       expense.category || null,
+        is_forecast:    !!expense.is_forecast,
         date:           expense.date,
         location_lat:   expense.location?.lat || null,
         location_lng:   expense.location?.lng || null,
@@ -552,6 +563,20 @@ ALTER TABLE sp_users ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMPTZ;
 -- colonna non esiste — quindi titolo/descrizione non si aggiornavano MAI
 -- sul server, non solo la foto (bug v4.2).
 ALTER TABLE sp_events ADD COLUMN IF NOT EXISTS photo TEXT;
+
+-- Fix licenza foto per-evento (v4.8): true se il CREATORE dell'evento ha
+-- (o aveva all'ultima modifica) la versione Pro — permette anche a un
+-- partecipante con device Base di usare le foto, SOLO su questo evento
+-- (vedi license.js -> photoSyncAllowedForEvent(), sync.js, app.js).
+ALTER TABLE sp_events ADD COLUMN IF NOT EXISTS photo_sync_enabled BOOLEAN DEFAULT FALSE;
+
+-- Campo "Tipo" (categoria di spesa, facoltativo — vedi payments.js ->
+-- ExpenseCategories / Impostazioni -> Categorie spesa) e flag
+-- "Previsione" (spesa futura, non divisa, esclusa dai saldi/totali da
+-- dividere — vedi evento.js _renderSpese/_renderSaldi). Entrambi NUOVI
+-- v4.8, solo per il tipo 'expense' (mai per 'transfer').
+ALTER TABLE sp_expenses ADD COLUMN IF NOT EXISTS category    VARCHAR(50);
+ALTER TABLE sp_expenses ADD COLUMN IF NOT EXISTS is_forecast BOOLEAN DEFAULT FALSE;
 
 -- TABELLA SOTTOSCRIZIONI PUSH (Web Push / notifiche)
 -- Collega un device a un evento: serve al backend per sapere a chi inviare

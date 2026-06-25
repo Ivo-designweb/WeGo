@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v4.7
+// WeGo — sw.js v4.8
 // Service Worker — cache offline + background sync
+// v4.8: nessuna modifica alla lista di precache — campo "Previsione" e
+//       "Tipo" (categoria spesa) nel form movimento, 4 totali in alto
+//       nei movimenti (Totale/Previsione/Spese/Pro capite), colonna
+//       "Prev." nei Saldi, fix licenza foto per-evento (un device Base
+//       collegato a un evento Pro può sincronizzare le foto SOLO lì)
 // v4.7: nessuna modifica alla lista di precache — modifica di sicurezza
 //       (sp_sync_status / sp_device_license non più scrivibili dalla
 //       anon key, vedi supabase.js v1.8) e badge "Pro N" spostato vicino
@@ -18,7 +23,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v4.7';
+const CACHE_NAME = 'wego-v4.8';
 
 const STATIC_ASSETS = [
   '/',
@@ -43,7 +48,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v4.7');
+  console.log('[SW] Install v4.8');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -69,7 +74,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v4.7');
+  console.log('[SW] Activate v4.8');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

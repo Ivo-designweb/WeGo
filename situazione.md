@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v4.7 (v3.5 per spesa.html/spesa.js) — Aggiornato: 25 giugno 2026**
+**Versione corrente: v4.8 (v3.6 per spesa.html/spesa.js) — Aggiornato: 25 giugno 2026**
 
 ---
 
@@ -43,24 +43,24 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v4.7   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo
-├── evento.html          v4.7  Pagina evento: tab Movimenti / Saldi / Partecipanti
-├── spesa.html            v3.5 Registrazione / visualizzazione movimento, foto sincronizzata
-├── impostazioni.html    v4.7   Impostazioni: tema, metodi pagamento, dispositivo proprietario, licenza Base/Pro, link Admin
+├── index.html          v4.8   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo
+├── evento.html          v4.8  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev.
+├── spesa.html            v3.6 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata
+├── impostazioni.html    v4.8   Impostazioni: tema, metodi pagamento, categorie spesa, dispositivo proprietario, licenza Base/Pro, link Admin
 ├── admin.html           v1.8   Pannello admin/debug — password verificata lato server + gestione sync esterni + licenza Pro
-├── sw.js                v4.7   Service Worker (CACHE_NAME: wego-v4.7) — esclude /api/* dalla cache
-├── manifest.json        v4.7   PWA manifest
+├── sw.js                v4.8   Service Worker (CACHE_NAME: wego-v4.8) — esclude /api/* dalla cache
+├── manifest.json        v4.8   PWA manifest
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
-├── app.js                v2.15 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro completa (Fasi 1-4), avatar creatore, card colorate
-├── evento.js             v2.15 Logica pagina evento: movimenti, saldi, partecipanti, ricerca, puntino sync, foto, limite partecipanti, gate downgrade
-├── spesa.js               v2.3 Logica form registrazione/visualizzazione movimento, doppia compressione foto, blocco foto Base
-├── license.js             v1.2 Gestione completa livello dispositivo Base/Pro: limiti, richiesta/verifica abilitazione, schermata bloccante di downgrade, badge "Pro N"
-├── sync.js                v1.8 Sincronizzazione bidirezionale locale ↔ Supabase + gating eventi esterni + foto movimenti (disattivata in versione Base) + verifica periodica licenza
-├── supabase.js            v1.8 Client REST Supabase — MODIFICA SICUREZZA: request() su sync_status/device_license passa da /api/*, non più scrittura diretta anon
-├── db.js                  v1.6 IndexedDB wrapper (events con gated/sync_allowed/is_mine, users, expenses, photos con sync_data/synced, payments, pending, sessions)
+├── app.js                v2.16 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro completa, fix photo_sync_enabled per-evento
+├── evento.js             v2.16 Logica pagina evento: movimenti, saldi (con Prev.), partecipanti, ricerca, foto, 4 totali, gate downgrade
+├── spesa.js               v2.4 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, fix licenza foto per-evento
+├── license.js             v1.3 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() (fix foto per-evento)
+├── sync.js                v1.9 Sincronizzazione bidirezionale + gating eventi esterni + foto movimenti PER EVENTO + verifica periodica licenza
+├── supabase.js            v1.9 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast, events.photo_sync_enabled
+├── db.js                  v1.7 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast
 ├── utils.js               v1.2 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId…)
-├── payments.js            v1.0 Metodi di pagamento (lista configurabile, default + custom)
+├── payments.js            v1.1 Metodi di pagamento + NUOVO ExpenseCategories (categorie di spesa, stesso pattern)
 ├── notifications.js      v1.2 Web Push: registrazione + salvataggio sottoscrizione su Supabase (fix mismatch chiave VAPID)
 ├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis e §5quater)
 │   ├── admin-login.js          Verifica password admin contro env var ADMIN_PASSWORD
@@ -442,6 +442,83 @@ salto di complessità non richiesto in questa fase.
 
 ---
 
+## 5quinquies. Movimenti: "Previsione", categoria "Tipo", fix licenza foto per-evento (v4.8)
+
+### Campo "Previsione" (solo tipo "Spesa")
+Spesa futura, non va divisa né conteggiata nei saldi/totali da dividere — solo evidenziata a
+parte. Implementazione:
+- `spesa.html`/`spesa.js`: toggle sotto i bottoni tipo (default spento, solo per "Spesa" — si
+  nasconde e si forza spento passando a "Mov. cassa"). Quando attivo: l'etichetta "Descrizione *"
+  diventa **"PREVISIONE"** in grassetto arancione (solo l'etichetta), e la sezione "Divide tra"
+  si disattiva visivamente (dimmed, non cliccabile — `_setDivideTraEnabled()`) mentre "Paga"
+  resta attivo (serve a sapere DI CHI è la previsione). Validazione: "Divide tra" non è più
+  obbligatorio quando è Previsione (`_validate()`). Al salvataggio, `participants` è sempre `[]`
+  per una previsione, indipendentemente da cosa mostra ancora la griglia
+- Nuovo campo `expenses.is_forecast` (booleano, sincronizzato — `db.js`, `supabase.js`
+  create/update, colonna `sp_expenses.is_forecast` nello schema SQL)
+- `evento.js` → `_calcBalances()`: le previsioni sono escluse PRIMA di chiamare
+  `Utils.calculateBalances()` — non entrano mai nei saldi. Stessa esclusione applicata anche a
+  `shareRiepilogo()` (il riepilogo testuale condivisibile), che aveva un calcolo dei saldi
+  indipendente e andava corretto allo stesso modo (questo ha anche sistemato un effetto
+  collaterale preesistente: il conteggio "X spese" in quel testo includeva pure i trasferimenti)
+- Badge "previsione" (arancione) nell'elenco movimenti — non richiesto esplicitamente, aggiunto
+  per poterle distinguere a colpo d'occhio scorrendo la lista (segnalato come assunzione)
+
+### 4 totali in alto nei Movimenti (Totale / Previsione / Spese / Pro capite)
+- **Totale** = spese reali + previsioni (quadro generale)
+- **Previsione** = solo le previsioni
+- **Spese** = solo le spese reali (diventa un importo: prima qui c'era un CONTEGGIO, ora è una
+  somma — il conteggio come numero non è più mostrato da nessuna parte nei totali)
+- **Pro capite** = INVARIATO rispetto a prima: somma delle spese reali (mai previsioni) ÷
+  numero di partecipanti (`users.length`) — stessa identica formula, solo la fonte si chiama
+  "Spese" invece di "Totale" come nelle 3 colonne precedenti
+
+### Colonna "Prev." nei Saldi
+Per ogni utente: somma delle previsioni dove è impostato come "Paga" (`paid_by`) — solo
+informativo, MAI usato nel calcolo del saldo. Mostrata solo se > 0 per quell'utente (altrimenti
+solo "Saldo", come richiesto): es. "Pippo · Prev. 100€ · Saldo +80€"; "Anna · Saldo -20€" (Anna
+non ha previsioni, niente colonna Prev. per lei). Intestazioni di colonna "Prev."/"Saldo" sopra
+la lista, "Prev." nascosta del tutto se NESSUN utente ha previsioni > 0.
+
+### Campo "Tipo" (categoria di spesa, solo tipo "Spesa", facoltativo)
+- Nuovo modulo `ExpenseCategories` in `payments.js` — stesso identico pattern di
+  `PaymentMethods` già esistente (lista di default modificabile: abilita/disabilita, aggiungi/
+  rimuovi personalizzate). Default: Cibo, Trasporti, Alloggio, Ingressi, Souvenir, Altro
+- `impostazioni.html`: nuova sezione "Categorie spesa", identica nell'aspetto a "Metodi di
+  pagamento"
+- `spesa.html`/`spesa.js`: select "Tipo" sotto il campo Importo (nascosta per "Mov. cassa").
+  Facoltativo, prima opzione sempre vuota
+- Nuovo campo `expenses.category` (stringa, sincronizzato — colonna `sp_expenses.category`)
+- **Non mostrato** nell'elenco movimenti (deciso esplicitamente: non serve lì)
+
+### Fix: licenza foto per-evento
+**Bug risolto**: un partecipante con device in versione Base, collegato (con "Unisciti a un
+evento") a un evento ospitato da un creatore con versione Pro, non poteva usare/sincronizzare
+le foto — il controllo era SOLO sul tier del proprio device, mai sull'evento. Ora:
+- Nuovo campo `events.photo_sync_enabled` (booleano, sincronizzato — colonna
+  `sp_events.photo_sync_enabled`), impostato dal CREATORE in base al proprio tier al momento
+  della creazione (`App.createEvent`) o di ogni modifica (`App.saveEditEvent` — si "rinfresca"
+  ad ogni salvataggio, così un upgrade a Pro dopo la creazione si attiva con un semplice
+  salvataggio del titolo)
+- `license.js` → nuova `photoSyncAllowedForEvent(event)`: true se questo device è Pro, OPPURE
+  se l'evento indicato ha `photo_sync_enabled:true` — usata ovunque prima si usava
+  `photoSyncAllowed()` per le foto (mai per gli altri limiti Base/Pro, che restano quelli del
+  proprio device: 1/100 eventi, 15/50 partecipanti continuano a valere normalmente)
+- `sync.js`: il controllo foto (push e pull, copertina e movimenti) è ora PER EVENTO
+  (`_isPhotoSyncAllowedForEvent()`), non più una condizione globale unica per tutto il device
+- `spesa.js`: `pickPhoto()`/`_applyPhotoTierLock()` usano la stessa funzione per-evento
+- **Limite noto**: per gli eventi creati PRIMA di questa versione, `photo_sync_enabled` parte
+  `false` anche se il creatore è già Pro — si attiva al primo salvataggio dell'evento da parte
+  del creatore (anche solo riaprendo "Modifica evento" e premendo Salva senza cambiare nulla).
+  Nessuna migrazione automatica retroattiva, stessa filosofia "non preoccuparti del pregresso"
+  già usata nelle fasi precedenti
+
+### 🔜 Idea per il prossimo step (NON implementata, solo annotata)
+Un nuovo tab dopo "Saldi" con un grafico delle spese per categoria (Tipo) — richiesto dal
+cliente per una sessione futura, vedi §11.
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -471,6 +548,7 @@ salto di complessità non richiesto in questa fase.
 | admin.html v1.8 | **NUOVA FUNZIONALITÀ — Fase 3 licenza Base/Pro** (vedi §5bis): nuova sezione "Soluzione completa (Pro)" in admin.html — abilitazione/disabilitazione dispositivi con data di scadenza obbligatoria, lista dispositivi registrati. Nessun impatto sulla versione globale dell'app (solo admin.html è cambiato) |
 | v4.6 | **NUOVA FUNZIONALITÀ — Fase 4 licenza Base/Pro, FASE FINALE** (vedi §5bis): schermata bloccante di downgrade Pro→Base (`license.js` → `renderDowngradeGateIfNeeded()`, richiamata subito dopo `DB.open()` in app.js/evento.js) con le due scelte concordate (mantieni solo l'evento più vecchio / richiedi nuova abilitazione, nessuna cancellazione automatica); badge arancione "Pro N" in home. **Tutte le 4 fasi della licenza Base/Pro sono complete.** |
 | v4.7 | **MODIFICA DI SICUREZZA** (vedi §5quater): `sp_sync_status` e `sp_device_license` non più scrivibili dalla anon key pubblica — solo da `/api/sync-status.js`/`/api/device-license.js` con una nuova `SUPABASE_SERVICE_KEY` (solo su Vercel). Nessuna RLS. **Badge "Pro N"**: spostato dal gruppo icone a destra a fianco della scritta "WeGo" nell'header, ora solo testo arancione trasparente (stessa dimensione/colore di prima, senza più lo sfondo a pillola) |
+| v4.8 | **NUOVA FUNZIONALITÀ** (vedi §5quinquies): campo "Previsione" (spesa futura, non divisa, esclusa da saldi/totali da dividere, evidenziata a parte); campo "Tipo" (categoria spesa, facoltativo, gestita in Impostazioni come i metodi di pagamento); 4 totali nei Movimenti (Totale/Previsione/Spese/Pro capite); colonna "Prev." nei Saldi. **FIX**: licenza foto per-evento — un device Base collegato a un evento ospitato da un creatore Pro può ora sincronizzare le foto su quell'evento specifico (`License.photoSyncAllowedForEvent()`, nuovo campo `events.photo_sync_enabled`) |
 
 ---
 
@@ -532,8 +610,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v4.7 (v3.5 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v4.7`
+**Versione attuale:** v4.8 (v3.6 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v4.8`
 
 ---
 
@@ -552,7 +630,7 @@ passaggi, "Richiedi soluzione completa" e la sincronizzazione di eventi esterni 
 4. [ ] Solo dopo i punti 1-3, carica i file nuovi su GitHub/Vercel
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
-- [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, tabella `sp_sync_status`, colonna `sp_events.photo`, tabella `sp_expense_photos` (per la sincronizzazione foto movimenti), tabella `sp_device_license` (per la licenza Base/Pro), **le `REVOKE` su sp_sync_status/sp_device_license (v4.7, vedi sopra)**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "sincronizzazione selettiva eventi esterni", "modifica evento", "sincronizzazione foto movimenti" e "richiesta soluzione completa" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)
+- [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, tabella `sp_sync_status`, colonna `sp_events.photo`, tabella `sp_expense_photos` (per la sincronizzazione foto movimenti), tabella `sp_device_license` (per la licenza Base/Pro), le `REVOKE` su sp_sync_status/sp_device_license (v4.7), **NUOVO v4.8: colonne `sp_events.photo_sync_enabled`, `sp_expenses.category`, `sp_expenses.is_forecast`**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "sincronizzazione selettiva eventi esterni", "modifica evento", "sincronizzazione foto movimenti", "richiesta soluzione completa", "Previsione/Tipo" e "fix licenza foto per-evento" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)
 - [ ] **NUOVO v4.7 — Impostare `SUPABASE_SERVICE_KEY` su Vercel** (vedi sopra)
 - [ ] **NUOVO v3.7 — Impostare 2 variabili d'ambiente su Vercel** (Project → Settings → Environment Variables), poi rideployare:
   - `ADMIN_PASSWORD` → la password vera del pannello admin (sostituisce quella che prima era in chiaro nel codice)
@@ -564,7 +642,7 @@ passaggi, "Richiedi soluzione completa" e la sincronizzazione di eventi esterni 
 - [ ] `offline.html` — pagina mostrata dal SW quando si è offline e la pagina non è in cache
 - [ ] Archiviazione evento (flag `archived`)
 - [ ] Gestione conflitti di merge (attuale: last-write-wins su `updated_at`)
-- [ ] Grafici statistici per evento (torta per categoria, trend temporale)
+- [ ] 🔜 **PROSSIMO STEP (richiesto dal cliente, v4.8)**: nuovo tab dopo "Saldi" con un grafico delle spese per categoria ("Tipo", vedi `ExpenseCategories` in payments.js — usa le stesse categorie già implementate in v4.8). Non ancora progettato nei dettagli (tipo di grafico, periodo, se includere le previsioni o no — da chiarire quando si affronta)
 - [ ] Esportazione riepilogo in PDF
 - [ ] Supporto multi-valuta per spesa singola con conversione
 - [ ] Risoluzione spese orfane dopo eliminazione partecipante

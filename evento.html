@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v4.7</title>
+  <title>Evento — WeGo v4.8</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -209,6 +209,7 @@
     .balance-bar-wrap { height: 4px; background: var(--bg-input); border-radius: 2px; margin-top: 5px; }
     .balance-bar { height: 100%; border-radius: 2px; transition: width 0.4s; }
     .balance-val { font-size: 18.5px; font-weight: 700; text-align: right; flex-shrink: 0; }
+    .balance-forecast { font-size: 13.5px; font-weight: 700; color: var(--amber); text-align: right; flex-shrink: 0; min-width: 58px; }
 
     .txn-item {
       display: flex; align-items: center; gap: 10px;
@@ -395,8 +396,12 @@
         <div class="summary-row__val" id="summaryTotal">—</div>
         <div class="summary-row__lbl">Totale</div>
       </div>
+      <div class="summary-row__item" id="summaryForecastItem">
+        <div class="summary-row__val" id="summaryForecast" style="color:var(--amber);">—</div>
+        <div class="summary-row__lbl">Previsione</div>
+      </div>
       <div class="summary-row__item">
-        <div class="summary-row__val" id="summaryCount">—</div>
+        <div class="summary-row__val" id="summarySpese">—</div>
         <div class="summary-row__lbl">Spese</div>
       </div>
       <div class="summary-row__item">
@@ -428,6 +433,12 @@
 
     <!-- TAB SALDI -->
     <div id="panelSaldi" style="display:none;">
+      <div id="balanceHeader" style="display:flex;align-items:center;gap:10px;padding:0 0 6px;">
+        <div style="width:22px;flex-shrink:0;"></div>
+        <div style="flex:1;"></div>
+        <div id="balanceHeaderPrev" style="display:none;font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.4px;text-align:right;flex-shrink:0;min-width:58px;">Prev.</div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;text-align:right;flex-shrink:0;min-width:70px;">Saldo</div>
+      </div>
       <div id="balanceList" style="padding:0;"></div>
 
       <div class="section-header" style="margin-top:16px;"><span class="section-title">Transazioni minime</span></div>

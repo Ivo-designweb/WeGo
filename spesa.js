@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v2.3
+// WeGo — spesa.js v2.4
 // Logica pagina inserimento / modifica spesa
+// v2.4: campo "Previsione" (toggle, solo tipo Spesa) — etichetta
+//       Descrizione diventa "PREVISIONE" in arancione, "Divide tra"
+//       disattivato (vedi toggleForecast/_setDivideTraEnabled);
+//       campo "Tipo" (categoria, select da ExpenseCategories — vedi
+//       payments.js); fix licenza foto: usa License.photoSyncAllowedForEvent()
+//       invece di License.photoSyncAllowed() — un device Base collegato
+//       a un evento ospitato da un creatore Pro può usare le foto SOLO
+//       su quell'evento (vedi license.js v1.3)
 // v2.3: licenza dispositivo (license.js) — nella versione Base il
 //       bottone "Foto Scontrino" resta visibile ma disattivato (badge
 //       PRO): pickPhoto() mostra l'avviso invece di apri il selettore
@@ -21,6 +29,7 @@ const SpesaApp = {
   _event:        null,
   _users:        [],
   _type:         'expense',   // 'expense' | 'transfer'
+  _isForecast:   false,       // true = "Previsione" — non va divisa, non conta nei saldi
   _location:     null,        // { lat, lng, address }
   _photo:        null,        // base64 — qualità alta, resta solo su questo device
   _photoSync:    null,        // base64 — versione compatta (max 900px/60%) sincronizzata
@@ -67,6 +76,9 @@ const SpesaApp = {
 
     // Popola metodi pagamento
     SpesaApp._buildMethodSelect();
+
+    // Popola categorie di spesa (Tipo)
+    SpesaApp._buildCategorySelect();
 
     // Imposta data odierna
     document.getElementById('expenseDate').value = Utils.today();
@@ -198,6 +210,19 @@ const SpesaApp = {
     ).join('');
   },
 
+  // ─── POPOLA SELECT CATEGORIE (TIPO) ───────────────────────
+  // Facoltativo: la prima opzione è sempre vuota ("—"). Lista gestita da
+  // Impostazioni → Categorie spesa (vedi payments.js → ExpenseCategories,
+  // stesso pattern dei metodi di pagamento).
+  _buildCategorySelect() {
+    const sel = document.getElementById('expenseCategory');
+    if (!sel || typeof ExpenseCategories === 'undefined') return;
+    const cats = ExpenseCategories.getEnabled();
+    sel.innerHTML = '<option value="">—</option>' + cats.map(c =>
+      `<option value="${Utils.escapeHtml(c.id)}">${Utils.escapeHtml(c.label)}</option>`
+    ).join('');
+  },
+
   // ─── POPOLA SELECT UTENTI ─────────────────────────────────
   _buildUserSelects() {
     const users = SpesaApp._users;
@@ -313,11 +338,58 @@ const SpesaApp = {
     if (gpsCard)   gpsCard.style.display   = type === 'transfer' ? 'none' : '';
     if (photoCard) photoCard.style.display = type === 'transfer' ? 'none' : '';
 
+    // Previsione e Tipo: solo per "Spesa", non per "Mov. cassa" (un
+    // trasferimento è cassa reale, non una previsione/categoria di spesa).
+    const forecastRow = document.getElementById('forecastRow');
+    const categoryRow = document.getElementById('categoryRow');
+    if (forecastRow) forecastRow.style.display = type === 'expense' ? '' : 'none';
+    if (categoryRow) categoryRow.style.display = type === 'expense' ? '' : 'none';
+    if (type === 'transfer' && SpesaApp._isForecast) {
+      // Si passa a Mov. cassa con Previsione attiva: la disattiviamo, non
+      // avrebbe senso lasciarla "appesa" su un movimento di cassa.
+      const toggle = document.getElementById('forecastToggle');
+      if (toggle) toggle.checked = false;
+      SpesaApp.toggleForecast(false);
+    }
+
     SpesaApp._setPageTitle(
       type === 'expense'
         ? (SpesaApp._expenseId ? 'Modifica spesa' : 'Nuova spesa')
         : 'Movimento cassa'
     );
+  },
+
+  // ─── PREVISIONE ───────────────────────────────────────────
+  // Spesa futura: non va divisa né conteggiata nei saldi/totali da
+  // dividere (vedi evento.js), solo evidenziata a parte. Cambia solo
+  // l'etichetta del campo Descrizione (in PREVISIONE, grassetto e
+  // arancione) e disattiva "Divide tra" — "Paga" resta attivo perché
+  // serve a sapere DI CHI è la previsione (colonna "Prev." nei Saldi).
+  toggleForecast(checked) {
+    SpesaApp._isForecast = checked;
+
+    const label = document.getElementById('descLabel');
+    if (label) {
+      label.textContent = checked ? 'PREVISIONE' : 'Descrizione *';
+      label.style.fontWeight = checked ? '800' : '';
+      label.style.color      = checked ? 'var(--amber)' : '';
+    }
+
+    SpesaApp._setDivideTraEnabled(!checked);
+  },
+
+  // Disattiva visivamente (dim + non cliccabile) la sezione "Divide tra"
+  // senza nasconderla — resta comunque chiaro chi sono i partecipanti
+  // dell'evento, solo non selezionabili mentre la spesa è "Previsione".
+  _setDivideTraEnabled(enabled) {
+    const wrap    = document.getElementById('divideTraWrap');
+    const grid    = document.getElementById('participantsGrid');
+    const preview = document.getElementById('sharePreview');
+    [wrap, grid, preview].forEach(el => {
+      if (!el) return;
+      el.style.opacity       = enabled ? '' : '0.4';
+      el.style.pointerEvents = enabled ? '' : 'none';
+    });
   },
 
   // ─── GPS ──────────────────────────────────────────────────
@@ -411,9 +483,12 @@ const SpesaApp = {
   // ─── FOTO ─────────────────────────────────────────────────
   pickPhoto() {
     // Licenza (license.js): versione Base = foto movimento non
-    // disponibile. Il bottone resta visibile (per far sapere che la
-    // funzione esiste) ma cliccandolo mostra solo l'avviso.
-    if (typeof License !== 'undefined' && !License.photoSyncAllowed()) {
+    // disponibile, A MENO che questo specifico evento non sia ospitato
+    // da un creatore con versione Pro (vedi License.photoSyncAllowedForEvent —
+    // fix: un device Base collegato a un evento Pro può comunque usare le
+    // foto, solo su quell'evento). Il bottone resta visibile (per far
+    // sapere che la funzione esiste) ma cliccandolo mostra solo l'avviso.
+    if (typeof License !== 'undefined' && !License.photoSyncAllowedForEvent(SpesaApp._event)) {
       Utils.toast(License.msgPhotoLocked(), 'info');
       return;
     }
@@ -424,8 +499,10 @@ const SpesaApp = {
   // Bottone foto visibile ma "disattivato" (dimmed + etichetta PRO) per i
   // device in versione Base — non lo nascondiamo: deve restare visibile
   // perché l'utente sappia che la funzione esiste con la versione Pro.
+  // Eccezione: se QUESTO evento è ospitato da un creatore Pro, il bottone
+  // resta normale anche per un device Base (vedi pickPhoto sopra).
   _applyPhotoTierLock() {
-    if (typeof License === 'undefined' || License.photoSyncAllowed()) return;
+    if (typeof License === 'undefined' || License.photoSyncAllowedForEvent(SpesaApp._event)) return;
     const btn = document.getElementById('photoPickBtn');
     if (!btn || btn.querySelector('.badge--amber')) return;
     btn.classList.add('btn--pro-locked');
@@ -526,6 +603,17 @@ const SpesaApp = {
     // Metodo pagamento
     document.getElementById('expenseMethod').value = expense.payment_method || 'contanti';
 
+    // Categoria (Tipo)
+    const catSel = document.getElementById('expenseCategory');
+    if (catSel) catSel.value = expense.category || '';
+
+    // Previsione
+    if (expense.is_forecast) {
+      const toggle = document.getElementById('forecastToggle');
+      if (toggle) toggle.checked = true;
+      SpesaApp.toggleForecast(true);
+    }
+
     // Pagante
     if (expense.paid_by) {
       document.getElementById('expensePaidBy').value = expense.paid_by;
@@ -599,7 +687,7 @@ const SpesaApp = {
       return false;
     }
 
-    if (SpesaApp._type === 'expense' && SpesaApp._selectedPart.size === 0) {
+    if (SpesaApp._type === 'expense' && !SpesaApp._isForecast && SpesaApp._selectedPart.size === 0) {
       Utils.toast('Seleziona almeno un partecipante', 'error');
       return false;
     }
@@ -631,6 +719,7 @@ const SpesaApp = {
       const title      = document.getElementById('expenseTitle').value.trim();
       const date       = document.getElementById('expenseDate').value || Utils.today();
       const method     = document.getElementById('expenseMethod').value;
+      const category   = document.getElementById('expenseCategory')?.value || null;
       const notes      = document.getElementById('expenseNotes').value.trim();
 
       const paidBy = isTransfer
@@ -641,7 +730,9 @@ const SpesaApp = {
         ? document.getElementById('transferTo').value
         : null;
 
-      const participants = isTransfer
+      // Previsione: non va divisa, quindi nessun partecipante anche se la
+      // griglia ne ha ancora alcuni selezionati da prima del toggle.
+      const participants = (isTransfer || SpesaApp._isForecast)
         ? []
         : Array.from(SpesaApp._selectedPart);
 
@@ -656,6 +747,8 @@ const SpesaApp = {
         paid_for:       paidFor,
         participants,
         payment_method: method,
+        category:       isTransfer ? null : category,
+        is_forecast:    !isTransfer && SpesaApp._isForecast,
         date,
         location:       SpesaApp._location,
         has_photo:      !!SpesaApp._photo,

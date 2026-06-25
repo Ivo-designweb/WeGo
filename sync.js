@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v1.8
+// WeGo — sync.js v1.9
 // Gestione sincronizzazione bidirezionale con Supabase
+// v1.9: FIX licenza foto per-evento (license.js v1.3) — il controllo
+//       sync foto (push e pull, copertina e movimenti) è ora PER EVENTO
+//       tramite _isPhotoSyncAllowedForEvent()/License.photoSyncAllowedForEvent(),
+//       non più globale sul tier del device: un device Base collegato a
+//       un evento ospitato da un creatore Pro può sincronizzare le foto
+//       SOLO su quell'evento
 // v1.8: licenza dispositivo (Fase 2, v4.4) — License.checkRemoteStatus()
 //       richiamato ad ogni push() (come _refreshGatedEvents); gestione
 //       della pending op 'request_device_license' (richiesta di
@@ -110,27 +116,26 @@ const Sync = {
 
       // Sync foto movimenti non sincronizzate (caricamento o cancellazione
       // in attesa di essere propagata — vedi DB.photos.markDeleted).
-      // LICENZA (v1.7): i device in versione Base non sincronizzano MAI le
-      // foto — vedi license.js. In pratica non dovrebbero accumularsi
-      // foto non sincronizzate per un device Base (il bottone è bloccato
-      // in spesa.html), ma il controllo resta qui come ulteriore sicurezza.
-      if (typeof License === 'undefined' || License.photoSyncAllowed()) {
-        const unsyncedPhotos = await DB.photos.getUnsynced();
-        for (const photo of unsyncedPhotos) {
-          try {
-            const exp = await DB.expenses.getById(photo.expense_id);
-            if (!exp) { await DB.photos.delete(photo.expense_id); continue; }
-            if (!(await Sync._isEventSyncAllowed(exp.event_id))) continue;
-            if (photo.sync_data) {
-              await SupabaseClient.expensePhotos.upsert(photo.expense_id, photo.sync_data, photo.created_by || exp.created_by);
-            } else {
-              // sync_data assente = è stata eliminata su questo device
-              await SupabaseClient.expensePhotos.delete(photo.expense_id);
-            }
-            await DB.photos.markSynced(photo.expense_id);
-          } catch (e) {
-            console.warn('[Sync] Photo sync failed:', photo.expense_id, e.message);
+      // FIX (v1.3 license.js): il controllo è ora PER EVENTO, non più
+      // globale sul tier del device — un device Base collegato a un
+      // evento ospitato da un creatore Pro può sincronizzare le foto SOLO
+      // su quell'evento (vedi _isPhotoSyncAllowedForEvent sotto).
+      const unsyncedPhotos = await DB.photos.getUnsynced();
+      for (const photo of unsyncedPhotos) {
+        try {
+          const exp = await DB.expenses.getById(photo.expense_id);
+          if (!exp) { await DB.photos.delete(photo.expense_id); continue; }
+          if (!(await Sync._isEventSyncAllowed(exp.event_id))) continue;
+          if (!(await Sync._isPhotoSyncAllowedForEvent(exp.event_id))) continue;
+          if (photo.sync_data) {
+            await SupabaseClient.expensePhotos.upsert(photo.expense_id, photo.sync_data, photo.created_by || exp.created_by);
+          } else {
+            // sync_data assente = è stata eliminata su questo device
+            await SupabaseClient.expensePhotos.delete(photo.expense_id);
           }
+          await DB.photos.markSynced(photo.expense_id);
+        } catch (e) {
+          console.warn('[Sync] Photo sync failed:', photo.expense_id, e.message);
         }
       }
 
@@ -183,6 +188,19 @@ const Sync = {
     if (!ev) return true; // evento non trovabile localmente: non blocchiamo
     if (!ev.gated) return true;
     return !!ev.sync_allowed;
+  },
+
+  /**
+   * FIX licenza foto per-evento (license.js v1.3): true se QUESTO device
+   * sincronizza le foto (versione Pro), OPPURE se l'evento indicato è
+   * ospitato da un creatore con versione Pro (event.photo_sync_enabled).
+   * Usata per il push delle foto movimenti qui sotto e per pullEvent().
+   */
+  async _isPhotoSyncAllowedForEvent(eventId) {
+    if (typeof License === 'undefined') return true;
+    if (!eventId) return License.photoSyncAllowed();
+    const ev = await DB.events.getById(eventId);
+    return License.photoSyncAllowedForEvent(ev);
   },
 
   /**
@@ -343,6 +361,13 @@ const Sync = {
     if (!remoteEvent) return;
 
     const localEvent = await DB.events.getById(eventId);
+
+    // FIX licenza foto per-evento (license.js v1.3): calcolato UNA VOLTA
+    // qui, usando il valore FRESCO dal server (remoteEvent.photo_sync_enabled),
+    // e riusato sotto sia per la copertina evento sia per le foto movimenti.
+    const photoAllowed = (typeof License === 'undefined') ||
+      License.photoSyncAllowedForEvent(remoteEvent);
+
     if (!localEvent ||
         new Date(remoteEvent.updated_at) > new Date(localEvent.updated_at)) {
       const merged = {
@@ -350,11 +375,10 @@ const Sync = {
         ...remoteEvent,
         synced: true
       };
-      // LICENZA (v1.7): versione Base = niente sincronizzazione foto, in
-      // NESSUNA direzione. Non adottiamo la foto remota (anche se altri
-      // partecipanti con versione Pro l'hanno sincronizzata): il campo
-      // resta quello già presente in locale (probabilmente null).
-      if (typeof License !== 'undefined' && !License.photoSyncAllowed()) {
+      // Se non permesso (device Base su un evento NON ospitato da un
+      // creatore Pro), non adottiamo la foto remota: il campo resta
+      // quello già presente in locale (probabilmente null).
+      if (!photoAllowed) {
         merged.photo = (localEvent && localEvent.photo) || null;
       }
       await DB.events.save(merged);
@@ -394,10 +418,10 @@ const Sync = {
       // Foto dei movimenti (versione compatta, ~30-50KB) — batch unico
       // invece di una richiesta per spesa. Solo per le spese che hanno
       // effettivamente has_photo=true.
-      // LICENZA (v1.7): versione Base = niente sincronizzazione foto —
-      // saltiamo del tutto questo blocco, anche se altri partecipanti con
-      // versione Pro hanno sincronizzato foto sui loro movimenti.
-      if (typeof License === 'undefined' || License.photoSyncAllowed()) {
+      // FIX licenza foto per-evento (license.js v1.3): riusa photoAllowed
+      // calcolato sopra — un device Base salta questo blocco SOLO se
+      // anche l'evento non è ospitato da un creatore Pro.
+      if (photoAllowed) {
         try {
           const expIdsWithPhoto = remoteExp.filter(re => re.has_photo).map(re => re.id);
           if (expIdsWithPhoto.length) {
