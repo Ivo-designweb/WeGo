@@ -1,8 +1,8 @@
 {
   "name": "WeGo",
   "short_name": "WeGo",
-  "description": "Condividi spese con il tuo gruppo — v5.0",
-  "version": "5.0",
+  "description": "Condividi spese con il tuo gruppo — v5.1",
+  "version": "5.1",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0F172A",
@@ -10,14 +10,14 @@
   "orientation": "portrait",
   "lang": "it",
   "icons": [
-    { "src": "/icons/icon-72.png",  "sizes": "72x72",   "type": "image/png" },
-    { "src": "/icons/icon-96.png",  "sizes": "96x96",   "type": "image/png" },
-    { "src": "/icons/icon-128.png", "sizes": "128x128", "type": "image/png" },
-    { "src": "/icons/icon-144.png", "sizes": "144x144", "type": "image/png" },
-    { "src": "/icons/icon-152.png", "sizes": "152x152", "type": "image/png" },
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icons/icon-384.png", "sizes": "384x384", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "/icon72.png",  "sizes": "72x72",   "type": "image/png" },
+    { "src": "/icon96.png",  "sizes": "96x96",   "type": "image/png" },
+    { "src": "/icon128.png", "sizes": "128x128", "type": "image/png" },
+    { "src": "/icon144.png", "sizes": "144x144", "type": "image/png" },
+    { "src": "/icon152.png", "sizes": "152x152", "type": "image/png" },
+    { "src": "/icon192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon384.png", "sizes": "384x384", "type": "image/png" },
+    { "src": "/icon512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
   ],
   "shortcuts": [
     {
@@ -25,7 +25,7 @@
       "short_name": "Nuovo",
       "description": "Crea un nuovo evento",
       "url": "/?action=create",
-      "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/icon96.png", "sizes": "96x96" }]
     }
   ],
   "categories": ["finance", "utilities"],

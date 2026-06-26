@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — notifications.js v1.2
+// WeGo — notifications.js v1.3
 // Gestione notifiche push con Web Push (VAPID) + Supabase
+// v1.3: FIX — icon/badge delle notifiche puntavano a "/icons/icon-NN.png"
+//       (cartella/nome inesistenti — i file reali sono in root, es.
+//       "/icon192.png", senza trattino). Stesso fix in manifest.json,
+//       sw.js, admin.html (vedi app.js v2.17 per il contesto: trovato
+//       mentre si verificava perché il prompt di installazione PWA non
+//       sempre si attiva su Android — icone non risolvibili = PWA non
+//       installabile per Chrome).
 // v1.2: fix critico — _registerToken riusava una sottoscrizione del
 //       browser legata a una vecchia chiave VAPID pubblica anche dopo
 //       averla rigenerata sul server (il browser non se ne accorge da
@@ -177,8 +184,8 @@ const Notifications = {
 
     await window._swRegistration.showNotification(title, {
       body,
-      icon:    '/icons/icon-192.png',
-      badge:   '/icons/icon-72.png',
+      icon:    '/icon192.png',
+      badge:   '/icon72.png',
       vibrate: [100, 50, 100],
       tag:     options.tag || 'wego',
       data:    options.data || {},

@@ -7,9 +7,9 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>WeGo v5.0</title>
+  <title>WeGo v5.1</title>
   <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
   <style>
     /* ── Card evento ── */
@@ -181,6 +181,20 @@
       <span class="badge badge--amber" id="proBadge" style="display:none;background:transparent;padding:0;border-radius:0;" title="Eventi Pro ancora disponibili (creati su 100)">Pro</span>
     </div>
     <div class="app-header__actions">
+      <!-- INSTALLA PWA: nascosto di default, mostrato da App._initInstallButton()
+           solo se l'app non è già installata (non in modalità standalone) e
+           solo su Android/iOS (o ovunque il browser segnali che è installabile,
+           es. desktop Chrome/Edge — vedi app.js). Comportamento al tap diverso
+           per piattaforma: Android tenta il prompt nativo di installazione,
+           iOS mostra le istruzioni manuali (non esiste un'installazione
+           programmatica su iOS Safari). -->
+      <button class="btn btn--primary" id="installBtn" style="display:none;white-space:nowrap;" onclick="App.installApp()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+          <path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/>
+          <path d="M5 21h14"/>
+        </svg>
+        Installa
+      </button>
       <div id="connDot" style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;"></div>
       <button class="btn btn--icon" id="syncBtn" title="Sincronizza" onclick="App.syncNow()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -346,6 +360,20 @@
         Oppure crea un nuovo evento →
       </button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: ISTRUZIONI INSTALLAZIONE PWA — usato per iOS (dove non esiste
+     un'installazione programmatica) e come ripiego su Android/desktop nel
+     caso il browser non abbia (ancora) generato il prompt nativo. Il
+     contenuto di #installInfoBody viene scritto da App._showInstallInfo()
+     in base alla piattaforma rilevata, vedi app.js. -->
+<div class="modal-backdrop" id="modalInstallInfo" onclick="App.closeModal('modalInstallInfo')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="bottom-sheet__handle"></div>
+    <h2 class="bottom-sheet__title">Installa WeGo</h2>
+    <div id="installInfoBody" style="font-size:15px;color:var(--text-secondary);"></div>
+    <button class="btn btn--primary btn--full btn--lg" onclick="App.closeModal('modalInstallInfo')" style="margin-top:16px;">Ho capito</button>
   </div>
 </div>
 

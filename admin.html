@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
-  <title>Admin — WeGo v1.8</title>
+  <title>Admin — WeGo v1.9</title>
   <link rel="stylesheet" href="/style.css" />
   <style>
     .admin-section { margin-bottom: 22px; }
@@ -848,8 +848,8 @@ const AdminApp = {
       const readyReg = await navigator.serviceWorker.ready;
       await readyReg.showNotification('WeGo — Test notifica', {
         body:    'Le notifiche funzionano correttamente!',
-        icon:    '/icons/icon-192.png',
-        badge:   '/icons/icon-72.png',
+        icon:    '/icon192.png',
+        badge:   '/icon72.png',
         vibrate: [100, 50, 100],
         tag:     'wego-admin-test'
       });

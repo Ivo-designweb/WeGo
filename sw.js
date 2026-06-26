@@ -1,6 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v5.0
+// WeGo — sw.js v5.1
 // Service Worker — cache offline + background sync
+// v5.1: nessuna modifica alla lista di precache — NUOVO bottone
+//       "Installa" in index.html (app.js v2.17), FIX percorsi icona/
+//       badge notifiche push (icon/icon-NN.png inesistente → /iconNN.png,
+//       file reali in root), tutto interno ai file già precaricati
 // v5.0: nessuna modifica alla lista di precache — FIX layout flex
 //       "Previsione"/"Tipo" in modifica movimento (spesa.js v2.6) e
 //       FIX "Versato" che includeva le previsioni + badge "(Prev. ...)"
@@ -34,7 +38,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v5.0';
+const CACHE_NAME = 'wego-v5.1';
 
 const STATIC_ASSETS = [
   '/',
@@ -59,7 +63,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v5.0');
+  console.log('[SW] Install v5.1');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -85,7 +89,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v5.0');
+  console.log('[SW] Activate v5.1');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
@@ -211,8 +215,8 @@ self.addEventListener('push', (event) => {
     event.waitUntil(
       self.registration.showNotification(data.title || 'WeGo', {
         body:    data.body || '',
-        icon:    '/icons/icon-192.png',
-        badge:   '/icons/icon-72.png',
+        icon:    '/icon192.png',
+        badge:   '/icon72.png',
         tag:     'wego-notification',
         data:    data
       })

@@ -1,6 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.16
+// WeGo — app.js v2.17
 // Logica principale pagina Home (index.html)
+// v2.17: NUOVO bottone "Installa" in header (solo su index.html) — vedi
+//        _initInstallButton()/installApp()/_showInstallInfo() più sotto.
+//        Nascosto se la PWA è già installata (standalone). Su Android/
+//        desktop intercetta l'evento "beforeinstallprompt" e lancia il
+//        prompt nativo del browser; su iOS (dove non esiste
+//        un'installazione programmatica) mostra invece un modal con le
+//        istruzioni manuali (Safari → Condividi → "Aggiungi a Home").
+//        Fallback con le stesse istruzioni anche su Android/desktop se
+//        il browser non ha ancora generato il prompt nativo al momento
+//        del tap.
 // v2.16: FIX licenza foto per-evento (license.js v1.3) — createEvent()
 //        e saveEditEvent() impostano events.photo_sync_enabled in base
 //        al tier del creatore al momento, così i partecipanti con
@@ -38,10 +48,12 @@ const App = {
   _pendingEditPhoto: null,   // foto nuova per modifica evento (null = invariata)
   _editingEventId: null,
   _invitees:     [],   // lista nomi partecipanti aggiuntivi nel modal crea evento
+  _deferredInstallPrompt: null,  // evento "beforeinstallprompt" catturato (Android/desktop)
+  _installPlatform: null,        // 'ios' | 'android' | null — vedi _initInstallButton()
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v2.15 init');
+    console.log('[App] WeGo v2.17 init');
 
     // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
     // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
@@ -95,6 +107,7 @@ const App = {
     // con il server avviene solo DOPO, e solo se si è online (vedi sotto).
     await App.loadEvents();
     App._initNetworkMonitor();
+    App._initInstallButton();
 
     if (Utils.isOnline()) {
       App._syncQuiet();
@@ -151,6 +164,124 @@ const App = {
     window.addEventListener('online',  update);
     window.addEventListener('offline', update);
     update();
+  },
+
+  // ─── INSTALLAZIONE PWA ────────────────────────────────────
+  // Bottone "Installa" in header (solo index.html, in alto a destra).
+  // Mostrato solo se l'app NON è già installata (non in modalità
+  // standalone). Comportamento diverso per piattaforma:
+  // - Android (e desktop Chrome/Edge): intercettiamo l'evento
+  //   "beforeinstallprompt" del browser per riusarlo col NOSTRO bottone
+  //   invece del mini-banner automatico — al tap lanciamo il prompt
+  //   nativo (App.installApp()).
+  // - iOS: non esiste un evento equivalente né un'installazione
+  //   programmatica — mostriamo subito il bottone (se non standalone) e
+  //   al tap spieghiamo i passaggi manuali (Safari → Condividi →
+  //   "Aggiungi a Home").
+  // - Se il browser non genera mai il prompt nativo (criteri PWA non
+  //   soddisfatti, già rifiutato troppe volte, ecc.) ma siamo su
+  //   Android, mostriamo comunque le istruzioni manuali al tap invece
+  //   di non fare nulla.
+  _initInstallButton() {
+    const btn = document.getElementById('installBtn');
+    if (!btn) return;
+
+    // Già installata? "display-mode: standalone" copre Android/desktop;
+    // "navigator.standalone" è la proprietà storica di iOS Safari (la
+    // media query display-mode funziona solo da iOS 16.4 in poi, quindi
+    // controlliamo entrambe per sicurezza).
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+    if (isStandalone) return; // bottone resta nascosto
+
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS 13+
+    const isAndroid = /Android/.test(ua);
+
+    if (isIOS) {
+      App._installPlatform = 'ios';
+      btn.style.display = '';
+    } else if (isAndroid) {
+      App._installPlatform = 'android';
+      btn.style.display = '';
+    }
+    // Altri browser/desktop: il bottone compare solo se/quando arriva
+    // "beforeinstallprompt" qui sotto (stesso comportamento di Android:
+    // prompt nativo diretto).
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault(); // sostituiamo il mini-banner automatico del browser
+      App._deferredInstallPrompt = e;
+      if (!App._installPlatform) App._installPlatform = 'android';
+      btn.style.display = '';
+    });
+
+    // Installata (da questo bottone o dal menu del browser): nascondi.
+    window.addEventListener('appinstalled', () => {
+      btn.style.display = 'none';
+      App._deferredInstallPrompt = null;
+    });
+  },
+
+  async installApp() {
+    // iOS: nessuna installazione programmatica possibile, solo istruzioni.
+    if (App._installPlatform === 'ios') {
+      App._showInstallInfo();
+      return;
+    }
+    // Abbiamo un prompt nativo pronto (Android/desktop): usiamolo.
+    if (App._deferredInstallPrompt) {
+      const promptEvent = App._deferredInstallPrompt;
+      App._deferredInstallPrompt = null;
+      try {
+        promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+        if (choice.outcome === 'accepted') {
+          const btn = document.getElementById('installBtn');
+          if (btn) btn.style.display = 'none';
+        }
+        // Se l'utente ha rifiutato ("dismissed"), lasciamo il bottone
+        // visibile: potrà riprovare quando vuole.
+      } catch (e) {
+        console.warn('[App] installApp prompt error:', e);
+      }
+      return;
+    }
+    // Bottone visibile (siamo su Android) ma il browser non ha ancora
+    // generato il prompt nativo in questa sessione — mostriamo le
+    // istruzioni manuali invece di non fare nulla.
+    App._showInstallInfo();
+  },
+
+  // Scrive in #installInfoBody le istruzioni giuste per la piattaforma
+  // rilevata e apre il modal #modalInstallInfo.
+  _showInstallInfo() {
+    const body = document.getElementById('installInfoBody');
+    if (!body) return;
+
+    if (App._installPlatform === 'ios') {
+      body.innerHTML = `
+        <ol style="padding-left:20px;line-height:1.8;margin:0;">
+          <li>Apri questa pagina con <strong>Safari</strong> (non funziona da Chrome o altre app su iOS)</li>
+          <li>Tocca l'icona <strong>Condividi</strong>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin:0 1px;">
+              <path d="M12 2v13"/><polyline points="8 6 12 2 16 6"/>
+              <path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/>
+            </svg>
+            nella barra di Safari (in basso su iPhone, in alto su iPad)</li>
+          <li>Scorri l'elenco e tocca <strong>"Aggiungi a Home"</strong></li>
+          <li>Tocca <strong>"Aggiungi"</strong> in alto a destra</li>
+        </ol>`;
+    } else {
+      body.innerHTML = `
+        <ol style="padding-left:20px;line-height:1.8;margin:0;">
+          <li>Tocca il menu <strong>⋮</strong> in alto a destra del browser</li>
+          <li>Tocca <strong>"Installa app"</strong> oppure <strong>"Aggiungi a schermata Home"</strong></li>
+          <li>Conferma toccando <strong>"Installa"</strong></li>
+        </ol>`;
+    }
+    App.openModal('modalInstallInfo');
   },
 
   // ─── LOAD EVENTS ──────────────────────────────────────────

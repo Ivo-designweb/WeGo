@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v5.0 (v3.7 per spesa.html/spesa.js) — Aggiornato: 26 giugno 2026**
+**Versione corrente: v5.1 (v3.7 per spesa.html/spesa.js) — Aggiornato: 26 giugno 2026**
 
 ---
 
@@ -43,16 +43,16 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v5.0   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo
-├── evento.html          v5.0  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., badge "(Prev. ...)" in Partecipanti
+├── index.html          v5.1   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
+├── evento.html          v5.1  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., badge "(Prev. ...)" in Partecipanti
 ├── spesa.html            v3.7 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere"
-├── impostazioni.html    v5.0   Impostazioni: tema, metodi pagamento, categorie spesa, dispositivo proprietario, licenza Base/Pro, link Admin
-├── admin.html           v1.8   Pannello admin/debug — password verificata lato server + gestione sync esterni + licenza Pro
-├── sw.js                v5.0   Service Worker (CACHE_NAME: wego-v5.0) — esclude /api/* dalla cache
-├── manifest.json        v5.0   PWA manifest
+├── impostazioni.html    v5.1   Impostazioni: tema, metodi pagamento, categorie spesa, dispositivo proprietario, licenza Base/Pro, link Admin
+├── admin.html           v1.9   Pannello admin/debug — password verificata lato server + gestione sync esterni + licenza Pro, fix percorso icone notifiche
+├── sw.js                v5.1   Service Worker (CACHE_NAME: wego-v5.1) — esclude /api/* dalla cache, fix percorso icone notifiche
+├── manifest.json        v5.1   PWA manifest — fix percorso icone (erano /icons/icon-NN.png inesistente)
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
-├── app.js                v2.16 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro completa, fix photo_sync_enabled per-evento
+├── app.js                v2.17 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro completa, bottone "Installa" PWA (Android/iOS)
 ├── evento.js             v2.18 Logica pagina evento: movimenti, saldi (con Prev. e "+Cassiere"), partecipanti (Versato/Incassato senza previsioni + badge Prev.), ricerca, foto, 4 totali, gate downgrade
 ├── spesa.js               v2.6 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.3 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() (fix foto per-evento)
@@ -60,8 +60,8 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 ├── supabase.js            v1.10 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast, events.photo_sync_enabled, FIX type/paid_for in update()
 ├── db.js                  v1.7 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast
 ├── utils.js               v1.3 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier')
+├── notifications.js       v1.3 Notifiche push Web Push (VAPID) + Supabase, fix percorso icone
 ├── payments.js            v1.1 Metodi di pagamento + NUOVO ExpenseCategories (categorie di spesa, stesso pattern)
-├── notifications.js      v1.2 Web Push: registrazione + salvataggio sottoscrizione su Supabase (fix mismatch chiave VAPID)
 ├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis e §5quater)
 │   ├── admin-login.js          Verifica password admin contro env var ADMIN_PASSWORD
 │   ├── owner-verify.js         Verifica codice dispositivo proprietario contro env var OWNER_DEVICE_SECRET
@@ -608,6 +608,45 @@ a suo nome, compare un badge ambra con la somma totale delle sue previsioni — 
 spese previste (non ancora reali, non divise) e 80€ di contributo reale. Stesso
 calcolo già usato per la colonna "Prev." in Saldi, riusato qui.
 
+## 5octies. Bottone "Installa" PWA in home + fix percorso icone (v5.1)
+
+### Bottone "Installa" (index.html / app.js)
+Bottone colorato (non solo icona, a differenza degli altri in header) in alto a
+destra in index.html, accanto agli altri bottoni header — visibile **solo se la PWA
+non è già installata** (`display-mode: standalone` / `navigator.standalone`, vedi
+`App._initInstallButton()`).
+
+- **Rilevamento piattaforma**: per User-Agent (`/iPad|iPhone|iPod/` + il caso speciale
+  iPadOS 13+ che si presenta come Mac con touch, e `/Android/`).
+- **Android (e desktop Chrome/Edge)**: intercettiamo l'evento nativo del browser
+  `beforeinstallprompt` (con `preventDefault()`, per sostituire il mini-banner
+  automatico col nostro bottone) e lo riusiamo al tap (`promptEvent.prompt()`). Se il
+  bottone è visibile ma il browser non ha ancora generato quell'evento in questa
+  sessione, mostriamo le istruzioni manuali invece di non fare nulla.
+- **iOS**: non esiste un'installazione programmatica né un evento equivalente —
+  mostriamo subito il bottone (se non standalone) e al tap un modal con le istruzioni
+  manuali (Safari → icona Condividi → "Aggiungi a Home" → "Aggiungi"), con
+  l'avvertenza che funziona solo da Safari (non da Chrome/altre app su iOS).
+- Ascoltiamo anche `appinstalled` per nascondere il bottone non appena l'utente
+  installa, da qualunque percorso (nostro bottone o menu del browser).
+- Modal istruzioni condiviso (`#modalInstallInfo`) — stesso contenuto per iOS e per
+  il ripiego Android, testo scritto dinamicamente da `App._showInstallInfo()` in
+  base alla piattaforma rilevata.
+
+### Fix critico collegato: percorsi icone PWA inesistenti
+Mentre si implementava il bottone, trovato un bug preesistente che lo riguarda
+direttamente: `manifest.json` elencava le icone come `/icons/icon-72.png`,
+`/icons/icon-192.png` ecc. (cartella `/icons/` e trattino nel nome), ma i file reali
+sono in ROOT senza trattino (`/icon72.png`, `/icon192.png`…), come già documentato in
+§3. Risultato: tutte le icone del manifest risultavano 404, quindi **Chrome non
+considerava la PWA installabile** e `beforeinstallprompt` non si sarebbe mai
+generato su Android — il bottone "Installa" sarebbe sempre ricaduto sul ripiego
+manuale, mai sul prompt nativo one-tap. Stesso bug trovato (e corretto) anche in:
+`sw.js` e `notifications.js` (icon/badge delle notifiche push), `admin.html` (stessa
+cosa), `index.html`/`impostazioni.html` (`<link rel="apple-touch-icon">`, l'icona
+mostrata sulla Home di iOS dopo "Aggiungi a Home" — anche questa avrebbe mostrato
+uno screenshot della pagina invece dell'icona dell'app).
+
 ---
 
 ## 6. Fix critici applicati (storia, in ordine cronologico)
@@ -642,6 +681,7 @@ calcolo già usato per la colonna "Prev." in Saldi, riusato qui.
 | v4.8 | **NUOVA FUNZIONALITÀ** (vedi §5quinquies): campo "Previsione" (spesa futura, non divisa, esclusa da saldi/totali da dividere, evidenziata a parte); campo "Tipo" (categoria spesa, facoltativo, gestita in Impostazioni come i metodi di pagamento); 4 totali nei Movimenti (Totale/Previsione/Spese/Pro capite); colonna "Prev." nei Saldi. **FIX**: licenza foto per-evento — un device Base collegato a un evento ospitato da un creatore Pro può ora sincronizzare le foto su quell'evento specifico (`License.photoSyncAllowedForEvent()`, nuovo campo `events.photo_sync_enabled`) |
 | v4.9 | **NUOVA FUNZIONALITÀ — terzo tipo movimento "+Cassiere"** (vedi §5sexies): si comporta come una spesa normale (paid_by="A" il cassiere, participants="Da" chi versa, diviso tra loro) ma con segno OPPOSTO nei saldi/totali (`Utils.calculateBalances()` v1.3) — il cassiere va in debito, chi versa va in credito; considerato nei 4 totali di Movimenti (sottratto, non escluso come "Trasf."); badge verde nell'elenco movimenti. Bottone "Mov. cassa" rinominato "Trasf.". **FIX CRITICO**: `SupabaseClient.expenses.update()` non inviava `type`/`paid_for` al server — cambiare il tipo di un movimento esistente non si salvava davvero (veniva sovrascritto al pull successivo). **FIX**: checkbox nativa dell'interruttore "Previsione" visibile/fuori posizione in sola lettura (opacity inline sovrascriveva la classe CSS) |
 | v5.0 | **FIX**: interruttore "Previsione" e select "Tipo" disallineati SOLO in modifica movimento (mai in una spesa nuova) — `setType()` usava `el.style.display=''` per mostrarli, che rimuove la proprietà "display" dallo style inline senza ripristinarla (ricadeva su "block" invece di "flex", dato che queste due righe hanno "display:flex" solo inline, non da classe CSS); ora impostato esplicitamente a `'flex'`. **FIX**: `_calcUserContribution()` (Versato/Incassato in Partecipanti) includeva per errore le spese "Previsione" nel totale; ora le esclude sempre. **NUOVO**: badge ambra "(Prev. ...)" accanto al saldo di ogni partecipante in Partecipanti, quando ha previsioni a suo nome |
+| v5.1 | **NUOVO**: bottone "Installa" PWA in home (vedi §5octies), nascosto se già installata, comportamento diverso Android (prompt nativo `beforeinstallprompt`) vs iOS (istruzioni manuali, nessuna installazione programmatica possibile). **FIX CRITICO COLLEGATO**: tutte le icone PWA puntavano a `/icons/icon-NN.png` (cartella/nome inesistenti) invece dei file reali in root (`/iconNN.png`) — `manifest.json`, `sw.js`, `notifications.js`, `admin.html`, `apple-touch-icon` in `index.html`/`impostazioni.html`. Senza icone risolvibili Chrome non considerava la PWA installabile: il prompt nativo Android non si sarebbe mai generato |
 
 ---
 
@@ -703,8 +743,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v5.0 (v3.7 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v5.0`
+**Versione attuale:** v5.1 (v3.7 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v5.1`
 
 ---
 
