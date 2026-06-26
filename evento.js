@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.18
+// WeGo — evento.js v2.19
 // Logica pagina dettaglio evento
+// v2.19: RIMOSSA la sincronizzazione selettiva eventi esterni (gating —
+//        vedi app.js v2.18/sync.js v2.0): rimosso il puntino "syncGateDot"
+//        in header (sempre verde, non aveva più senso), il controllo
+//        "gated" in syncNow() (sempre "Sincronizzato"). La voce di menu
+//        "Richiedi sincronizzazione" diventa "Passa a Pro"
+//        (EventoApp.goToRequestPro(), apre la richiesta "soluzione
+//        completa" già presente in Impostazioni), visibile solo se questo
+//        device non è già Pro — al posto di shareSyncRequest() (rimossa).
 // v2.18: FIX — _calcUserContribution() (Versato/Incassato in
 //        Partecipanti) includeva per errore anche le spese
 //        "Previsione" nel totale "Versato": ora le esclude sempre
@@ -262,45 +270,20 @@ const EventoApp = {
     if (countSpeseEl) countSpeseEl.textContent = nMovimenti ? `(${nMovimenti})` : '';
     if (countPartEl)  countPartEl.textContent  = EventoApp._users.length ? `(${EventoApp._users.length})` : '';
 
-    // Puntino di stato sincronizzazione, accanto al puntino di connessione e
-    // all'icona di aggiornamento: stesso schema colori (verde/rosso), sempre
-    // visibile. Verde = sincronizzato col server (evento non gated, oppure
-    // gated ma abilitato); rosso = NON sincronizzato (gated e non ancora
-    // abilitato). Nessun popup qui: solo un'indicazione visiva passiva,
-    // sempre aggiornata ad ogni sync (manuale o automatica) perché
-    // _renderHero() viene chiamata da loadAll() dopo ogni ciclo
-    // (vedi syncNow()/_syncQuiet()).
-    const gateDot = document.getElementById('syncGateDot');
-    if (gateDot) {
-      const isSynced = !ev.gated || !!ev.sync_allowed;
-      gateDot.style.background = isSynced ? 'var(--green)' : 'var(--red)';
-      gateDot.title = isSynced
-        ? 'Sincronizzato'
-        : 'Non sincronizzato — tocca l\'icona di aggiornamento per i dettagli';
-    }
-
-    // Voce di menu "Richiedi sincronizzazione": visibile solo se l'evento
-    // è ancora in attesa di abilitazione (gated e non sync_allowed).
-    const ctxSyncBtn = document.getElementById('ctxSyncRequestBtn');
-    if (ctxSyncBtn) ctxSyncBtn.style.display = (ev.gated && !ev.sync_allowed) ? '' : 'none';
+    // Voce di menu "Passa a Pro": visibile solo se questo device NON è
+    // già Pro (non avrebbe senso proporla a chi ha già la soluzione
+    // completa attiva) — sostituisce la vecchia "Richiedi sincronizzazione"
+    // (gating eventi esterni, rimosso in questa versione).
+    const ctxProBtn = document.getElementById('ctxPassaProBtn');
+    if (ctxProBtn) ctxProBtn.style.display = (typeof License !== 'undefined' && License.isPro()) ? 'none' : '';
   },
 
-  // ─── RICHIESTA SINCRONIZZAZIONE (evento gated) ────────────
-  // Invia il codice evento via WhatsApp (o condivisione di sistema) a chi
-  // deve abilitare la sincronizzazione — l'app non conosce il contatto
-  // dell'admin, quindi apre la condivisione generica così l'utente scrive
-  // a chi vuole (es. il numero WhatsApp che già usa per contattarlo).
-  shareSyncRequest() {
-    const ev = EventoApp._event;
-    if (!ev) return;
-    const msg = `Ciao! Ho creato l'evento "${ev.title}" su WeGo.\n\nCodice: ${ev.code}\n\nPuoi abilitare la sincronizzazione sul server?`;
-    if (navigator.share) {
-      navigator.share({ title: 'WeGo — richiesta sincronizzazione', text: msg }).catch(() => {
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-      });
-    } else {
-      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
-    }
+  // ─── PASSA A PRO ────────────────────────────────────────────
+  // Naviga a Impostazioni e apre direttamente il modal "Richiedi
+  // soluzione completa" (stesso flusso già presente lì — vedi
+  // SettingsApp.showRequestPro() in impostazioni.html).
+  goToRequestPro() {
+    window.location.href = '/impostazioni.html?openRequestPro=1';
   },
 
   // ─── SWITCH TAB ───────────────────────────────────────────
@@ -1353,17 +1336,7 @@ const EventoApp = {
       await Sync.push();
       await Sync.pullEvent(EventoApp._eventId);
       await EventoApp.loadAll();
-
-      // Messaggio in base allo stato REALE dell'evento dopo il ciclo di
-      // sync appena concluso (non un generico "Sincronizzato" sempre
-      // uguale): se è ancora gated e non abilitato, niente è stato
-      // davvero inviato al server, quindi lo diciamo chiaramente.
-      const ev = EventoApp._event;
-      if (ev && ev.gated && !ev.sync_allowed) {
-        Utils.toast('Questo evento non è sincronizzato sul server: richiede l\'autorizzazione dell\'amministratore per essere abilitato.', 'info', 3000);
-      } else {
-        Utils.toast('Sincronizzato', 'success', 2000);
-      }
+      Utils.toast('Sincronizzato', 'success', 2000);
     } catch (e) {
       Utils.toast('Errore sync', 'error');
     }

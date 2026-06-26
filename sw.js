@@ -1,6 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v5.2
+// WeGo — sw.js v5.3
 // Service Worker — cache offline + background sync
+// v5.3: nessuna modifica alla lista di precache — RIMOSSA la
+//       sincronizzazione selettiva eventi esterni (gating, vedi app.js
+//       v2.18/sync.js v2.0/db.js v1.8/supabase.js v1.11/evento.js v2.19):
+//       ogni evento si sincronizza ora sempre, senza attesa di
+//       abilitazione admin. Sezione "Sincronizzazione eventi esterni"
+//       rimossa da admin.html (v2.0), lista "Dispositivi in attesa"
+//       (licenza Pro) riprogettata con header colonne fisso. Riga
+//       "Dispositivo proprietario" rimossa da impostazioni.html. Menu
+//       "Richiedi sincronizzazione" in evento.html diventa "Passa a Pro".
+//       Tutto interno ai file già precaricati.
 // v5.2: FIX CRITICO — le 8 icone PWA (icon72.png … icon512.png) erano
 //       file JPEG rinominati ".png", con dimensioni reali diverse da
 //       quelle dichiarate nel manifest (es. icon192.png era in realtà
@@ -55,7 +65,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v5.2';
+const CACHE_NAME = 'wego-v5.3';
 
 const STATIC_ASSETS = [
   '/',
@@ -80,7 +90,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v5.2');
+  console.log('[SW] Install v5.3');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -106,7 +116,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v5.2');
+  console.log('[SW] Activate v5.3');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

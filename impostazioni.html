@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v5.2</title>
+  <title>Impostazioni — WeGo v5.3</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -412,22 +412,6 @@
           </div>
         </div>
 
-        <div class="settings-row" onclick="SettingsApp.configureOwnerDevice()">
-          <div class="settings-row__icon" style="background:#10B981;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33h0A1.65 1.65 0 009 4.09V4a2 2 0 114 0v.09a1.65 1.65 0 001 1.51h0a1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82v0c.26.6.85 1 1.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-            </svg>
-          </div>
-          <div class="settings-row__body">
-            <div class="settings-row__label">Dispositivo proprietario</div>
-            <div class="settings-row__value" id="ownerDeviceStatus">Verifica…</div>
-          </div>
-          <div class="settings-row__right settings-row__chevron">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
-          </div>
-        </div>
-
         <div class="settings-row" onclick="window.location.href='/admin.html'">
           <div class="settings-row__icon" style="background:#6366F1;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -454,7 +438,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 5.2</div>
+        <div class="about-ver">Versione 5.3</div>
 
         <div class="about-div"></div>
 
@@ -608,8 +592,15 @@ const SettingsApp = {
 
     SettingsApp._renderAll();
     SettingsApp._renderSWVersion();
-    SettingsApp._renderOwnerDeviceStatus();
     SettingsApp._renderLicenseInfo();
+
+    // Apertura automatica della richiesta "soluzione completa" quando si
+    // arriva qui dal menu "Passa a Pro" di evento.html (EventoApp.goToRequestPro).
+    // showRequestPro() gestisce già da sola il caso "è già Pro" (mostra solo
+    // un toast, non apre il modal) — vedi sopra.
+    if (new URLSearchParams(location.search).get('openRequestPro') === '1') {
+      setTimeout(() => SettingsApp.showRequestPro(), 300);
+    }
   },
 
   // ─── LICENZA (Base/Pro) ────────────────────────────────────
@@ -677,84 +668,6 @@ const SettingsApp = {
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Invia richiesta'; }
     }
-  },
-
-  // ─── DISPOSITIVO PROPRIETARIO (sincronizzazione selettiva) ──
-  // Verificato lato server (vedi /api/owner-verify.js): il codice vero
-  // non è mai presente nel codice sorgente, solo come variabile
-  // d'ambiente su Vercel (OWNER_DEVICE_SECRET).
-  async configureOwnerDevice() {
-    const isOwner = Utils.getConfig('owner_device', false) === true;
-
-    if (isOwner) {
-      if (confirm('Questo device è impostato come "proprietario": i nuovi eventi che crei sono sempre sincronizzati automaticamente.\n\nVuoi rimuovere questa impostazione?')) {
-        Utils.setConfig('owner_device', false);
-        SettingsApp._renderOwnerDeviceStatus();
-        Utils.toast('Dispositivo proprietario disattivato', 'success');
-      }
-      return;
-    }
-
-    const secret = prompt('Inserisci il codice dispositivo proprietario:');
-    if (!secret) return;
-
-    try {
-      const res = await fetch('/api/owner-verify', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ secret })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        Utils.setConfig('owner_device', true);
-        SettingsApp._renderOwnerDeviceStatus();
-
-        // Eventi creati su QUESTO device PRIMA di attivare il dispositivo
-        // proprietario erano nati "gated" (non sincronizzati): ora che il
-        // device è riconosciuto come proprietario, li sblocchiamo subito
-        // — altrimenti resterebbero permanentemente non sincronizzati
-        // anche se "tuoi al 100%", perché il flag viene fissato solo alla
-        // creazione e non più ricalcolato da solo.
-        const fixed = await SettingsApp._unlockOwnedEvents();
-        Utils.toast(
-          fixed > 0
-            ? `Dispositivo proprietario attivato ✓ — ${fixed} evento${fixed > 1 ? 'i' : ''} già su questo telefono ${fixed > 1 ? 'sono stati sbloccati' : 'è stato sbloccato'} e si sincronizzerà al prossimo aggiornamento`
-            : 'Dispositivo proprietario attivato ✓',
-          'success', 4500
-        );
-      } else {
-        Utils.toast('Codice non valido', 'error');
-      }
-    } catch (e) {
-      Utils.toast('Errore di connessione: ' + e.message, 'error');
-    }
-  },
-
-  // Rimuove il flag "gated" da tutti gli eventi già presenti nell'IndexedDB
-  // di questo device (per definizione creati qui: un evento unito tramite
-  // codice è SEMPRE gated:false fin dall'inizio, vedi sync.js/app.js).
-  // Ritorna quanti eventi sono stati corretti.
-  async _unlockOwnedEvents() {
-    try {
-      const all = await DB.events.getAll();
-      const toFix = all.filter(e => e.gated);
-      for (const ev of toFix) {
-        await DB.events.save({ ...ev, gated: false, sync_allowed: true });
-      }
-      return toFix.length;
-    } catch (e) {
-      console.warn('[Settings] Sblocco eventi locali non riuscito:', e);
-      return 0;
-    }
-  },
-
-  _renderOwnerDeviceStatus() {
-    const el = document.getElementById('ownerDeviceStatus');
-    if (!el) return;
-    const isOwner = Utils.getConfig('owner_device', false) === true;
-    el.innerHTML = isOwner
-      ? 'I tuoi nuovi eventi sono sempre sincronizzati — <b style="color:var(--green);">attivo</b>'
-      : 'I tuoi nuovi eventi restano solo su questo telefono finché non li abiliti — <b style="color:var(--text-muted);">non attivo</b>';
   },
 
   // ─── VERSIONE SW ────────────────────────────────────────

@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.10
+// WeGo — supabase.js v1.11
 // Client Supabase — lettura config da localStorage
+// v1.11: RIMOSSO il namespace "syncStatus" (request/getByCode) — la
+//        sincronizzazione selettiva eventi esterni non esiste più (vedi
+//        app.js v2.18/sync.js v2.0). La tabella sp_sync_status e
+//        /api/sync-status.js restano sul server, semplicemente non più
+//        usati da nessun file — non serve nessuna migrazione SQL.
 // v1.10: FIX CRITICO — expenses.update() non inviava i campi "type" e
 //        "paid_for" nel PATCH: cambiare il tipo di un movimento
 //        esistente (es. Spesa → Trasf.) sembrava non salvarsi, perché
@@ -365,36 +370,6 @@ const SupabaseClient = (() => {
     }
   };
 
-  // ─── SYNC STATUS TABLE (sincronizzazione selettiva eventi esterni) ──
-  // Un evento creato da un device "non proprietario" resta solo locale
-  // finché il suo codice non è abilitato qui (admin.html). request() viene
-  // chiamato in automatico alla creazione dell'evento (vedi app.js); getByCode()
-  // viene interrogato da Sync ad ogni ciclo per sapere se è stato abilitato.
-  //
-  // MODIFICA SICUREZZA (v1.8): request() NON scrive più direttamente su
-  // Supabase con la anon key (che ora ha SOLO il permesso SELECT su
-  // questa tabella, vedi schema SQL) — passa da /api/sync-status.js,
-  // che usa una chiave server-only per scrivere. getByCode() resta una
-  // lettura diretta: la anon key può ancora leggere (SELECT è concesso),
-  // solo le scritture sono bloccate.
-  const syncStatus = {
-    async request(code, title, createdBy) {
-      const res = await fetch('/api/sync-status', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ action: 'request', code, title, createdBy })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) throw new Error((data && data.error) || `Errore HTTP ${res.status}`);
-      return data;
-    },
-
-    async getByCode(code) {
-      const r = await request('GET', 'sp_sync_status', null, { code: `eq.${code}`, select: '*' });
-      return Array.isArray(r) ? (r[0] || null) : null;
-    }
-  };
-
   // ─── DEVICE LICENSE TABLE (licenza Base/Pro — NUOVO v1.7) ──────────
   // Abilitazione "versione Pro" per singolo dispositivo (vedi license.js
   // / impostazioni.html / admin.html). request() viene chiamato quando
@@ -699,7 +674,6 @@ SELECT 'Schema WeGo installato correttamente!' AS status;
     expensePhotos,
     payments,
     pushSubscriptions,
-    syncStatus,
     deviceLicense,
     SQL_SCHEMA
   };

@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — db.js v1.7
+// WeGo — db.js v1.8
 // Gestione dati locali con IndexedDB (offline-first)
+// v1.8: RIMOSSA la sincronizzazione selettiva eventi esterni (gating —
+//       vedi app.js v2.18/sync.js v2.0): events.save() forza ora sempre
+//       gated:false / sync_allowed:true, qualunque sia il valore passato
+//       — eventuali eventi locali rimasti "gated:true" da prima di questa
+//       versione si sbloccano da soli al primo save() successivo (es. al
+//       prossimo pull). Rimossa events.setSyncAllowed() (non più usata).
 // v1.7: nuovo campo events.photo_sync_enabled (sincronizzato, a
 //       differenza di is_mine) — fix licenza foto per-evento, vedi
 //       license.js v1.3 / sync.js / app.js; nuovi campi expenses.category
@@ -197,19 +203,12 @@ const DB = (() => {
         updated_at:  event.updated_at || Utils.now(),
         synced:      event.synced || false,
         archived:    event.archived || false,
-        // ── SINCRONIZZAZIONE SELETTIVA EVENTI ESTERNI (v1.3) ──────
-        // gated:true  = evento creato da un device "non proprietario": la
-        //   sincronizzazione resta sospesa finché un admin non abilita il
-        //   codice (vedi Sync._refreshGatedEvents in sync.js).
-        // gated:false = evento del device proprietario, o evento legacy
-        //   creato prima di questa versione: comportamento invariato,
-        //   sempre sincronizzato come prima.
-        // sync_allowed = permesso EFFETTIVO attuale di sincronizzare:
-        //   per gli eventi non gated è sempre true; per quelli gated viene
-        //   aggiornato in automatico da Sync in base allo stato remoto
-        //   (tabella sp_sync_status).
-        gated:        event.gated || false,
-        sync_allowed: event.gated ? (event.sync_allowed || false) : true
+        // RIMOSSO (v1.8): sincronizzazione selettiva eventi esterni. Ogni
+        // evento si sincronizza sempre, qualunque device lo crei — questi
+        // due campi restano nello schema locale solo per compatibilità con
+        // eventuali record già salvati (auto-si "sbloccano" qui).
+        gated:        false,
+        sync_allowed: true
       };
       await put('events', item);
       return item;
@@ -222,15 +221,6 @@ const DB = (() => {
     async markSynced(id) {
       const ev = await getOne('events', id);
       if (ev) { ev.synced = true; await put('events', ev); }
-    },
-
-    // Aggiorna solo il permesso di sincronizzazione (usato da Sync dopo
-    // aver verificato lo stato su sp_sync_status), senza toccare gli altri
-    // campi né forzare un nuovo invio di update_event.
-    async setSyncAllowed(id, allowed) {
-      const ev = await getOne('events', id);
-      if (ev) { ev.sync_allowed = !!allowed; await put('events', ev); }
-      return ev;
     }
   };
 

@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v5.2 (v3.7 per spesa.html/spesa.js) — Aggiornato: 26 giugno 2026**
+**Versione corrente: v5.3 (v3.7 per spesa.html/spesa.js) — Aggiornato: 26 giugno 2026**
 
 ---
 
@@ -43,30 +43,30 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v5.2   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
-├── evento.html          v5.2  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., badge "(Prev. ...)" in Partecipanti
+├── index.html          v5.3   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
+├── evento.html          v5.3  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
 ├── spesa.html            v3.7 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere"
-├── impostazioni.html    v5.2   Impostazioni: tema, metodi pagamento, categorie spesa, dispositivo proprietario, licenza Base/Pro, link Admin
-├── admin.html           v1.9   Pannello admin/debug — password verificata lato server + gestione sync esterni + licenza Pro, fix percorso icone notifiche
-├── sw.js                v5.2   Service Worker (CACHE_NAME: wego-v5.2) — esclude /api/* dalla cache, fix percorso+contenuto icone
-├── manifest.json        v5.2   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
-├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG (mancava una regola dedicata)
+├── impostazioni.html    v5.3   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (richiesta auto-apribile da evento.html), link Admin
+├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso
+├── sw.js                v5.3   Service Worker (CACHE_NAME: wego-v5.3) — esclude /api/* dalla cache
+├── manifest.json        v5.3   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
-├── app.js                v2.17 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro completa, bottone "Installa" PWA (Android/iOS)
-├── evento.js             v2.18 Logica pagina evento: movimenti, saldi (con Prev. e "+Cassiere"), partecipanti (Versato/Incassato senza previsioni + badge Prev.), ricerca, foto, 4 totali, gate downgrade
+├── app.js                v2.18 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA — RIMOSSO il gating sync esterni
+├── evento.js             v2.19 Logica pagina evento: movimenti, saldi (con Prev. e "+Cassiere"), partecipanti, ricerca, foto, 4 totali, gate downgrade — RIMOSSO il gating sync esterni, menu "Passa a Pro"
 ├── spesa.js               v2.6 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.3 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() (fix foto per-evento)
-├── sync.js                v1.9 Sincronizzazione bidirezionale + gating eventi esterni + foto movimenti PER EVENTO + verifica periodica licenza
-├── supabase.js            v1.10 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast, events.photo_sync_enabled, FIX type/paid_for in update()
-├── db.js                  v1.7 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast
+├── sync.js                v2.0 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza — RIMOSSO il gating eventi esterni
+├── supabase.js            v1.11 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast, events.photo_sync_enabled — RIMOSSO syncStatus
+├── db.js                  v1.8 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast — gated/sync_allowed sempre false/true
 ├── utils.js               v1.3 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier')
 ├── notifications.js       v1.3 Notifiche push Web Push (VAPID) + Supabase, fix percorso icone
 ├── payments.js            v1.1 Metodi di pagamento + NUOVO ExpenseCategories (categorie di spesa, stesso pattern)
 ├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis e §5quater)
 │   ├── admin-login.js          Verifica password admin contro env var ADMIN_PASSWORD
-│   ├── owner-verify.js         Verifica codice dispositivo proprietario contro env var OWNER_DEVICE_SECRET
-│   ├── sync-status.js          v2 — Lista/abilita/disabilita/registra codici evento esterni (sp_sync_status), ora con SUPABASE_SERVICE_KEY
-│   └── device-license.js       v2 — Lista/abilita/disabilita/registra licenze Pro per dispositivo (sp_device_license), ora con SUPABASE_SERVICE_KEY
+│   ├── owner-verify.js         Verificava il codice dispositivo proprietario — VESTIGIALE da v5.3 (gating rimosso), nessun file chiama più /api/owner-verify
+│   ├── sync-status.js          Gestiva sp_sync_status (gating eventi esterni) — VESTIGIALE da v5.3, nessun file chiama più /api/sync-status
+│   └── device-license.js       v2 — Lista/abilita/disabilita/registra licenze Pro per dispositivo (sp_device_license), con SUPABASE_SERVICE_KEY — INVARIATO, ancora attivo
 └── icon*.png                  Icone PWA (72, 96, 128, 144, 152, 192, 384, 512 px) — RIGENERATE in v5.2: erano JPEG rinominati ".png" con dimensioni reali diverse da quelle dichiarate nel manifest (es. "192" era 196×196 reale), ora PNG veri esatti
 
 supabase-function/  (NON sul sito — va deployata separatamente su Supabase, vedi §11)
@@ -132,56 +132,17 @@ Esporta configurazione** → sostituire `chiavi.json` nel repo col file esportat
 GitHub → attendere il redeploy Vercel. Scoperto e risolto in v4.0 per la VAPID public key
 (vedi tabella fix sotto), ma vale per ogni campo di quelle due sezioni.
 
-### 🔒 Sincronizzazione selettiva eventi esterni (NUOVO v3.7)
-Dalla v3.7 non tutti gli eventi vengono sincronizzati automaticamente:
-
-- **Dispositivo proprietario**: in Impostazioni → Avanzate, Ivo inserisce un codice segreto
-  (verificato da `/api/owner-verify.js` contro la env var `OWNER_DEVICE_SECRET`, mai nel
-  codice). Se attivo, `Utils.getConfig('owner_device')` è `true` su quel device.
-- **Alla creazione di un evento** (`App.createEvent`): se il device NON è proprietario,
-  l'evento nasce con `gated:true` e `sync_allowed:false` (vedi `db.js` → `events.save()`).
-  Resta SOLO nell'IndexedDB locale: `Sync.push()` salta tutte le operazioni collegate a quel
-  evento (`_isEventSyncAllowed`/`_pendingEventId`), tranne la registrazione informativa del
-  codice su `sp_sync_status` (operazione `register_sync_request`, sempre eseguita).
-- **Abilitazione**: da `admin.html` (sezione "Sincronizzazione eventi esterni"), Ivo vede in
-  automatico i codici registrati e può abilitarli/disabilitarli con un tap, oppure inserire un
-  codice ricevuto a voce/WhatsApp. La scrittura passa da `/api/sync-status.js`, che verifica la
-  password admin lato server prima di toccare il database.
-- **Propagazione**: ad ogni `Sync.push()`, `_refreshGatedEvents()` controlla lo stato remoto
-  per ogni evento gated e aggiorna `sync_allowed` di conseguenza — appena abilitato, tutta la
-  coda `pending` + i dati non sincronizzati accumulati offline (utenti, spese, pagamenti)
-  vengono inviati nello stesso ciclo, senza bisogno di logica di "recupero" dedicata.
-- **Disabilitazione**: blocca solo i FUTURI invii — non elimina mai dati già presenti sul server.
-- **Protezione scelta**: solo a livello applicativo (non Row Level Security sul database) —
-  decisione esplicita dell'utente per mantenere la cosa semplice; la anon key Supabase ha
-  comunque accesso INSERT/UPDATE pubblico su tutte le tabelle, come già prima di questa modifica.
-- **UI (evento.html)**: niente più banner persistente (rimosso in v3.8 perché restava visibile anche
-  dopo l'abilitazione). Un **puntino** accanto all'icona di aggiornamento in header, **sempre visibile**
-  (stesso schema colori del puntino di connessione, NIENTE giallo dalla v3.9): **verde** = sincronizzato
-  (evento non gated, oppure gated ma abilitato), **rosso** = NON sincronizzato (gated e non ancora
-  abilitato) — aggiornato silenziosamente ad ogni sync (manuale o automatica). Il **popup testuale**
-  "non sincronizzato, richiede l'autorizzazione dell'amministratore" appare SOLO al tap manuale
-  sull'icona di sync (`EventoApp.syncNow()`), mai sulle sync automatiche (`_syncQuiet()`, avvio pagina,
-  evento online, dopo scrittura). La voce di menu "Richiedi sincronizzazione"
-  (`EventoApp.shareSyncRequest()`, condivisione WhatsApp/sistema del codice) è visibile solo per
-  eventi ancora in attesa, nel menu ☰ in alto.
-- **Messaggio "Sincronizzato" impreciso (fix v3.8)**: sia in `evento.js` (`syncNow`) che in `app.js`
-  (`syncNow`) il messaggio generico veniva mostrato anche quando l'evento/gli eventi non erano
-  davvero stati inviati al server perché ancora `gated`. Corretto: ora il messaggio riflette lo
-  stato reale dopo il ciclo di sync appena concluso.
-- **Sblocco retroattivo (fix v3.9)**: `gated` viene fissato SOLO al momento della creazione
-  dell'evento (in base a `Utils.getConfig('owner_device')` in quel preciso istante). Se Ivo creava
-  eventi di test SUL SUO device PRIMA di aver attivato "Dispositivo proprietario" in Impostazioni,
-  quegli eventi restavano permanentemente `gated:true` anche dopo aver attivato il device come
-  proprietario — il puntino rimaneva rosso per sempre su eventi che in realtà sono "suoi al 100%".
-  Risolto: `SettingsApp.configureOwnerDevice()` ora, appena il codice viene verificato con successo,
-  sblocca in automatico (`_unlockOwnedEvents()`) tutti gli eventi già presenti nell'IndexedDB di
-  questo device con `gated:true` → impostati a `gated:false`/`sync_allowed:true` (per definizione
-  un evento unito tramite codice è SEMPRE `gated:false` fin da subito, quindi qualunque evento
-  `gated:true` trovato in locale è stato necessariamente creato su questo stesso device). Si
-  sincronizzano al successivo ciclo automatico.
-- Il campo `created_by` (già esistente) non cambia: il creatore originale dell'evento resta
-  sempre visibile anche dopo l'abilitazione.
+### ❌ RIMOSSA in v5.3: Sincronizzazione selettiva eventi esterni (era NUOVO v3.7)
+Esisteva dalla v3.7 alla v5.2: ogni evento creato da un device senza il codice
+"dispositivo proprietario" nasceva `gated:true` e restava solo locale finché un
+admin non lo abilitava da `admin.html` ("Sincronizzazione eventi esterni"). **Rimossa
+del tutto in v5.3** (vedi §5decies per il dettaglio): ogni evento si sincronizza ora
+sempre automaticamente, su qualunque device, senza nessuna richiesta/autorizzazione —
+esattamente come si comportava prima solo il "dispositivo proprietario". Resta SOLO
+l'abilitazione **Base→Pro** (licenza dispositivo, §5bis), un sistema completamente
+diverso e indipendente. La tabella `sp_sync_status` e `/api/sync-status.js` restano
+sul server ma non sono più usati da nessun file (nessuna migrazione SQL necessaria
+per rimuoverli, se non si vuole nemmeno questo non c'è urgenza).
 
 
 ### Tipi pending (coda sync)
@@ -193,7 +154,7 @@ Dalla v3.7 non tutti gli eventi vengono sincronizzati automaticamente:
 | `create_user` | Aggiunta partecipante da evento aperto | Ora marca l'utente come `synced` dopo successo |
 | `delete_user` | Eliminazione di un partecipante | |
 | `clear_joined` | **Nuovo**: bottone "Scollegati" (home) | Pulisce `joined_at` sul server per l'utente che si scollega, così gli altri device lo vedono tornare "non connesso" |
-| `register_sync_request` | **Nuovo v3.7**: creazione evento da device non proprietario | Registra il codice su `sp_sync_status` per la lista automatica in admin.html; NON crea l'evento sul server, sempre eseguita anche se l'evento è gated |
+| `request_device_license` | Richiesta Pro fatta offline da Impostazioni | Registra il device su `sp_device_license` (licenza Base/Pro — vedi §5bis), ritentata dal normale ciclo di sync |
 
 Le spese, i pagamenti e ora anche gli **utenti** (per `joined_at`/`last_sync_at`) si sincronizzano
 direttamente via `getUnsyced()` + `_syncExpense()`/`_syncPayment()`/`_syncUser()`, senza passare
@@ -344,16 +305,18 @@ record locale esistente prima di applicare i valori remoti).
   nota libera (precompilata col nickname) + codice dispositivo copiabile; dopo l'abilitazione
   la riga diventa informativa e mostra la scadenza ("Valida fino al…" o "Nessuna scadenza")
 
-### Fase 3 — Pannello Admin (FATTA, admin.html v1.8)
-- Nuova sezione "Soluzione completa (Pro)" in `admin.html`, stesso identico pattern della
-  sezione "Sincronizzazione eventi esterni" già esistente: campo per inserire un `device_id`
-  (anche manualmente, non serve un'attesa richiesta) + campo data "fino al" (**obbligatorio**,
-  bottone rapido "Usa senza scadenza (31/12/2099)", default precompilato a un anno da oggi) +
-  bottone Abilita; lista sotto con tutti i dispositivi registrati (in attesa / Pro attivo con
-  scadenza mostrata / Pro scaduto) e bottone Abilita-rapido o Disabilita per ciascuno
+### Fase 3 — Pannello Admin (FATTA, admin.html v1.8 — lista riprogettata in v2.0/v5.3)
+- Sezione "Soluzione completa (Pro)" in `admin.html`: campo per inserire un `device_id`
+  manualmente (per abilitare proattivamente chi non ha ancora fatto richiesta dall'app) + campo
+  data "fino al" (**obbligatorio**, bottone rapido "Usa senza scadenza (31/12/2099)") + bottone
+  Abilita; sotto, **lista sintetica con header colonne fisso durante lo scroll** ("Codice
+  dispositivo" / "Data scadenza" — vedi §5decies per il dettaglio del redesign v5.3): ogni riga
+  mostra codice + (se già Pro) la scadenza in chiaro, oppure (se non ancora abilitato) un campo
+  data direttamente in riga precompilato a un anno da oggi, la nota del richiedente sotto, e il
+  bottone Abilita/Disabilita a destra — niente più bisogno di copiare il codice nel form in alto
+  per i dispositivi già presenti in lista
 - Tutte le scritture passano da `/api/device-license.js` (password admin verificata lato
-  server, stesso meccanismo di `/api/sync-status.js`) — `AdminGate.password` già gestito dal
-  resto della pagina, nessuna modifica lì necessaria
+  server) — `AdminGate.password` già gestito dal resto della pagina, nessuna modifica lì necessaria
 - **Disabilitare un dispositivo Pro qui NON cancella ancora nulla** (nessun evento toccato):
   la pulizia con scelta dell'utente (Fase 4) non è ancora implementata, il dialog di conferma
   lo dice esplicitamente
@@ -683,6 +646,79 @@ elimina la cache precedente, quindi le icone vengono riscaricate da zero. Aggiun
 anche una regola `Cache-Control` esplicita per i `.png` in `vercel.json`, che prima
 non c'era (nessuna regola dedicata = comportamento di default non garantito).
 
+## 5decies. Rimossa la sincronizzazione selettiva eventi esterni (v5.3)
+
+Decisione di prodotto: la sincronizzazione selettiva eventi esterni (gating, NUOVO in
+v3.7, vedi §4) è stata **rimossa del tutto**. Ogni evento creato da qualunque device
+si sincronizza ora sempre, automaticamente, senza nessuna richiesta/autorizzazione
+admin — esattamente il comportamento che prima aveva solo il "dispositivo
+proprietario". Resta SOLO l'abilitazione **Base→Pro** (licenza dispositivo, §5bis),
+sistema indipendente e non toccato in questa sessione (a parte il redesign della
+lista in admin.html, vedi sotto).
+
+### File toccati (rimozione del gating)
+- **`app.js` (v2.18)**: `createEvent()` non imposta più `gated`/registra più
+  `register_sync_request`; `_showShareCode()` semplificata (un solo messaggio,
+  niente più ramo "evento gated"); rimosso il badge "In attesa di sync" nella lista
+  eventi; `syncNow()` mostra sempre "Sincronizzato".
+- **`db.js` (v1.8)**: `events.save()` forza sempre `gated:false`/`sync_allowed:true`
+  — eventuali eventi locali rimasti `gated:true` da prima di questa versione si
+  "auto-sbloccano" al primo save successivo (es. al prossimo pull). Rimossa
+  `events.setSyncAllowed()` (non più usata).
+- **`sync.js` (v2.0)**: rimossi `_refreshGatedEvents()`, `_isEventSyncAllowed()`,
+  `_pendingEventId()` e tutti i controlli `if (!isEventSyncAllowed) continue` in
+  `push()` (pending ops, spese, pagamenti, utenti, foto). Rimossa la pending op
+  `register_sync_request`.
+- **`supabase.js` (v1.11)**: rimosso il namespace `syncStatus` (request/getByCode).
+- **`evento.js` (v2.19) / `evento.html`**: rimosso il puntino `syncGateDot` in
+  header (era sempre verde, senza più significato); `syncNow()` mostra sempre
+  "Sincronizzato". La voce di menu "Richiedi sincronizzazione"
+  (`shareSyncRequest()`, condivisione WhatsApp del codice) è sostituita da **"Passa
+  a Pro"** (`EventoApp.goToRequestPro()`), visibile solo se questo device NON è già
+  Pro — naviga a `impostazioni.html?openRequestPro=1`.
+- **`impostazioni.html`**: rimossa la riga "Dispositivo proprietario" (e le funzioni
+  `configureOwnerDevice()`/`_unlockOwnedEvents()`/`_renderOwnerDeviceStatus()`) —
+  non aveva più alcun effetto, dato che il gating che controllava è stato rimosso.
+  `init()` ora controlla il parametro URL `?openRequestPro=1` e, se presente, apre
+  in automatico il modal "Richiedi soluzione completa" (`showRequestPro()`, già
+  gestisce da sola il caso "è già Pro" con un semplice toast).
+- **`admin.html` (v2.0)**: rimossa l'intera sezione "Sincronizzazione eventi
+  esterni" (HTML + funzioni `enableEventCode()`/`enableEventCodeQuick()`/
+  `disableEventCode()`/`loadSyncStatusList()`).
+- **`index.html`**: rimossa la classe CSS orfana `.ev-badge-amber` (badge "In attesa
+  di sync", non più usato).
+- **Lasciati intatti, ma ora "vestigiali"** (nessun file li chiama più, nessuna
+  migrazione SQL necessaria per rimuoverli, si può fare con calma se si vuole
+  pulizia totale): tabella `sp_sync_status`, `/api/sync-status.js`,
+  `/api/owner-verify.js`, env var `OWNER_DEVICE_SECRET` su Vercel.
+
+### Lista "Soluzione completa (Pro)" riprogettata (admin.html)
+Su richiesta esplicita, la lista "Dispositivi in attesa / abilitati" è stata
+riprogettata in una tabella sintetica con **header colonne fisso durante lo
+scroll** (`position:sticky`, dentro un contenitore con scroll interno, max-height
+400px): "Codice dispositivo" e "Data scadenza". Ogni riga mostra:
+- **Riga 1**: codice dispositivo (troncato, tooltip col valore completo) a sinistra
+  · data scadenza a destra — **se il dispositivo non è ancora Pro, questo è un
+  campo `<input type="date">` editabile direttamente in riga** (precompilato a un
+  anno da oggi), non più testo statico — se è già Pro, testo in chiaro con la data
+  (o "Senza scad." se lontanissima).
+- **Riga 2**: la nota/descrizione inserita dal richiedente.
+- **A destra**, verticalmente centrato sulle due righe: bottone **Abilita** (legge
+  la data dall'input nella STESSA riga, `AdminApp.enableDeviceLicenseRow(this,
+  deviceId)`) oppure **Disabilita** se già attivo.
+
+Il form manuale in alto (inserisci codice dispositivo + data + Abilita) resta
+**invariato e separato** — serve per abilitare proattivamente un dispositivo che
+non ha ancora fatto richiesta dall'app (quindi non compare ancora nella lista).
+Rimossa `enableDeviceLicenseQuick()` (copiava il codice nel form in alto): la nuova
+`enableDeviceLicenseRow()` agisce direttamente dalla riga, senza passare dal form.
+
+**Nota**: "già Pro" qui significa `enabled && expires_at non ancora scaduta` (stesso
+criterio `isActive` di prima) — un dispositivo con Pro **scaduto** (`enabled:true`
+ma data passata) viene trattato come "non ancora Pro" ai fini del rendering: mostra
+di nuovo il campo data editabile invece del testo statico, per permettere un rinnovo
+con un tap solo, invece di un semplice "Disabilita" senza via di rinnovo rapido.
+
 ---
 
 ## 6. Fix critici applicati (storia, in ordine cronologico)
@@ -719,6 +755,7 @@ non c'era (nessuna regola dedicata = comportamento di default non garantito).
 | v5.0 | **FIX**: interruttore "Previsione" e select "Tipo" disallineati SOLO in modifica movimento (mai in una spesa nuova) — `setType()` usava `el.style.display=''` per mostrarli, che rimuove la proprietà "display" dallo style inline senza ripristinarla (ricadeva su "block" invece di "flex", dato che queste due righe hanno "display:flex" solo inline, non da classe CSS); ora impostato esplicitamente a `'flex'`. **FIX**: `_calcUserContribution()` (Versato/Incassato in Partecipanti) includeva per errore le spese "Previsione" nel totale; ora le esclude sempre. **NUOVO**: badge ambra "(Prev. ...)" accanto al saldo di ogni partecipante in Partecipanti, quando ha previsioni a suo nome |
 | v5.1 | **NUOVO**: bottone "Installa" PWA in home (vedi §5octies), nascosto se già installata, comportamento diverso Android (prompt nativo `beforeinstallprompt`) vs iOS (istruzioni manuali, nessuna installazione programmatica possibile). **FIX CRITICO COLLEGATO**: tutte le icone PWA puntavano a `/icons/icon-NN.png` (cartella/nome inesistenti) invece dei file reali in root (`/iconNN.png`) — `manifest.json`, `sw.js`, `notifications.js`, `admin.html`, `apple-touch-icon` in `index.html`/`impostazioni.html`. Senza icone risolvibili Chrome non considerava la PWA installabile: il prompt nativo Android non si sarebbe mai generato |
 | v5.2 | **FIX CRITICO — vera causa del prompt di installazione mai mostrato** (vedi §5nonies): le 8 icone PWA erano JPEG rinominati ".png", con dimensioni reali diverse da quelle dichiarate nel manifest (es. "192" era 196×196 reale, "144" e "152" erano lo stesso file 168×168). Chrome scarta icone con dimensione reale ≠ dichiarata — con nessuna icona valida, il manifest non superava il requisito minimo di installabilità, a prescindere da installazioni/disinstallazioni precedenti. Rigenerate come PNG veri alle dimensioni esatte. Rimosso "maskable" dal purpose (logo senza margine di sicurezza). `CACHE_NAME` incrementato per forzare il riscarico delle icone sui device che le avevano già in cache; aggiunta regola `Cache-Control` dedicata per i `.png` in `vercel.json` (mancava) |
+| v5.3 | **RIMOZIONE — sincronizzazione selettiva eventi esterni** (vedi §5decies): ogni evento si sincronizza ora sempre, su qualunque device, senza richiesta/autorizzazione admin (era NUOVO in v3.7). Rimossi: gating in `app.js`/`db.js`/`sync.js`/`evento.js`, namespace `syncStatus` in `supabase.js`, sezione "Sincronizzazione eventi esterni" in `admin.html`, riga "Dispositivo proprietario" in `impostazioni.html`. Menu "Richiedi sincronizzazione" → "Passa a Pro" in evento.html. **REDESIGN**: lista "Soluzione completa (Pro)" in admin.html con header colonne fisso durante lo scroll, campo data editabile direttamente in ogni riga |
 
 ---
 
@@ -780,8 +817,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v5.2 (v3.7 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v5.2`
+**Versione attuale:** v5.3 (v3.7 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v5.3`
 
 ---
 
@@ -792,19 +829,19 @@ Nessuna azione residua lato codice.
 
 ### 🔒 Modifica di sicurezza v4.7 — vedi §5quater per il dettaglio completo
 **ATTENZIONE ALL'ORDINE DI DEPLOY** — se carichi il nuovo codice senza prima fare questi due
-passaggi, "Richiedi soluzione completa" e la sincronizzazione di eventi esterni si romperanno
-(la anon key non avrà più i permessi, e la funzione server non avrà ancora la chiave nuova):
+passaggi, "Richiedi soluzione completa" si romperà (la anon key non avrà più i permessi, e
+la funzione server non avrà ancora la chiave nuova):
 1. [ ] Recupera la **service role key** di Supabase (Settings → API, sotto la anon key — diversa, più lunga, NON quella che già usi)
 2. [ ] Aggiungi una nuova variabile d'ambiente su Vercel: `SUPABASE_SERVICE_KEY` = quella chiave, poi rideploy
 3. [ ] Esegui di nuovo lo schema SQL aggiornato (Admin → Schema SQL → copia → Supabase SQL Editor → Run) — contiene le `REVOKE` indispensabili, un semplice re-deploy del codice non le applica da solo
 4. [ ] Solo dopo i punti 1-3, carica i file nuovi su GitHub/Vercel
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
-- [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, tabella `sp_sync_status`, colonna `sp_events.photo`, tabella `sp_expense_photos` (per la sincronizzazione foto movimenti), tabella `sp_device_license` (per la licenza Base/Pro), le `REVOKE` su sp_sync_status/sp_device_license (v4.7), **NUOVO v4.8: colonne `sp_events.photo_sync_enabled`, `sp_expenses.category`, `sp_expenses.is_forecast`**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "sincronizzazione selettiva eventi esterni", "modifica evento", "sincronizzazione foto movimenti", "richiesta soluzione completa", "Previsione/Tipo" e "fix licenza foto per-evento" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server)
+- [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, colonna `sp_events.photo`, tabella `sp_expense_photos` (per la sincronizzazione foto movimenti), tabella `sp_device_license` (per la licenza Base/Pro), le `REVOKE` su sp_sync_status/sp_device_license (v4.7), **NUOVO v4.8: colonne `sp_events.photo_sync_enabled`, `sp_expenses.category`, `sp_expenses.is_forecast`**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "modifica evento", "sincronizzazione foto movimenti", "richiesta soluzione completa", "Previsione/Tipo" e "fix licenza foto per-evento" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server). La tabella `sp_sync_status` (sincronizzazione eventi esterni) è VESTIGIALE da v5.3 — non serve più crearla, nessun file la usa più
 - [ ] **NUOVO v4.7 — Impostare `SUPABASE_SERVICE_KEY` su Vercel** (vedi sopra)
 - [ ] **NUOVO v3.7 — Impostare 2 variabili d'ambiente su Vercel** (Project → Settings → Environment Variables), poi rideployare:
   - `ADMIN_PASSWORD` → la password vera del pannello admin (sostituisce quella che prima era in chiaro nel codice)
-  - `OWNER_DEVICE_SECRET` → il codice segreto da inserire UNA VOLTA in Impostazioni → Avanzate sui tuoi device, per marcarli come "proprietario" (eventi sempre sincronizzati)
+  - `OWNER_DEVICE_SECRET` → **VESTIGIALE da v5.3** (serviva solo al gating eventi esterni, ora rimosso) — non serve più impostarla per nuovi deploy, nessun file la usa più
 - [ ] **NUOVO v3.7 — Verificare che Vercel rilevi la cartella `/api/`** come funzioni serverless dopo il primo upload (dovrebbe essere automatico, nessuna configurazione aggiuntiva in `vercel.json` richiesta per il runtime Node di default)
 - [x] **Deployare la Edge Function** `supabase-function/send-push-notification/` — **fatto, v4.0**. Durante l'attivazione sono emersi e risolti 2 problemi non previsti: (1) il bottone "Create Webhook" della Dashboard dava errore `schema "supabase_functions" does not exist` (bug noto della piattaforma su alcuni progetti) → risolto con trigger manuale via `pg_net`/`net.http_post` direttamente in SQL; (2) dopo aver rigenerato le chiavi VAPID, le notifiche risultavano "inviate" senza errori lato client ma non arrivavano mai → causa: `notifications.js` riusava la sottoscrizione del browser legata alla VECCHIA chiave pubblica, mai confrontata con quella nuova (fix in `notifications.js` v1.2, vedi tabella fix v4.0)
 
@@ -818,7 +855,6 @@ passaggi, "Richiedi soluzione completa" e la sincronizzazione di eventi esterni 
 - [ ] Risoluzione spese orfane dopo eliminazione partecipante
 - [ ] Sync bidirezionale della foto (attualmente solo locale sul device del proprietario)
 - [ ] Verificare se serve un heartbeat periodico per "connesso" oltre al semplice `joined_at` (attualmente "connesso" = ha fatto il join almeno una volta e non si è scollegato esplicitamente; non è una presenza realtime minuto-per-minuto)
-- [ ] **Hardening sincronizzazione selettiva (v3.7)**: attualmente il blocco è solo a livello app (scelta esplicita dell'utente, per semplicità). Se in futuro servisse una protezione vincolante anche lato database, si può attivare Row Level Security su `sp_events` con una policy che richiede la presenza del codice in `sp_sync_status` con `enabled=true` prima di un INSERT — già predisposto un commento nello schema SQL (`supabase.js`)
 
 ---
 

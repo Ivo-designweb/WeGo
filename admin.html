@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
-  <title>Admin — WeGo v1.9</title>
+  <title>Admin — WeGo v2.0</title>
   <link rel="stylesheet" href="/style.css" />
   <style>
     .admin-section { margin-bottom: 22px; }
@@ -67,6 +67,42 @@
     .fcm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     @media (max-width: 360px) { .fcm-grid { grid-template-columns: 1fr; } }
     .config-note { font-size: 13px; color: var(--text-muted); line-height: 1.5; padding: 4px 0; }
+    /* Lista dispositivi Pro — header colonne fisso durante lo scroll
+       (vedi sezione "Soluzione completa" più sotto) */
+    .dl-scroll {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .dl-header {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 13px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      color: var(--text-muted);
+    }
+    .dl-col-code { flex: 1; min-width: 0; }
+    .dl-col-date { width: 92px; flex-shrink: 0; text-align: right; }
+    .dl-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 13px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dl-row:last-child { border-bottom: none; }
+    .dl-row .dl-info { flex: 1; min-width: 0; }
+    .dl-row .dl-date { width: 92px; flex-shrink: 0; }
+    .dl-row .dl-date input[type="date"] {
+      width: 100%; font-size: 11px; padding: 5px 3px;
+      height: 30px; text-align: center;
+    }
     .admin-about { text-align: center; padding: 20px 14px; border-top: 1px solid var(--border); margin-top: 8px; }
     .admin-about__logo {
       width: 36px; height: 36px; background: var(--accent); border-radius: 8px;
@@ -311,34 +347,6 @@
       </div>
     </div>
 
-    <!-- SYNC EVENTI ESTERNI -->
-    <div class="admin-section">
-      <div class="section-header"><span class="section-title">Sincronizzazione eventi esterni</span></div>
-      <div class="admin-group" style="margin-bottom:10px;">
-        <div class="admin-row">
-          <p class="config-note">
-            Gli eventi che crei tu (con il codice "dispositivo proprietario" attivo, vedi Impostazioni → Avanzate)
-            sono sempre sincronizzati. Gli eventi creati dagli altri utenti restano invece solo sul loro telefono
-            finché non abiliti qui il loro codice — il creatore originale resta sempre visibile anche dopo l'abilitazione.
-          </p>
-        </div>
-        <div class="admin-row" style="display:flex;gap:8px;">
-          <input type="text" class="form-input" id="enableEventCode" placeholder="Codice evento, es. ABC-123456"
-            style="flex:1;text-transform:uppercase;font-family:monospace;" oninput="this.value=this.value.toUpperCase()"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();AdminApp.enableEventCode();}" />
-          <button class="btn btn--primary" onclick="AdminApp.enableEventCode()">Abilita</button>
-        </div>
-        <div class="test-result" id="enableEventResult"></div>
-      </div>
-      <div class="admin-group">
-        <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:14px;font-weight:600;color:var(--text-primary);">Codici in attesa / abilitati</span>
-          <button class="btn btn--ghost btn--sm" onclick="AdminApp.loadSyncStatusList()">Aggiorna</button>
-        </div>
-        <div id="syncStatusList"><p class="config-note">Caricamento…</p></div>
-      </div>
-    </div>
-
     <!-- LICENZA PRO (Soluzione completa) -->
     <div class="admin-section">
       <div class="section-header"><span class="section-title">Soluzione completa (Pro)</span></div>
@@ -364,12 +372,18 @@
         </div>
         <div class="test-result" id="enableDeviceResult"></div>
       </div>
-      <div class="admin-group">
+      <div class="admin-group" style="padding:0;">
         <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:14px;font-weight:600;color:var(--text-primary);">Dispositivi in attesa / abilitati</span>
           <button class="btn btn--ghost btn--sm" onclick="AdminApp.loadDeviceLicenseList()">Aggiorna</button>
         </div>
-        <div id="deviceLicenseList"><p class="config-note">Caricamento…</p></div>
+        <div class="dl-scroll">
+          <div class="dl-header">
+            <span class="dl-col-code">Codice dispositivo</span>
+            <span class="dl-col-date">Data scadenza</span>
+          </div>
+          <div id="deviceLicenseList"><p class="config-note" style="padding:11px 13px;">Caricamento…</p></div>
+        </div>
       </div>
     </div>
 
@@ -472,7 +486,6 @@ const AdminApp = {
     AdminApp._loadSavedCredentials();
     AdminApp._checkStatus();
     AdminApp._renderSQL();
-    AdminApp.loadSyncStatusList();
     AdminApp.loadDeviceLicenseList();
 
     // Default comodo per il campo "fino al": oggi + 1 anno (caso d'uso più
@@ -585,92 +598,6 @@ const AdminApp = {
     } catch(e) { el.className = 'test-result error'; el.textContent = 'Connessione fallita: ' + e.message; }
   },
 
-  // ── SINCRONIZZAZIONE EVENTI ESTERNI ────────────────────
-  // Tutte le operazioni di scrittura (enable/disable) passano da
-  // /api/sync-status.js, che verifica AdminGate.password lato server
-  // contro ADMIN_PASSWORD prima di toccare il database.
-  async enableEventCode() {
-    const codeInput = document.getElementById('enableEventCode');
-    const code = codeInput.value.trim();
-    const el = document.getElementById('enableEventResult');
-    if (!code) { Utils.toast('Inserisci un codice evento', 'error'); return; }
-    el.style.display = 'block'; el.className = 'test-result'; el.textContent = 'Abilitazione in corso…';
-    try {
-      const res = await fetch('/api/sync-status', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-password': AdminGate.password || '' },
-        body:    JSON.stringify({ action: 'enable', code })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        el.className = 'test-result ok';
-        el.textContent = `Evento "${code}" abilitato alla sincronizzazione.`;
-        codeInput.value = '';
-        AdminApp.loadSyncStatusList();
-      } else {
-        el.className = 'test-result error';
-        el.textContent = data.error || 'Errore abilitazione';
-      }
-    } catch (e) {
-      el.className = 'test-result error';
-      el.textContent = 'Errore di connessione: ' + e.message;
-    }
-  },
-
-  async enableEventCodeQuick(code) {
-    document.getElementById('enableEventCode').value = code;
-    await AdminApp.enableEventCode();
-  },
-
-  async disableEventCode(code) {
-    if (!confirm(`Disabilitare la sincronizzazione per "${code}"?\n\nI dati già presenti sul server NON vengono eliminati: il dispositivo che ha creato l'evento smetterà solo di inviare nuovi aggiornamenti, finché non lo riabiliti.`)) return;
-    try {
-      const res = await fetch('/api/sync-status', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'x-admin-password': AdminGate.password || '' },
-        body:    JSON.stringify({ action: 'disable', code })
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) { Utils.toast('Sincronizzazione disabilitata', 'success'); AdminApp.loadSyncStatusList(); }
-      else Utils.toast(data.error || 'Errore disabilitazione', 'error');
-    } catch (e) { Utils.toast('Errore: ' + e.message, 'error'); }
-  },
-
-  async loadSyncStatusList() {
-    const container = document.getElementById('syncStatusList');
-    if (!container) return;
-    container.innerHTML = '<p class="config-note">Caricamento…</p>';
-    try {
-      const res = await fetch('/api/sync-status', {
-        headers: { 'x-admin-password': AdminGate.password || '' }
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !Array.isArray(data.items)) {
-        container.innerHTML = `<p class="config-note" style="color:var(--red);">Errore caricamento: ${Utils.escapeHtml(data.error || String(res.status))}</p>`;
-        return;
-      }
-      if (!data.items.length) {
-        container.innerHTML = '<p class="config-note">Nessun codice registrato.</p>';
-        return;
-      }
-      container.innerHTML = data.items.map(item => `
-        <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          <div style="min-width:0;">
-            <div style="font-size:14px;font-weight:700;font-family:monospace;color:var(--text-primary);">${Utils.escapeHtml(item.code)}</div>
-            <div style="font-size:12.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">
-              ${Utils.escapeHtml(item.title || '—')} · creato da ${Utils.escapeHtml(item.created_by || '—')}
-            </div>
-          </div>
-          ${item.enabled
-            ? `<button class="btn btn--ghost btn--sm" style="color:var(--red);flex-shrink:0;" onclick="AdminApp.disableEventCode('${item.code}')">Disabilita</button>`
-            : `<button class="btn btn--primary btn--sm" style="flex-shrink:0;" onclick="AdminApp.enableEventCodeQuick('${item.code}')">Abilita</button>`}
-        </div>
-      `).join('');
-    } catch (e) {
-      container.innerHTML = `<p class="config-note" style="color:var(--red);">Errore: ${Utils.escapeHtml(e.message)}</p>`;
-    }
-  },
-
   // ── LICENZA PRO (Soluzione completa) ───────────────────
   // Tutte le operazioni di scrittura (enable/disable) passano da
   // /api/device-license.js, che verifica AdminGate.password lato server
@@ -711,10 +638,34 @@ const AdminApp = {
     }
   },
 
-  async enableDeviceLicenseQuick(deviceId) {
-    document.getElementById('enableDeviceId').value = deviceId;
-    document.getElementById('enableDeviceUntil').focus();
-    Utils.toast('Imposta la data "fino al" e premi Abilita', 'info', 3500);
+  // Abilita direttamente dalla riga della lista: legge la data dall'input
+  // che sta nella STESSA riga (passata via "this" dal bottone), non più da
+  // un campo separato in alto — vedi loadDeviceLicenseList() più sotto.
+  async enableDeviceLicenseRow(btnEl, deviceId) {
+    const row       = btnEl.closest('.dl-row');
+    const dateInput = row ? row.querySelector('input[type="date"]') : null;
+    const until     = dateInput ? dateInput.value : '';
+    if (!until) { Utils.toast('Indica una data di scadenza per questo dispositivo', 'error'); return; }
+    const originalText = btnEl.textContent;
+    btnEl.disabled = true; btnEl.textContent = '…';
+    try {
+      const res = await fetch('/api/device-license', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': AdminGate.password || '' },
+        body:    JSON.stringify({ action: 'enable', device_id: deviceId, expires_at: until })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        Utils.toast('Dispositivo abilitato alla versione Pro ✓', 'success');
+        AdminApp.loadDeviceLicenseList();
+      } else {
+        Utils.toast(data.error || 'Errore abilitazione', 'error');
+        btnEl.disabled = false; btnEl.textContent = originalText;
+      }
+    } catch (e) {
+      Utils.toast('Errore: ' + e.message, 'error');
+      btnEl.disabled = false; btnEl.textContent = originalText;
+    }
   },
 
   async disableDeviceLicense(deviceId) {
@@ -731,45 +682,54 @@ const AdminApp = {
     } catch (e) { Utils.toast('Errore: ' + e.message, 'error'); }
   },
 
+  // Lista sintetica con header colonne fisso (vedi .dl-header/.dl-scroll in
+  // <style>): ogni riga mostra codice dispositivo + data scadenza sulla
+  // stessa riga (data scadenza è una select "vuota"/editabile — un campo
+  // <input type="date"> precompilato a un anno da oggi — se il dispositivo
+  // non è attualmente Pro, altrimenti testo READ-ONLY con la data reale),
+  // la nota del richiedente sotto, e il bottone Abilita/Disabilita a destra.
   async loadDeviceLicenseList() {
     const container = document.getElementById('deviceLicenseList');
     if (!container) return;
-    container.innerHTML = '<p class="config-note">Caricamento…</p>';
+    container.innerHTML = '<p class="config-note" style="padding:11px 13px;">Caricamento…</p>';
     try {
       const res = await fetch('/api/device-license', {
         headers: { 'x-admin-password': AdminGate.password || '' }
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !Array.isArray(data.items)) {
-        container.innerHTML = `<p class="config-note" style="color:var(--red);">Errore caricamento: ${Utils.escapeHtml(data.error || String(res.status))}</p>`;
+        container.innerHTML = `<p class="config-note" style="color:var(--red);padding:11px 13px;">Errore caricamento: ${Utils.escapeHtml(data.error || String(res.status))}</p>`;
         return;
       }
       if (!data.items.length) {
-        container.innerHTML = '<p class="config-note">Nessun dispositivo registrato.</p>';
+        container.innerHTML = '<p class="config-note" style="padding:11px 13px;">Nessun dispositivo registrato.</p>';
         return;
       }
       const now = Date.now();
+      // Default per il campo data dei dispositivi non ancora attivi: un
+      // anno da oggi (stesso comportamento già usato per il form in alto).
+      const defaultUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
       container.innerHTML = data.items.map(item => {
-        const isActive = !!(item.enabled && item.expires_at && new Date(item.expires_at).getTime() > now);
+        const isActive  = !!(item.enabled && item.expires_at && new Date(item.expires_at).getTime() > now);
         const farFuture = item.expires_at && (new Date(item.expires_at).getFullYear() > new Date().getFullYear() + 20);
-        const expLabel  = item.expires_at ? (farFuture ? 'nessuna scadenza' : ('fino al ' + Utils.formatDate(item.expires_at))) : '';
-        const statusTxt = isActive ? `Pro · ${expLabel}` : (item.enabled ? 'Pro scaduto' : 'in attesa');
+        const dateCol   = isActive
+          ? `<span style="font-size:11.5px;font-weight:700;color:var(--green);">${farFuture ? 'Senza scad.' : Utils.formatDate(item.expires_at)}</span>`
+          : `<input type="date" class="form-input" value="${defaultUntil}" />`;
         return `
-        <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          <div style="min-width:0;">
-            <div style="font-size:12.5px;font-weight:700;font-family:monospace;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:175px;" title="${Utils.escapeHtml(item.device_id)}">${Utils.escapeHtml(item.device_id)}</div>
-            <div style="font-size:12.5px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">
-              ${Utils.escapeHtml(item.label || 'Senza nota')} · ${statusTxt}
-            </div>
+        <div class="dl-row">
+          <div class="dl-info">
+            <div style="font-size:12px;font-weight:700;font-family:monospace;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${Utils.escapeHtml(item.device_id)}">${Utils.escapeHtml(item.device_id)}</div>
+            <div style="font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">${Utils.escapeHtml(item.label || 'Senza nota')}</div>
           </div>
+          <div class="dl-date">${dateCol}</div>
           ${isActive
             ? `<button class="btn btn--ghost btn--sm" style="color:var(--red);flex-shrink:0;" onclick="AdminApp.disableDeviceLicense('${item.device_id}')">Disabilita</button>`
-            : `<button class="btn btn--primary btn--sm" style="flex-shrink:0;" onclick="AdminApp.enableDeviceLicenseQuick('${item.device_id}')">Abilita</button>`}
-        </div>
-      `;
+            : `<button class="btn btn--primary btn--sm" style="flex-shrink:0;" onclick="AdminApp.enableDeviceLicenseRow(this, '${item.device_id}')">Abilita</button>`}
+        </div>`;
       }).join('');
     } catch (e) {
-      container.innerHTML = `<p class="config-note" style="color:var(--red);">Errore: ${Utils.escapeHtml(e.message)}</p>`;
+      container.innerHTML = `<p class="config-note" style="color:var(--red);padding:11px 13px;">Errore: ${Utils.escapeHtml(e.message)}</p>`;
     }
   },
 

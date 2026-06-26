@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v5.2</title>
+  <title>Evento — WeGo v5.3</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -286,7 +286,6 @@
     </div>
     <div class="app-header__actions">
       <div id="connectionIndicator" style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;"></div>
-      <div id="syncGateDot" style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;" title="Sincronizzato"></div>
       <button class="btn btn--icon" onclick="EventoApp.syncNow()" title="Sincronizza">
         <svg id="syncIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M4 12v-1a8 8 0 0114.93-4M20 12v1a8 8 0 01-14.93 4"/>
@@ -332,13 +331,12 @@
       </svg>
       Condividi riepilogo
     </button>
-    <!-- Richiedi sincronizzazione: visibile solo se l'evento è ancora "gated" e non abilitato (gestito da JS) -->
-    <button class="ctx-item" id="ctxSyncRequestBtn" onclick="EventoApp.shareSyncRequest()" style="display:none;">
+    <!-- Passa a Pro: visibile solo se questo device NON è già Pro (gestito da JS) -->
+    <button class="ctx-item" id="ctxPassaProBtn" onclick="EventoApp.goToRequestPro()" style="display:none;">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M4 12v-1a8 8 0 0114.93-4M20 12v1a8 8 0 01-14.93 4"/>
-        <polyline points="20 4 20 8 16 8"/><polyline points="4 20 4 16 8 16"/>
+        <path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>
       </svg>
-      Richiedi sincronizzazione
+      Passa a Pro
     </button>
     <div class="ctx-divider"></div>
     <!-- Elimina evento: visibile solo al creatore (gestito da JS) -->

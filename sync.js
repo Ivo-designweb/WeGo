@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v1.9
+// WeGo — sync.js v2.0
 // Gestione sincronizzazione bidirezionale con Supabase
+// v2.0: RIMOSSA la sincronizzazione selettiva eventi esterni (gating —
+//       era v1.5): ogni evento si sincronizza ora sempre, senza attesa di
+//       abilitazione admin. Rimossi _refreshGatedEvents(),
+//       _isEventSyncAllowed(), _pendingEventId() (servivano solo al
+//       gating) e tutti i controlli "if (!isEventSyncAllowed) continue"
+//       in push() (pending ops, spese, pagamenti, utenti, foto). Rimossa
+//       la pending op 'register_sync_request'. Resta SOLO l'abilitazione
+//       Base→Pro (licenza dispositivo, invariata — vedi license.js).
 // v1.9: FIX licenza foto per-evento (license.js v1.3) — il controllo
 //       sync foto (push e pull, copertina e movimenti) è ora PER EVENTO
 //       tramite _isPhotoSyncAllowedForEvent()/License.photoSyncAllowedForEvent(),
@@ -40,12 +48,6 @@ const Sync = {
     Sync._showBar('Sincronizzazione in corso…');
 
     try {
-      // Prima di tutto: per gli eventi "gated" (creati da un device non
-      // proprietario) verifica se nel frattempo un admin li ha abilitati
-      // (o disabilitati di nuovo) su sp_sync_status. Per gli eventi non
-      // gated non fa nulla: zero query extra per l'uso normale.
-      await Sync._refreshGatedEvents();
-
       // Stesso principio per la licenza Pro di QUESTO device (vedi
       // license.js v1.1): una query in più, solo per sapere se lo stato
       // remoto (sp_device_license) è cambiato da quando l'abbiamo
@@ -59,12 +61,6 @@ const Sync = {
 
       for (const op of pendingOps) {
         try {
-          const eventId = Sync._pendingEventId(op);
-          if (eventId && !(await Sync._isEventSyncAllowed(eventId))) {
-            // Evento ancora in attesa di abilitazione: resta in coda,
-            // non è un errore, semplicemente non lo inviamo ora.
-            continue;
-          }
           await Sync._executePending(op);
           await DB.pending.remove(op.id);
         } catch (e) {
@@ -77,7 +73,6 @@ const Sync = {
       const unsyncedExp = await DB.expenses.getUnsyced();
       for (const exp of unsyncedExp) {
         try {
-          if (!(await Sync._isEventSyncAllowed(exp.event_id))) continue;
           await Sync._syncExpense(exp);
           exp.synced = true;
           await DB.expenses.save(exp);
@@ -90,7 +85,6 @@ const Sync = {
       const unsyncedPay = await DB.payments.getUnsyced();
       for (const pay of unsyncedPay) {
         try {
-          if (!(await Sync._isEventSyncAllowed(pay.event_id))) continue;
           await Sync._syncPayment(pay);
           pay.synced = true;
           await DB.payments.save(pay);
@@ -105,7 +99,6 @@ const Sync = {
       const unsyncedUsers = await DB.users.getUnsyced();
       for (const u of unsyncedUsers) {
         try {
-          if (!(await Sync._isEventSyncAllowed(u.event_id))) continue;
           await Sync._syncUser(u);
           u.synced = true;
           await DB.users.save(u);
@@ -125,7 +118,6 @@ const Sync = {
         try {
           const exp = await DB.expenses.getById(photo.expense_id);
           if (!exp) { await DB.photos.delete(photo.expense_id); continue; }
-          if (!(await Sync._isEventSyncAllowed(exp.event_id))) continue;
           if (!(await Sync._isPhotoSyncAllowedForEvent(exp.event_id))) continue;
           if (photo.sync_data) {
             await SupabaseClient.expensePhotos.upsert(photo.expense_id, photo.sync_data, photo.created_by || exp.created_by);
@@ -145,51 +137,6 @@ const Sync = {
     }
   },
 
-  // ─── GATING EVENTI ESTERNI ─────────────────────────────────
-  /**
-   * Per ogni evento locale "gated" (creato da un device senza il codice
-   * proprietario), verifica su sp_sync_status se è stato abilitato (o
-   * disabilitato di nuovo) e aggiorna il permesso locale di conseguenza.
-   * Non tocca in alcun modo gli eventi non gated (proprietario/legacy):
-   * zero overhead per l'uso normale.
-   */
-  async _refreshGatedEvents() {
-    let all = [];
-    try { all = await DB.events.getAll(); } catch (e) { return; }
-    const gated = all.filter(e => e.gated);
-    if (!gated.length) return;
-
-    for (const ev of gated) {
-      try {
-        const status = await SupabaseClient.syncStatus.getByCode(ev.code);
-        const allowedNow = !!(status && status.enabled);
-        if (allowedNow !== !!ev.sync_allowed) {
-          await DB.events.setSyncAllowed(ev.id, allowedNow);
-          if (allowedNow) {
-            Utils.toast(`Evento "${ev.title}" abilitato alla sincronizzazione ✓`, 'success', 4000);
-          }
-        }
-      } catch (e) {
-        // Offline a metà ciclo, o tabella sp_sync_status non ancora creata
-        // sul server: non blocca il resto della sincronizzazione.
-        console.warn('[Sync] Verifica gating fallita per', ev.code, e.message);
-      }
-    }
-  },
-
-  /**
-   * Permesso effettivo di sincronizzare un evento: true per qualunque
-   * evento non gated (proprietario o legacy), altrimenti il valore
-   * aggiornato da _refreshGatedEvents().
-   */
-  async _isEventSyncAllowed(eventId) {
-    if (!eventId) return true;
-    const ev = await DB.events.getById(eventId);
-    if (!ev) return true; // evento non trovabile localmente: non blocchiamo
-    if (!ev.gated) return true;
-    return !!ev.sync_allowed;
-  },
-
   /**
    * FIX licenza foto per-evento (license.js v1.3): true se QUESTO device
    * sincronizza le foto (versione Pro), OPPURE se l'evento indicato è
@@ -201,27 +148,6 @@ const Sync = {
     if (!eventId) return License.photoSyncAllowed();
     const ev = await DB.events.getById(eventId);
     return License.photoSyncAllowedForEvent(ev);
-  },
-
-  /**
-   * Estrae l'event_id collegato a un'operazione pending, per poterne
-   * verificare il gating prima di eseguirla. 'register_sync_request' non
-   * ha un evento da bloccare: è proprio il meccanismo che segnala il
-   * codice all'admin, va sempre eseguito.
-   */
-  _pendingEventId(op) {
-    const p = op.payload || {};
-    switch (op.type) {
-      case 'create_event':
-      case 'update_event':       return p.event?.id || null;
-      case 'delete_event':       return p.eventId || null;
-      case 'create_user':        return p.user?.event_id || null;
-      case 'delete_user':        return p.eventId || null;
-      case 'clear_joined':       return p.user?.event_id || null;
-      case 'register_sync_request': return null;
-      case 'request_device_license': return null;
-      default:                   return null;
-    }
   },
 
   async _executePending(op) {
@@ -272,13 +198,6 @@ const Sync = {
         // utente anche sul server, così gli altri device lo vedono come
         // non connesso (il record locale è già stato eliminato a questo punto).
         await SupabaseClient.users.update(payload.user);
-        break;
-      case 'register_sync_request':
-        // Segnala il codice evento sulla tabella sp_sync_status, così
-        // admin.html può mostrarlo nella lista "in attesa" anche prima
-        // che il creatore lo comunichi via WhatsApp. Non crea l'evento
-        // sul server: è solo un avviso informativo, idempotente.
-        await SupabaseClient.syncStatus.request(payload.code, payload.title, payload.createdBy);
         break;
       case 'request_device_license':
         // Richiesta di abilitazione Pro fatta offline da Impostazioni
