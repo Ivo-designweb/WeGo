@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.17
+// WeGo — evento.js v2.18
 // Logica pagina dettaglio evento
+// v2.18: FIX — _calcUserContribution() (Versato/Incassato in
+//        Partecipanti) includeva per errore anche le spese
+//        "Previsione" nel totale "Versato": ora le esclude sempre
+//        (`if (exp.is_forecast) continue;`), come già accade per i
+//        saldi/totali. NUOVO: badge ambra "(Prev. Xx€)" accanto al
+//        saldo di ogni partecipante in Partecipanti, quando ha almeno
+//        una previsione a suo nome — stesso calcolo già usato per la
+//        colonna "Prev." nei Saldi, ora anche qui.
 // v2.17: NUOVO terzo tipo movimento "+Cassiere" (type:'cashier', vedi
 //        spesa.html/spesa.js v2.5): si comporta come una spesa normale
 //        (paid_by = "A" il cassiere, participants = "Da" chi versa,
@@ -611,6 +619,12 @@ const EventoApp = {
     let transfersIn     = 0;
 
     for (const exp of EventoApp._expenses) {
+      // FIX: le "Previsione" non devono mai contare in Versato/Incassato
+      // (sono spese future, non reali — mostrate a parte come "(Prev. ...)"
+      // accanto al saldo, vedi _renderPartecipanti()). Prima venivano
+      // sommate qui dentro come una spesa reale qualsiasi.
+      if (exp.is_forecast) continue;
+
       const amount = Number(exp.amount) || 0;
       if (exp.type === 'transfer') {
         if (exp.paid_by  === userId) transfersOut += amount;
@@ -656,6 +670,17 @@ const EventoApp = {
     const ev = EventoApp._event;
     const creatorName = ev?.created_by || '';
 
+    // Previsioni per utente: somma delle spese "Previsione" dove l'utente
+    // è "Paga" (paid_by) — mostrata a parte (badge ambra "(Prev. ...)")
+    // accanto al saldo Versato/Incassato, che invece NON le include più
+    // (vedi fix in _calcUserContribution() qui sopra). Stesso identico
+    // calcolo già usato in _renderSaldi() per la colonna "Prev.".
+    const forecastByUser = {};
+    for (const exp of EventoApp._expenses) {
+      if (!exp.is_forecast || !exp.paid_by) continue;
+      forecastByUser[exp.paid_by] = (forecastByUser[exp.paid_by] || 0) + parseFloat(exp.amount || 0);
+    }
+
     let html = '';
     for (const user of EventoApp._users) {
       const idx       = Utils.avatarColorIndex(user.name);
@@ -663,6 +688,10 @@ const EventoApp = {
       const balColor   = contrib.isNetReceiver ? 'var(--accent)' : 'var(--green)';
       const balText    = Utils.formatAmount(contrib.amount, currency);
       const balLabel   = contrib.isNetReceiver ? 'Incassato' : 'Versato';
+      const forecastAmount = forecastByUser[user.id] || 0;
+      const forecastBadge  = forecastAmount > 0
+        ? `<div style="font-size:11.5px;font-weight:700;color:var(--amber);white-space:nowrap;margin-bottom:1px;">(Prev. ${Utils.formatAmount(forecastAmount, currency)})</div>`
+        : '';
       const isMe      = user.id === EventoApp._currentUserId;
       const isCreator = creatorName && user.name.toLowerCase() === creatorName.toLowerCase();
       // "Connesso" = ha effettuato il join almeno una volta (joined_at
@@ -708,6 +737,7 @@ const EventoApp = {
             </div>
           </div>
           <div class="part-balance" style="color:${balColor};text-align:right;">
+            ${forecastBadge}
             ${balText}
             <div style="font-size:10px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px;">${balLabel}</div>
           </div>

@@ -1,6 +1,19 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v2.5
+// WeGo — spesa.js v2.6
 // Logica pagina inserimento / modifica spesa
+// v2.6: FIX CRITICO — in modifica (e solo in modifica, mai in una spesa
+//       nuova) la riga "Previsione" e la riga "Tipo" perdevano il loro
+//       layout flex: setType() impostava "el.style.display = ''" per
+//       mostrarle, ma quell'istruzione RIMUOVE solo la proprietà
+//       "display" dallo style inline, senza ripristinarla — il browser
+//       ricadeva sul default per un <div> ("block") invece di "flex",
+//       perché queste due righe (diversamente da "sectionExpense"/
+//       "sectionTransfer", che sono ".form-card" → block di default)
+//       hanno "display:flex" SOLO nello style inline scritto in
+//       spesa.html. Risultato: interruttore "Previsione" e select
+//       "Tipo" disallineati (troppo a sinistra) solo quando si apriva
+//       un movimento esistente. Ora si ripristina esplicitamente
+//       "flex" invece di "''".
 // v2.5: NUOVO terzo tipo "+Cassiere" (setType('cashier')) — usa la
 //       STESSA sezione/i campi della Spesa (paid_by + participants[])
 //       ma con etichette invertite: "A:" (chi riceve, ex "Paga:") e
@@ -383,10 +396,23 @@ const SpesaApp = {
     // Previsione e Tipo: solo per "Spesa", non per "Trasf."/"+Cassiere"
     // (un trasferimento o un versamento al cassiere sono cassa reale,
     // non una previsione/categoria di spesa).
+    // FIX: questi due elementi hanno "display:flex" SOLO nello style
+    // inline scritto in spesa.html (nessuna classe CSS lo definisce, a
+    // differenza di "sectionExpense"/"sectionTransfer" che sono
+    // ".form-card", display:block di default). Impostare
+    // "el.style.display = ''" rimuove la sola proprietà "display"
+    // dallo stile inline SENZA ripristinarla: il browser ricade sul
+    // default per un <div>, cioè "block" — non "flex". Risultato: la
+    // riga perdeva il layout flex (etichetta/nota/interruttore non più
+    // allineati correttamente, interruttore "troppo a sinistra" invece
+    // che a filo destro) ogni volta che setType() veniva eseguito —
+    // cioè SOLO in modifica (in una spesa nuova questa funzione non
+    // viene mai chiamata, la riga resta intatta col suo style
+    // originale). Ora ripristiniamo esplicitamente "flex" invece di "''".
     const forecastRow = document.getElementById('forecastRow');
     const categoryRow = document.getElementById('categoryRow');
-    if (forecastRow) forecastRow.style.display = type === 'expense' ? '' : 'none';
-    if (categoryRow) categoryRow.style.display = type === 'expense' ? '' : 'none';
+    if (forecastRow) forecastRow.style.display = type === 'expense' ? 'flex' : 'none';
+    if (categoryRow) categoryRow.style.display = type === 'expense' ? 'flex' : 'none';
     if (type !== 'expense' && SpesaApp._isForecast) {
       // Si passa a Trasf./+Cassiere con Previsione attiva: la disattiviamo,
       // non avrebbe senso lasciarla "appesa" su un movimento di cassa.

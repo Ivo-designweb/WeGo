@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v4.9
+// WeGo — sw.js v5.0
 // Service Worker — cache offline + background sync
+// v5.0: nessuna modifica alla lista di precache — FIX layout flex
+//       "Previsione"/"Tipo" in modifica movimento (spesa.js v2.6) e
+//       FIX "Versato" che includeva le previsioni + badge "(Prev. ...)"
+//       nei Partecipanti (evento.js v2.18), tutto interno ai file già
+//       precaricati
 // v4.9: nessuna modifica alla lista di precache — nuovo terzo tipo
 //       movimento "+Cassiere" (versamento alla cassa comune, segno
 //       opposto a una spesa nei saldi/totali), bottone "Trasf." (ex
@@ -29,7 +34,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v4.9';
+const CACHE_NAME = 'wego-v5.0';
 
 const STATIC_ASSETS = [
   '/',
@@ -54,7 +59,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v4.9');
+  console.log('[SW] Install v5.0');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -80,7 +85,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v4.9');
+  console.log('[SW] Activate v5.0');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
