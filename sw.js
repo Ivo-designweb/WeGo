@@ -1,6 +1,19 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v5.3
+// WeGo — sw.js v5.6
 // Service Worker — cache offline + background sync
+// v5.6: nessuna modifica alla lista di precache — FIX CRITICO
+//       license.js v1.4: requestPro() non nasconde più un errore reale
+//       del server dietro un falso "Richiesta inviata!" (vedi
+//       situazione.md), tutto interno ai file già precaricati
+// v5.5: nessuna modifica alla lista di precache — /api/device-license.js
+//       e /api/sync-status.js (v3) ora propagano l'errore Postgres
+//       completo (code/details/hint) invece del solo messaggio breve,
+//       per diagnosticare "permission denied" e simili senza dover
+//       guardare i log di Vercel — funzioni serverless, non in cache
+// v5.4: nessuna modifica alla lista di precache — FIX schema SQL
+//       "permission denied for table sp_device_license" (supabase.js
+//       v1.12): GRANT esplicito a service_role, da rieseguire su Supabase
+//       (Admin → Schema SQL), tutto interno ai file già precaricati
 // v5.3: nessuna modifica alla lista di precache — RIMOSSA la
 //       sincronizzazione selettiva eventi esterni (gating, vedi app.js
 //       v2.18/sync.js v2.0/db.js v1.8/supabase.js v1.11/evento.js v2.19):
@@ -65,7 +78,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v5.3';
+const CACHE_NAME = 'wego-v5.6';
 
 const STATIC_ASSETS = [
   '/',
@@ -90,7 +103,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v5.3');
+  console.log('[SW] Install v5.6');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -116,7 +129,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v5.3');
+  console.log('[SW] Activate v5.6');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

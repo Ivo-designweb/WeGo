@@ -1,7 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — /api/device-license.js  (v2 — modifica chirurgica sicurezza)
+// WeGo — /api/device-license.js  (v3 — errore Postgres completo)
 // Gestisce la tabella sp_device_license (abilitazione "versione Pro" per
 // singolo dispositivo — vedi license.js / impostazioni.html / admin.html).
+//
+// v3: sb() ora propaga l'errore Postgres COMPLETO (code/message/details/
+//     hint), non solo il messaggio breve — per diagnosticare con
+//     certezza problemi di permessi (es. "permission denied for table",
+//     vedi situazione.md) senza dover guardare i log di Vercel.
 //
 // GET  → lista completa dei dispositivi registrati (richiede password admin).
 // POST → { action: 'request' | 'enable' | 'disable', device_id, label?, expires_at? }
@@ -55,7 +60,20 @@ async function sb(method, path, body, key) {
   });
   if (res.status === 204) return null;
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error((data && (data.message || data.hint)) || `Errore HTTP ${res.status}`);
+  if (!res.ok) {
+    // FIX diagnostico: prima si vedeva solo data.message (o data.hint come
+    // fallback) — troppo poco per distinguere "manca il GRANT di base"
+    // da "RLS" da altri problemi. Ora componiamo TUTTI i campi che
+    // PostgREST restituisce (code/message/details/hint), così l'errore
+    // mostrato in admin.html è già completo, senza dover guardare i log
+    // di Vercel.
+    const parts = [];
+    if (data?.message) parts.push(data.message);
+    if (data?.code)    parts.push(`[${data.code}]`);
+    if (data?.details) parts.push(`— ${data.details}`);
+    if (data?.hint)    parts.push(`(hint: ${data.hint})`);
+    throw new Error(parts.length ? parts.join(' ') : `Errore HTTP ${res.status}`);
+  }
   return data;
 }
 

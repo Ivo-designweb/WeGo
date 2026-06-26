@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v5.3 (v3.7 per spesa.html/spesa.js) — Aggiornato: 26 giugno 2026**
+**Versione corrente: v5.6 (v3.7 per spesa.html/spesa.js) — Aggiornato: 26 giugno 2026**
 
 ---
 
@@ -43,21 +43,21 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v5.3   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
-├── evento.html          v5.3  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
+├── index.html          v5.6   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
+├── evento.html          v5.6  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
 ├── spesa.html            v3.7 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere"
-├── impostazioni.html    v5.3   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (richiesta auto-apribile da evento.html), link Admin
+├── impostazioni.html    v5.6   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (richiesta auto-apribile da evento.html), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso
-├── sw.js                v5.3   Service Worker (CACHE_NAME: wego-v5.3) — esclude /api/* dalla cache
-├── manifest.json        v5.3   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v5.6   Service Worker (CACHE_NAME: wego-v5.6) — esclude /api/* dalla cache
+├── manifest.json        v5.6   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.18 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA — RIMOSSO il gating sync esterni
 ├── evento.js             v2.19 Logica pagina evento: movimenti, saldi (con Prev. e "+Cassiere"), partecipanti, ricerca, foto, 4 totali, gate downgrade — RIMOSSO il gating sync esterni, menu "Passa a Pro"
 ├── spesa.js               v2.6 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", fix layout flex in modifica, fix licenza foto per-evento
-├── license.js             v1.3 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() (fix foto per-evento)
+├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.0 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza — RIMOSSO il gating eventi esterni
-├── supabase.js            v1.11 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast, events.photo_sync_enabled — RIMOSSO syncStatus
+├── supabase.js            v1.12 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast, events.photo_sync_enabled — FIX GRANT service_role
 ├── db.js                  v1.8 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast — gated/sync_allowed sempre false/true
 ├── utils.js               v1.3 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier')
 ├── notifications.js       v1.3 Notifiche push Web Push (VAPID) + Supabase, fix percorso icone
@@ -65,8 +65,8 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 ├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis e §5quater)
 │   ├── admin-login.js          Verifica password admin contro env var ADMIN_PASSWORD
 │   ├── owner-verify.js         Verificava il codice dispositivo proprietario — VESTIGIALE da v5.3 (gating rimosso), nessun file chiama più /api/owner-verify
-│   ├── sync-status.js          Gestiva sp_sync_status (gating eventi esterni) — VESTIGIALE da v5.3, nessun file chiama più /api/sync-status
-│   └── device-license.js       v2 — Lista/abilita/disabilita/registra licenze Pro per dispositivo (sp_device_license), con SUPABASE_SERVICE_KEY — INVARIATO, ancora attivo
+│   ├── sync-status.js          v3 — Gestiva sp_sync_status (gating eventi esterni) — VESTIGIALE da v5.3, ora propaga errore Postgres completo (v5.5)
+│   └── device-license.js       v3 — Lista/abilita/disabilita/registra licenze Pro per dispositivo (sp_device_license), con SUPABASE_SERVICE_KEY — ora propaga errore Postgres completo (v5.5)
 └── icon*.png                  Icone PWA (72, 96, 128, 144, 152, 192, 384, 512 px) — RIGENERATE in v5.2: erano JPEG rinominati ".png" con dimensioni reali diverse da quelle dichiarate nel manifest (es. "192" era 196×196 reale), ora PNG veri esatti
 
 supabase-function/  (NON sul sito — va deployata separatamente su Supabase, vedi §11)
@@ -402,6 +402,68 @@ un prodotto con utenti non controllati). I limiti Base/Pro (1/100 eventi, 15/50 
 foto) restano controlli lato client in `license.js` — bloccare anche questi richiederebbe
 tracciare il device_id direttamente sulle righe di `sp_events` e validarlo lato server, un
 salto di complessità non richiesto in questa fase.
+
+**FIX v5.4 — "permission denied for table sp_device_license" anche con la chiave giusta**:
+dopo aver verificato che `SUPABASE_SERVICE_KEY` su Vercel era corretta, l'errore persisteva.
+Causa: i privilegi di default su una tabella NUOVA non garantiscono sempre l'accesso in
+scrittura a `service_role` su ogni progetto Supabase (dipende da come sono configurati gli
+"ALTER DEFAULT PRIVILEGES" di quello specifico progetto — **non** è un'assunzione sicura a
+prescindere, come si potrebbe pensare). Aggiunto un `GRANT` esplicito a `service_role` su
+`sp_device_license`/`sp_sync_status` in `supabase.js` (v1.12) — **va rieseguito lo schema SQL
+aggiornato** (Admin → Schema SQL → copia → Supabase SQL Editor → Run): un redeploy del solo
+codice non applica questo GRANT, serve eseguirlo a mano su Supabase come ogni modifica allo
+schema. Query di verifica utile per il futuro (mostra subito chi ha quali permessi su una
+tabella, utile per autodiagnosticare casi simili senza dover ragionare per esclusione):
+```sql
+SELECT grantee, privilege_type
+FROM information_schema.role_table_grants
+WHERE table_name = 'sp_device_license';
+```
+
+**Seguito indagine (v5.5) — l'errore persisteva ANCHE dopo aver confermato che il GRANT
+c'era**: due controlli incrociati hanno escluso le due cause più probabili — (1) la chiave
+in `SUPABASE_SERVICE_KEY` decodifica correttamente a `"role": "service_role"` (verificato
+decodificando il JWT su jwt.io, senza bisogno di devtools); (2) Postgres usa un messaggio
+diverso (`"new row violates row-level security policy"`) quando il blocco è una policy RLS —
+dato che l'errore qui è `"permission denied for table"`, **non** è RLS (che `service_role`
+bypassa comunque sempre, a prescindere). Resta da capire se il `GRANT` confermato copre
+TUTTI i privilegi necessari (in particolare UPDATE, usato da "Abilita" su un dispositivo che
+ha già fatto richiesta — diverso da INSERT, usato per uno nuovo digitato a mano). **Fix
+diagnostico applicato**: `/api/device-license.js` e `/api/sync-status.js` (entrambi v3) ora
+propagano l'errore Postgres COMPLETO (`code`/`message`/`details`/`hint`) invece del solo
+messaggio breve — la prossima volta che l'errore si presenta, admin.html lo mostrerà per
+intero, senza dover guardare i log di Vercel. Query di verifica più precisa, filtrata sul
+solo `service_role` (mostra l'elenco esatto dei privilegi, utile per scoprire un GRANT
+parziale):
+```sql
+SELECT privilege_type
+FROM information_schema.role_table_grants
+WHERE table_name = 'sp_device_license' AND grantee = 'service_role';
+```
+
+**Svolta (v5.6) — trovato un bug indipendente che ha confuso la diagnosi**: l'utente ha
+confermato che TUTTE le tabelle dell'app su Supabase hanno RLS disattivata (esclude
+definitivamente quella pista), poi ha svuotato `sp_device_license` per ripartire da zero e
+notato che le nuove richieste "Passa a Pro" non comparivano più nemmeno nella lista admin.
+Causa reale, indipendente dal `GRANT`: **`License.requestPro()` (impostazioni.html → "Richiedi
+soluzione completa") nascondeva qualunque errore del tentativo diretto dietro un falso
+successo** — se la chiamata a `/api/device-license` falliva (es. proprio per il problema di
+permessi che si stava indagando), il codice si limitava a un `console.warn()` e accodava la
+richiesta in `DB.pending` per un retry silenzioso, **restituendo comunque `deviceId` come se
+fosse andata bene**. Risultato: l'utente vedeva sempre il toast "Richiesta inviata!" (sia da
+Impostazioni sia dalla schermata di downgrade), mentre sul server non arrivava nulla — la
+richiesta restava bloccata in coda locale, ritentata a ogni sync ma sempre con lo stesso esito,
+senza che nessuno se ne accorgesse. Questo significa che probabilmente **anche il problema di
+permessi originale potrebbe non essere mai stato "visto" nella sua forma reale**, perché
+proprio la richiesta che lo avrebbe rivelato falliva in silenzio.
+
+**Fix**: `requestPro()` (license.js v1.4) ora rilancia l'errore al chiamante quando il
+dispositivo è online (entrambi i punti che la chiamano — `sendRequestPro()` in
+impostazioni.html e `_requestProFromGate()` nella schermata di downgrade — avevano già un
+`try/catch` pronto a mostrare un toast d'errore reale, semplicemente non lo ricevevano mai).
+Continua comunque ad accodare in `DB.pending` come backup, per i soli casi di un problema di
+rete davvero transitorio — il comportamento per il vero offline (nessun errore, richiesta
+accodata) resta invariato.
 
 ---
 
@@ -756,6 +818,9 @@ con un tap solo, invece di un semplice "Disabilita" senza via di rinnovo rapido.
 | v5.1 | **NUOVO**: bottone "Installa" PWA in home (vedi §5octies), nascosto se già installata, comportamento diverso Android (prompt nativo `beforeinstallprompt`) vs iOS (istruzioni manuali, nessuna installazione programmatica possibile). **FIX CRITICO COLLEGATO**: tutte le icone PWA puntavano a `/icons/icon-NN.png` (cartella/nome inesistenti) invece dei file reali in root (`/iconNN.png`) — `manifest.json`, `sw.js`, `notifications.js`, `admin.html`, `apple-touch-icon` in `index.html`/`impostazioni.html`. Senza icone risolvibili Chrome non considerava la PWA installabile: il prompt nativo Android non si sarebbe mai generato |
 | v5.2 | **FIX CRITICO — vera causa del prompt di installazione mai mostrato** (vedi §5nonies): le 8 icone PWA erano JPEG rinominati ".png", con dimensioni reali diverse da quelle dichiarate nel manifest (es. "192" era 196×196 reale, "144" e "152" erano lo stesso file 168×168). Chrome scarta icone con dimensione reale ≠ dichiarata — con nessuna icona valida, il manifest non superava il requisito minimo di installabilità, a prescindere da installazioni/disinstallazioni precedenti. Rigenerate come PNG veri alle dimensioni esatte. Rimosso "maskable" dal purpose (logo senza margine di sicurezza). `CACHE_NAME` incrementato per forzare il riscarico delle icone sui device che le avevano già in cache; aggiunta regola `Cache-Control` dedicata per i `.png` in `vercel.json` (mancava) |
 | v5.3 | **RIMOZIONE — sincronizzazione selettiva eventi esterni** (vedi §5decies): ogni evento si sincronizza ora sempre, su qualunque device, senza richiesta/autorizzazione admin (era NUOVO in v3.7). Rimossi: gating in `app.js`/`db.js`/`sync.js`/`evento.js`, namespace `syncStatus` in `supabase.js`, sezione "Sincronizzazione eventi esterni" in `admin.html`, riga "Dispositivo proprietario" in `impostazioni.html`. Menu "Richiedi sincronizzazione" → "Passa a Pro" in evento.html. **REDESIGN**: lista "Soluzione completa (Pro)" in admin.html con header colonne fisso durante lo scroll, campo data editabile direttamente in ogni riga |
+| v5.4 | **FIX SCHEMA SQL** — "permission denied for table sp_device_license" anche con `SUPABASE_SERVICE_KEY` corretta su Vercel: i privilegi di default su una tabella nuova non garantiscono sempre l'accesso in scrittura a `service_role` su ogni progetto Supabase. Aggiunto `GRANT` esplicito a `service_role` su `sp_device_license`/`sp_sync_status` (supabase.js v1.12) — **va rieseguito lo schema SQL aggiornato su Supabase**, un redeploy del codice da solo non basta |
+| v5.5 | **FIX DIAGNOSTICO** — l'errore "permission denied" persisteva anche col GRANT confermato; escluse chiave sbagliata (JWT decodificato confirma `service_role`) e RLS (messaggio Postgres diverso per le policy RLS). `/api/device-license.js` e `/api/sync-status.js` (v3) ora propagano l'errore Postgres COMPLETO (code/details/hint) invece del solo messaggio breve, per individuare con certezza la causa esatta al prossimo tentativo, senza dover guardare i log di Vercel |
+| v5.6 | **FIX CRITICO** — `License.requestPro()` nascondeva qualunque errore reale del server (es. permessi su sp_device_license) dietro un falso "Richiesta inviata!": se il tentativo diretto falliva pur essendo online, veniva solo loggato in console e la richiesta restava accodata silenziosamente, restituendo comunque successo al chiamante. Scoperto svuotando la tabella per riprovare da zero: le nuove richieste "Passa a Pro" non comparivano più, ma nessun errore era mai stato visibile. Ora l'errore viene rilanciato al chiamante (mostrato con un toast reale in Impostazioni e nella schermata di downgrade), restando comunque in coda come backup per i problemi di rete transitori |
 
 ---
 
@@ -817,8 +882,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v5.3 (v3.7 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v5.3`
+**Versione attuale:** v5.6 (v3.7 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v5.6`
 
 ---
 
@@ -837,8 +902,10 @@ la funzione server non avrà ancora la chiave nuova):
 4. [ ] Solo dopo i punti 1-3, carica i file nuovi su GitHub/Vercel
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
+- [ ] **🔴 URGENTE v5.4 — Rieseguire lo schema SQL aggiornato** (Admin → Schema SQL → copia → Supabase SQL Editor → Run): aggiunge il `GRANT` a `service_role` su `sp_device_license`/`sp_sync_status` che risolve "permission denied for table sp_device_license" quando abiliti/disabiliti la versione Pro da admin.html. Un redeploy del codice da solo NON applica questo GRANT, va eseguito a mano sul database
+- [ ] **v5.6 — prossimo passo concreto**: ricarica `license.js` (v1.4) insieme agli altri file di questa sessione, poi da un device qualsiasi vai su Impostazioni → "Richiedi soluzione completa" → invia una richiesta di prova. Se c'è ancora un problema di permessi, ORA comparirà un toast con l'errore vero (prima veniva nascosto) — riportalo per la diagnosi definitiva. Se invece "Richiesta inviata!" questa volta è vero, controlla che il dispositivo compaia nella lista di admin.html
 - [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, colonna `sp_events.photo`, tabella `sp_expense_photos` (per la sincronizzazione foto movimenti), tabella `sp_device_license` (per la licenza Base/Pro), le `REVOKE` su sp_sync_status/sp_device_license (v4.7), **NUOVO v4.8: colonne `sp_events.photo_sync_enabled`, `sp_expenses.category`, `sp_expenses.is_forecast`**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "modifica evento", "sincronizzazione foto movimenti", "richiesta soluzione completa", "Previsione/Tipo" e "fix licenza foto per-evento" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server). La tabella `sp_sync_status` (sincronizzazione eventi esterni) è VESTIGIALE da v5.3 — non serve più crearla, nessun file la usa più
-- [ ] **NUOVO v4.7 — Impostare `SUPABASE_SERVICE_KEY` su Vercel** (vedi sopra)
+- [ ] **NUOVO v4.7 — Impostare `SUPABASE_SERVICE_KEY` su Vercel** (vedi sopra) — verifica che sia la chiave **`service_role`** (Supabase → Project Settings → API), NON la `anon`/`public`: sono due chiavi diverse mostrate sulla stessa pagina, facili da scambiare per errore
 - [ ] **NUOVO v3.7 — Impostare 2 variabili d'ambiente su Vercel** (Project → Settings → Environment Variables), poi rideployare:
   - `ADMIN_PASSWORD` → la password vera del pannello admin (sostituisce quella che prima era in chiaro nel codice)
   - `OWNER_DEVICE_SECRET` → **VESTIGIALE da v5.3** (serviva solo al gating eventi esterni, ora rimosso) — non serve più impostarla per nuovi deploy, nessun file la usa più

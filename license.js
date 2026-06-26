@@ -1,8 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — license.js v1.3
+// WeGo — license.js v1.4
 // Gestione del livello di abilitazione del dispositivo: 'base' (default,
 // gratuito) oppure 'pro' (soluzione completa, abilitata dall'admin).
 //
+// v1.4: FIX CRITICO — requestPro() nascondeva un errore reale del server
+//       (es. permessi su sp_device_license) dietro un falso "successo":
+//       se il tentativo diretto falliva pur essendo online, veniva solo
+//       loggato in console e la richiesta restava in coda silenziosa —
+//       l'utente vedeva sempre "Richiesta inviata!" anche quando sul
+//       database non arrivava nulla. Ora l'errore viene rilanciato al
+//       chiamante (mostrato con un toast reale), mantenendo comunque
+//       l'accodamento come backup per i soli problemi di rete transitori.
 // v1.3: FIX — un device Base collegato (con "Unisciti a un evento") a un
 //       evento ospitato da un creatore con versione Pro può ora usare e
 //       sincronizzare le foto SOLO su quell'evento — nuova funzione
@@ -113,15 +121,36 @@ const License = {
     const deviceId = License.getDeviceId();
     const payload  = { device_id: deviceId, label: label || null };
 
-    if (typeof Utils !== 'undefined' && Utils.isOnline() &&
-        typeof SupabaseClient !== 'undefined' && SupabaseClient.isConfigured()) {
+    const online     = typeof Utils !== 'undefined' && Utils.isOnline();
+    const configured = typeof SupabaseClient !== 'undefined' && SupabaseClient.isConfigured();
+
+    if (online && configured) {
       try {
         await SupabaseClient.deviceLicense.request(payload.device_id, payload.label);
         return deviceId;
       } catch (e) {
-        console.warn('[License] requestPro diretto fallito, lo accodo:', e.message);
+        // FIX: prima questo errore veniva solo loggato in console e la
+        // richiesta restava silenziosamente in coda — chi chiamava
+        // requestPro() vedeva SEMPRE "successo" (return deviceId), anche
+        // quando il server aveva rifiutato la scrittura (es. permessi). Per
+        // mesi questo ha mascherato un problema reale lato server: l'utente
+        // vedeva "Richiesta inviata!" mentre sul database non arrivava
+        // nulla. Ora rilanciamo l'errore al chiamante (che lo mostra con un
+        // toast — vedi impostazioni.html sendRequestPro() / qui sotto
+        // _requestProFromGate()), pur continuando ad accodarla come backup
+        // per i retry automatici nel caso fosse solo un problema di rete
+        // transitorio.
+        console.warn('[License] requestPro diretto fallito:', e.message);
+        if (typeof DB !== 'undefined' && DB.pending) {
+          await DB.pending.add({ type: 'request_device_license', payload }).catch(() => {});
+        }
+        throw e;
       }
     }
+
+    // Offline (o client non configurato): comportamento invariato, in coda
+    // per il prossimo ciclo di sync — qui NON è un errore, è la normale
+    // modalità offline-first dell'app, quindi nessun throw.
     if (typeof DB !== 'undefined' && DB.pending) {
       await DB.pending.add({ type: 'request_device_license', payload });
     }

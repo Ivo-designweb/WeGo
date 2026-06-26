@@ -1,7 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — /api/sync-status.js  (v2 — modifica chirurgica sicurezza)
+// WeGo — /api/sync-status.js  (v3 — errore Postgres completo, vestigiale)
 // Gestisce la tabella sp_sync_status (sincronizzazione selettiva degli
-// eventi creati da utenti esterni — vedi sync.js / app.js / admin.html).
+// eventi creati da utenti esterni — RIMOSSA dall'app in v5.3, nessun file
+// la chiama più, vedi situazione.md §5decies. Lasciata qui solo perché
+// non è urgente eliminarla; allineata a device-license.js per coerenza).
 //
 // GET  → lista completa dei codici registrati (richiede password admin).
 // POST → { action: 'request' | 'enable' | 'disable', code, title?, createdBy? }
@@ -54,7 +56,14 @@ async function sb(method, path, body, key) {
   });
   if (res.status === 204) return null;
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error((data && (data.message || data.hint)) || `Errore HTTP ${res.status}`);
+  if (!res.ok) {
+    const parts = [];
+    if (data?.message) parts.push(data.message);
+    if (data?.code)    parts.push(`[${data.code}]`);
+    if (data?.details) parts.push(`— ${data.details}`);
+    if (data?.hint)    parts.push(`(hint: ${data.hint})`);
+    throw new Error(parts.length ? parts.join(' ') : `Errore HTTP ${res.status}`);
+  }
   return data;
 }
 
