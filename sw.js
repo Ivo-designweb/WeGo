@@ -1,6 +1,23 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v5.1
+// WeGo — sw.js v5.2
 // Service Worker — cache offline + background sync
+// v5.2: FIX CRITICO — le 8 icone PWA (icon72.png … icon512.png) erano
+//       file JPEG rinominati ".png", con dimensioni reali diverse da
+//       quelle dichiarate nel manifest (es. icon192.png era in realtà
+//       196×196, icon512.png era 532×532). Chrome scarta come "non
+//       valida" qualunque icona la cui dimensione reale non corrisponda
+//       esattamente a quella dichiarata: con NESSUNA icona valida, il
+//       manifest non superava il requisito minimo di installabilità —
+//       "beforeinstallprompt" non si sarebbe mai generato su Android,
+//       a prescindere da installazioni/disinstallazioni precedenti.
+//       Rigenerate come PNG veri, alle dimensioni esatte dichiarate,
+//       dalla sorgente migliore disponibile (icon512.png, 532×532).
+//       Rimosso anche "maskable" dal purpose in manifest.json (il logo
+//       non ha margine di sicurezza per il ritaglio circolare/squircle
+//       di Android, rischierebbe di tagliare testo/avatar). Il CACHE_NAME
+//       cambia apposta in questa versione: i device che avevano già in
+//       cache le vecchie icone rotte (strategia Cache-First per le
+//       immagini, vedi fetch handler) le scaricano di nuovo da zero.
 // v5.1: nessuna modifica alla lista di precache — NUOVO bottone
 //       "Installa" in index.html (app.js v2.17), FIX percorsi icona/
 //       badge notifiche push (icon/icon-NN.png inesistente → /iconNN.png,
@@ -38,7 +55,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v5.1';
+const CACHE_NAME = 'wego-v5.2';
 
 const STATIC_ASSETS = [
   '/',
@@ -63,7 +80,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v5.1');
+  console.log('[SW] Install v5.2');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -89,7 +106,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v5.1');
+  console.log('[SW] Activate v5.2');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v5.1 (v3.7 per spesa.html/spesa.js) — Aggiornato: 26 giugno 2026**
+**Versione corrente: v5.2 (v3.7 per spesa.html/spesa.js) — Aggiornato: 26 giugno 2026**
 
 ---
 
@@ -43,14 +43,14 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v5.1   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
-├── evento.html          v5.1  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., badge "(Prev. ...)" in Partecipanti
+├── index.html          v5.2   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
+├── evento.html          v5.2  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., badge "(Prev. ...)" in Partecipanti
 ├── spesa.html            v3.7 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere"
-├── impostazioni.html    v5.1   Impostazioni: tema, metodi pagamento, categorie spesa, dispositivo proprietario, licenza Base/Pro, link Admin
+├── impostazioni.html    v5.2   Impostazioni: tema, metodi pagamento, categorie spesa, dispositivo proprietario, licenza Base/Pro, link Admin
 ├── admin.html           v1.9   Pannello admin/debug — password verificata lato server + gestione sync esterni + licenza Pro, fix percorso icone notifiche
-├── sw.js                v5.1   Service Worker (CACHE_NAME: wego-v5.1) — esclude /api/* dalla cache, fix percorso icone notifiche
-├── manifest.json        v5.1   PWA manifest — fix percorso icone (erano /icons/icon-NN.png inesistente)
-├── vercel.json                 Header Cache-Control must-revalidate su tutti i file
+├── sw.js                v5.2   Service Worker (CACHE_NAME: wego-v5.2) — esclude /api/* dalla cache, fix percorso+contenuto icone
+├── manifest.json        v5.2   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG (mancava una regola dedicata)
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.17 Logica home: eventi, crea/unisciti, gating sync, licenza Base/Pro completa, bottone "Installa" PWA (Android/iOS)
 ├── evento.js             v2.18 Logica pagina evento: movimenti, saldi (con Prev. e "+Cassiere"), partecipanti (Versato/Incassato senza previsioni + badge Prev.), ricerca, foto, 4 totali, gate downgrade
@@ -67,7 +67,7 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 │   ├── owner-verify.js         Verifica codice dispositivo proprietario contro env var OWNER_DEVICE_SECRET
 │   ├── sync-status.js          v2 — Lista/abilita/disabilita/registra codici evento esterni (sp_sync_status), ora con SUPABASE_SERVICE_KEY
 │   └── device-license.js       v2 — Lista/abilita/disabilita/registra licenze Pro per dispositivo (sp_device_license), ora con SUPABASE_SERVICE_KEY
-└── icon*.png                  Icone PWA (72, 96, 128, 144, 152, 192, 384, 512 px)
+└── icon*.png                  Icone PWA (72, 96, 128, 144, 152, 192, 384, 512 px) — RIGENERATE in v5.2: erano JPEG rinominati ".png" con dimensioni reali diverse da quelle dichiarate nel manifest (es. "192" era 196×196 reale), ora PNG veri esatti
 
 supabase-function/  (NON sul sito — va deployata separatamente su Supabase, vedi §11)
 ├── send-push-notification/index.ts   Edge Function: invia Web Push ai partecipanti di un evento
@@ -647,6 +647,42 @@ cosa), `index.html`/`impostazioni.html` (`<link rel="apple-touch-icon">`, l'icon
 mostrata sulla Home di iOS dopo "Aggiungi a Home" — anche questa avrebbe mostrato
 uno screenshot della pagina invece dell'icona dell'app).
 
+## 5nonies. Icone PWA: JPEG rinominati ".png" con dimensioni sbagliate — vera causa del prompt mai mostrato (v5.2)
+
+Indagando sul perché Chrome non riproponeva l'installazione dopo una disinstallazione,
+trovata la causa profonda — e probabilmente il vero motivo per cui il prompt nativo
+**non si è mai generato fin dall'inizio**, non solo dopo la disinstallazione:
+
+- Le 8 icone (`icon72.png` … `icon512.png`) erano file **JPEG rinominati con estensione
+  `.png`** (confermato col formato reale del file, non dall'estensione).
+- **Nessuna aveva la dimensione reale dichiarata nel manifest**: es. `icon192.png` era
+  in realtà 196×196 px, `icon512.png` era 532×532 px, `icon144.png` e `icon152.png`
+  erano entrambe 168×168 (stesso file, due nomi diversi). Pattern compatibile con
+  icone generate da un tool che ha creato solo alcuni formati intermedi e riusato il
+  più vicino per le taglie richieste, senza ridimensionare con precisione.
+- Chrome scarta come "non valida" qualunque icona la cui dimensione reale non
+  corrisponda esattamente a quella dichiarata in `sizes`. Con **nessuna icona valida**,
+  il manifest non soddisfa il requisito minimo di installabilità (serve almeno
+  un'icona ≥192px verificata) — `beforeinstallprompt` non si genera mai, a
+  prescindere da qualunque storia di installazione/disinstallazione precedente.
+
+**Fix**: rigenerate tutte le 8 icone come PNG veri, alle dimensioni esatte dichiarate,
+ridimensionando dalla sorgente migliore disponibile (`icon512.png`, 532×532, la più
+grande tra le esistenti). Rimosso anche `"maskable"` dal `purpose` in `manifest.json`
+per le icone 192/512: il logo (testo "WEGO" + 3 figure) arriva quasi al bordo
+dell'immagine senza margine di sicurezza, e un ritaglio circolare/squircle di Android
+avrebbe tagliato testo e avatar laterali — meglio lasciare solo `"any"` finché non si
+crea una versione con margine adeguato.
+
+**Cache da considerare dopo il deploy**: le icone vengono servite dal Service Worker
+con strategia Cache-First (non sono nella lista di precache esplicita, ma cadono nel
+ramo generico "immagini/icone/font" del fetch handler) — i device che le avevano già
+scaricate prima del fix le avrebbero tenute in cache indefinitamente. Per questo
+`CACHE_NAME` è stato comunque incrementato a `wego-v5.2`: l'`activate` del nuovo SW
+elimina la cache precedente, quindi le icone vengono riscaricate da zero. Aggiunta
+anche una regola `Cache-Control` esplicita per i `.png` in `vercel.json`, che prima
+non c'era (nessuna regola dedicata = comportamento di default non garantito).
+
 ---
 
 ## 6. Fix critici applicati (storia, in ordine cronologico)
@@ -682,6 +718,7 @@ uno screenshot della pagina invece dell'icona dell'app).
 | v4.9 | **NUOVA FUNZIONALITÀ — terzo tipo movimento "+Cassiere"** (vedi §5sexies): si comporta come una spesa normale (paid_by="A" il cassiere, participants="Da" chi versa, diviso tra loro) ma con segno OPPOSTO nei saldi/totali (`Utils.calculateBalances()` v1.3) — il cassiere va in debito, chi versa va in credito; considerato nei 4 totali di Movimenti (sottratto, non escluso come "Trasf."); badge verde nell'elenco movimenti. Bottone "Mov. cassa" rinominato "Trasf.". **FIX CRITICO**: `SupabaseClient.expenses.update()` non inviava `type`/`paid_for` al server — cambiare il tipo di un movimento esistente non si salvava davvero (veniva sovrascritto al pull successivo). **FIX**: checkbox nativa dell'interruttore "Previsione" visibile/fuori posizione in sola lettura (opacity inline sovrascriveva la classe CSS) |
 | v5.0 | **FIX**: interruttore "Previsione" e select "Tipo" disallineati SOLO in modifica movimento (mai in una spesa nuova) — `setType()` usava `el.style.display=''` per mostrarli, che rimuove la proprietà "display" dallo style inline senza ripristinarla (ricadeva su "block" invece di "flex", dato che queste due righe hanno "display:flex" solo inline, non da classe CSS); ora impostato esplicitamente a `'flex'`. **FIX**: `_calcUserContribution()` (Versato/Incassato in Partecipanti) includeva per errore le spese "Previsione" nel totale; ora le esclude sempre. **NUOVO**: badge ambra "(Prev. ...)" accanto al saldo di ogni partecipante in Partecipanti, quando ha previsioni a suo nome |
 | v5.1 | **NUOVO**: bottone "Installa" PWA in home (vedi §5octies), nascosto se già installata, comportamento diverso Android (prompt nativo `beforeinstallprompt`) vs iOS (istruzioni manuali, nessuna installazione programmatica possibile). **FIX CRITICO COLLEGATO**: tutte le icone PWA puntavano a `/icons/icon-NN.png` (cartella/nome inesistenti) invece dei file reali in root (`/iconNN.png`) — `manifest.json`, `sw.js`, `notifications.js`, `admin.html`, `apple-touch-icon` in `index.html`/`impostazioni.html`. Senza icone risolvibili Chrome non considerava la PWA installabile: il prompt nativo Android non si sarebbe mai generato |
+| v5.2 | **FIX CRITICO — vera causa del prompt di installazione mai mostrato** (vedi §5nonies): le 8 icone PWA erano JPEG rinominati ".png", con dimensioni reali diverse da quelle dichiarate nel manifest (es. "192" era 196×196 reale, "144" e "152" erano lo stesso file 168×168). Chrome scarta icone con dimensione reale ≠ dichiarata — con nessuna icona valida, il manifest non superava il requisito minimo di installabilità, a prescindere da installazioni/disinstallazioni precedenti. Rigenerate come PNG veri alle dimensioni esatte. Rimosso "maskable" dal purpose (logo senza margine di sicurezza). `CACHE_NAME` incrementato per forzare il riscarico delle icone sui device che le avevano già in cache; aggiunta regola `Cache-Control` dedicata per i `.png` in `vercel.json` (mancava) |
 
 ---
 
@@ -743,8 +780,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v5.1 (v3.7 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v5.1`
+**Versione attuale:** v5.2 (v3.7 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v5.2`
 
 ---
 
