@@ -1,25 +1,32 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — /api/sync-status.js
+// WeGo — /api/sync-status.js  (v3 — errore Postgres completo, vestigiale)
 // Gestisce la tabella sp_sync_status (sincronizzazione selettiva degli
-// eventi creati da utenti esterni — vedi sync.js / app.js / admin.html).
+// eventi creati da utenti esterni — RIMOSSA dall'app in v5.3, nessun file
+// la chiama più, vedi situazione.md §5decies. Lasciata qui solo perché
+// non è urgente eliminarla; allineata a device-license.js per coerenza).
 //
 // GET  → lista completa dei codici registrati (richiede password admin).
-// POST → { action: 'enable'|'disable', code } (richiede password admin).
+// POST → { action: 'request' | 'enable' | 'disable', code, title?, createdBy? }
+//   - 'request' (NESSUNA password): registra il codice in attesa — usata
+//     alla creazione di un evento "gated" (vedi app.js / sync.js ->
+//     register_sync_request). Idempotente: se il codice esiste già non
+//     fa nulla.
+//   - 'enable'/'disable' (richiede password admin).
 //
-// La richiesta "informativa" che registra un nuovo codice in attesa
-// (action 'request') NON passa da qui: viene fatta direttamente dal
-// client a Supabase con l'anon key, come tutto il resto dei dati
-// dell'app — non è un'azione privilegiata, vedi supabase.js → syncStatus.request().
-//
-// Le credenziali Supabase qui sotto sono la stessa anon key pubblica
-// già presente in chiavi.json (non è un segreto: è protetta solo dal
-// fatto che enable/disable passano da questa funzione, che verifica la
-// password admin lato server prima di scrivere). Se in futuro rigeneri
-// le chiavi Supabase, aggiornale in ENTRAMBI i posti.
+// MODIFICA SICUREZZA: prima di questa versione, la "richiesta" passava
+// direttamente dal client a Supabase con la anon key pubblica (che aveva
+// i permessi INSERT/UPDATE su questa tabella) -- chiunque trovasse quella
+// chiave avrebbe potuto abilitare da solo la sincronizzazione di un
+// evento, scrivendo direttamente su Supabase, bypassando admin.html e la
+// password. Ora la anon key ha SOLO il permesso SELECT su questa tabella
+// (vedi GRANT nello schema SQL): ogni scrittura, compresa la "richiesta"
+// senza password, passa SOLO da qui e usa una chiave diversa -- la
+// SUPABASE_SERVICE_KEY -- che vive ESCLUSIVAMENTE come variabile
+// d'ambiente Vercel e non e mai stata, e non sara mai, presente in
+// nessun file scaricabile dal browser.
 // ═══════════════════════════════════════════════════════════════
 
 const SUPABASE_URL = 'https://wwaomtfchpplmmxdpsqa.supabase.co';
-const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3YW9tdGZjaHBwbG1teGRwc3FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQ5MTIsImV4cCI6MjA5NzIwMDkxMn0.OyIYsrpg4yZQVxeG7gxA0KQRqM7q0MOc29AWaGNxhR8';
 
 function checkAdmin(req) {
   const expected = process.env.ADMIN_PASSWORD;
@@ -27,20 +34,36 @@ function checkAdmin(req) {
   return !!expected && !!provided && provided === expected;
 }
 
-async function sb(method, path, body) {
+function getServiceKey(res) {
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!key) {
+    res.status(500).json({ ok: false, error: 'SUPABASE_SERVICE_KEY non configurata su Vercel (Project Settings -> Environment Variables)' });
+    return null;
+  }
+  return key;
+}
+
+async function sb(method, path, body, key) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      apikey:         SUPABASE_KEY,
-      Authorization:  `Bearer ${SUPABASE_KEY}`,
+      apikey:         key,
+      Authorization:  `Bearer ${key}`,
       Prefer:         'return=representation'
     },
     body: body ? JSON.stringify(body) : undefined
   });
   if (res.status === 204) return null;
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error((data && (data.message || data.hint)) || `Errore HTTP ${res.status}`);
+  if (!res.ok) {
+    const parts = [];
+    if (data?.message) parts.push(data.message);
+    if (data?.code)    parts.push(`[${data.code}]`);
+    if (data?.details) parts.push(`— ${data.details}`);
+    if (data?.hint)    parts.push(`(hint: ${data.hint})`);
+    throw new Error(parts.length ? parts.join(' ') : `Errore HTTP ${res.status}`);
+  }
   return data;
 }
 
@@ -51,7 +74,9 @@ module.exports = async function handler(req, res) {
         res.status(401).json({ ok: false, error: 'Password admin richiesta' });
         return;
       }
-      const items = await sb('GET', 'sp_sync_status?select=*&order=requested_at.desc', null);
+      const serviceKey = getServiceKey(res);
+      if (!serviceKey) return;
+      const items = await sb('GET', 'sp_sync_status?select=*&order=requested_at.desc', null, serviceKey);
       res.status(200).json({ ok: true, items: items || [] });
       return;
     }
@@ -61,36 +86,56 @@ module.exports = async function handler(req, res) {
       if (typeof body === 'string') {
         try { body = JSON.parse(body); } catch { body = {}; }
       }
-      const { action, code } = body || {};
+      const { action, code, title, createdBy } = body || {};
 
       if (!code) {
         res.status(400).json({ ok: false, error: 'Codice evento mancante' });
         return;
       }
-      if (action !== 'enable' && action !== 'disable') {
+      if (action !== 'request' && action !== 'enable' && action !== 'disable') {
         res.status(400).json({ ok: false, error: 'Azione non valida' });
         return;
       }
+
+      // -- 'request': nessuna password, e solo "mettimi in lista d'attesa" --
+      if (action === 'request') {
+        const serviceKey = getServiceKey(res);
+        if (!serviceKey) return;
+
+        const existing = await sb('GET', `sp_sync_status?code=eq.${encodeURIComponent(code)}&select=code`, null, serviceKey);
+        if (!Array.isArray(existing) || !existing.length) {
+          await sb('POST', 'sp_sync_status', {
+            code,
+            title:        title || null,
+            created_by:   createdBy || null,
+            requested_at: new Date().toISOString(),
+            enabled:      false
+          }, serviceKey);
+        }
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      // -- 'enable' / 'disable': richiede password admin --
       if (!checkAdmin(req)) {
         res.status(401).json({ ok: false, error: 'Password admin richiesta' });
         return;
       }
+      const serviceKey = getServiceKey(res);
+      if (!serviceKey) return;
 
       const enabled = action === 'enable';
       const nowIso  = new Date().toISOString();
 
-      const existing = await sb('GET', `sp_sync_status?code=eq.${encodeURIComponent(code)}&select=code`, null);
+      const existing = await sb('GET', `sp_sync_status?code=eq.${encodeURIComponent(code)}&select=code`, null, serviceKey);
 
       if (Array.isArray(existing) && existing.length) {
         await sb('PATCH', `sp_sync_status?code=eq.${encodeURIComponent(code)}`, {
           enabled,
           enabled_at: enabled ? nowIso : null,
           enabled_by: enabled ? 'admin' : null
-        });
+        }, serviceKey);
       } else if (enabled) {
-        // Codice abilitato manualmente senza essere mai passato dalla
-        // richiesta automatica (es. il device non era online alla
-        // creazione dell'evento): lo creiamo comunque, già abilitato.
         await sb('POST', 'sp_sync_status', {
           code,
           title:        null,
@@ -99,10 +144,8 @@ module.exports = async function handler(req, res) {
           enabled:      true,
           enabled_at:   nowIso,
           enabled_by:   'admin'
-        });
+        }, serviceKey);
       }
-      // Se enabled=false e non esiste nessuna riga, non c'è nulla da
-      // disabilitare: nessuna azione necessaria.
 
       res.status(200).json({ ok: true });
       return;

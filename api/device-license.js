@@ -1,28 +1,41 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — /api/device-license.js  (NUOVO — Fase 2 licenza Base/Pro)
+// WeGo — /api/device-license.js  (v4 — diagnostica "Azione non valida")
 // Gestisce la tabella sp_device_license (abilitazione "versione Pro" per
 // singolo dispositivo — vedi license.js / impostazioni.html / admin.html).
 //
+// v4: "device_id mancante"/"Azione non valida" ora mostrano il body
+//     ricevuto per intero (e per l'azione, il valore + tipo esatto) — non
+//     erano errori di Postgres (succedevano PRIMA di toccare il database),
+//     quindi v3 non li copriva. Serve a capire se il problema è nel client
+//     (campo sbagliato) o nel parsing di req.body lato Vercel.
+// v3: sb() ora propaga l'errore Postgres COMPLETO (code/message/details/
+//     hint), non solo il messaggio breve — per diagnosticare con
+//     certezza problemi di permessi (es. "permission denied for table",
+//     vedi situazione.md) senza dover guardare i log di Vercel.
+//
 // GET  → lista completa dei dispositivi registrati (richiede password admin).
-// POST → { action: 'enable'|'disable', device_id, expires_at? }
-//        (richiede password admin). expires_at è OBBLIGATORIO per
-//        action:'enable' (stringa data, es. "2027-06-24" o ISO 8601):
-//        l'admin decide sempre fino a quando dura l'abilitazione — una
-//        data molto lontana nel tempo equivale a "senza scadenza".
+// POST → { action: 'request' | 'enable' | 'disable', device_id, label?, expires_at? }
+//   - 'request' (NESSUNA password): registra/aggiorna la richiesta in
+//     attesa — usata da Impostazioni quando l'utente chiede la versione
+//     Pro (vedi license.js -> requestPro()). Idempotente.
+//   - 'enable'/'disable' (richiede password admin): expires_at è
+//     OBBLIGATORIO per 'enable' — una data molto lontana nel tempo
+//     equivale a "senza scadenza".
 //
-// La richiesta "informativa" che registra un nuovo dispositivo in attesa
-// (action 'request') NON passa da qui: viene fatta direttamente dal
-// client a Supabase con l'anon key — non è un'azione privilegiata, vedi
-// supabase.js → deviceLicense.request() / license.js → requestPro().
-//
-// Le credenziali Supabase qui sotto sono la stessa anon key pubblica già
-// presente in chiavi.json (stessa nota di sicurezza di sync-status.js: non
-// è un segreto, è protetta dal fatto che enable/disable passano sempre da
-// qui, che verifica la password admin lato server prima di scrivere).
+// MODIFICA SICUREZZA: prima di questa versione, tutte le scritture su
+// sp_device_license passavano anche direttamente dal client con la anon
+// key pubblica (che aveva i permessi INSERT/UPDATE) -- chiunque trovasse
+// quella chiave avrebbe potuto auto-abilitarsi alla versione Pro
+// scrivendo direttamente su Supabase, bypassando admin.html e la
+// password. Ora la anon key ha SOLO il permesso SELECT su questa
+// tabella (vedi GRANT nello schema SQL): ogni scrittura, compresa la
+// "richiesta" senza password, passa SOLO da qui e usa una chiave
+// diversa -- la SUPABASE_SERVICE_KEY -- che vive ESCLUSIVAMENTE come
+// variabile d'ambiente Vercel e non e mai stata, e non sara mai,
+// presente in nessun file scaricabile dal browser.
 // ═══════════════════════════════════════════════════════════════
 
 const SUPABASE_URL = 'https://wwaomtfchpplmmxdpsqa.supabase.co';
-const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind3YW9tdGZjaHBwbG1teGRwc3FhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MjQ5MTIsImV4cCI6MjA5NzIwMDkxMn0.OyIYsrpg4yZQVxeG7gxA0KQRqM7q0MOc29AWaGNxhR8';
 
 function checkAdmin(req) {
   const expected = process.env.ADMIN_PASSWORD;
@@ -30,20 +43,42 @@ function checkAdmin(req) {
   return !!expected && !!provided && provided === expected;
 }
 
-async function sb(method, path, body) {
+function getServiceKey(res) {
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!key) {
+    res.status(500).json({ ok: false, error: 'SUPABASE_SERVICE_KEY non configurata su Vercel (Project Settings -> Environment Variables)' });
+    return null;
+  }
+  return key;
+}
+
+async function sb(method, path, body, key) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      apikey:         SUPABASE_KEY,
-      Authorization:  `Bearer ${SUPABASE_KEY}`,
+      apikey:         key,
+      Authorization:  `Bearer ${key}`,
       Prefer:         'return=representation'
     },
     body: body ? JSON.stringify(body) : undefined
   });
   if (res.status === 204) return null;
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error((data && (data.message || data.hint)) || `Errore HTTP ${res.status}`);
+  if (!res.ok) {
+    // FIX diagnostico: prima si vedeva solo data.message (o data.hint come
+    // fallback) — troppo poco per distinguere "manca il GRANT di base"
+    // da "RLS" da altri problemi. Ora componiamo TUTTI i campi che
+    // PostgREST restituisce (code/message/details/hint), così l'errore
+    // mostrato in admin.html è già completo, senza dover guardare i log
+    // di Vercel.
+    const parts = [];
+    if (data?.message) parts.push(data.message);
+    if (data?.code)    parts.push(`[${data.code}]`);
+    if (data?.details) parts.push(`— ${data.details}`);
+    if (data?.hint)    parts.push(`(hint: ${data.hint})`);
+    throw new Error(parts.length ? parts.join(' ') : `Errore HTTP ${res.status}`);
+  }
   return data;
 }
 
@@ -54,7 +89,9 @@ module.exports = async function handler(req, res) {
         res.status(401).json({ ok: false, error: 'Password admin richiesta' });
         return;
       }
-      const items = await sb('GET', 'sp_device_license?select=*&order=requested_at.desc', null);
+      const serviceKey = getServiceKey(res);
+      if (!serviceKey) return;
+      const items = await sb('GET', 'sp_device_license?select=*&order=requested_at.desc', null, serviceKey);
       res.status(200).json({ ok: true, items: items || [] });
       return;
     }
@@ -64,17 +101,44 @@ module.exports = async function handler(req, res) {
       if (typeof body === 'string') {
         try { body = JSON.parse(body); } catch { body = {}; }
       }
-      const { action, device_id, expires_at } = body || {};
+      const { action, device_id, label, expires_at } = body || {};
 
       if (!device_id) {
-        res.status(400).json({ ok: false, error: 'device_id mancante' });
+        res.status(400).json({ ok: false, error: `device_id mancante (body ricevuto: ${JSON.stringify(body)})` });
         return;
       }
-      if (action !== 'enable' && action !== 'disable') {
-        res.status(400).json({ ok: false, error: 'Azione non valida' });
+      if (action !== 'request' && action !== 'enable' && action !== 'disable') {
+        // FIX diagnostico: prima diceva solo "Azione non valida" senza
+        // mostrare COSA era arrivato — impossibile capire se il client non
+        // mandava il campo giusto o se Vercel non stava interpretando il
+        // body come ci si aspettava. Ora mostra il valore esatto ricevuto.
+        res.status(400).json({ ok: false, error: `Azione non valida: action="${action}" (tipo ${typeof action}). Body ricevuto: ${JSON.stringify(body)}` });
         return;
       }
 
+      // -- 'request': nessuna password, e solo "mettimi in lista d'attesa" --
+      if (action === 'request') {
+        const serviceKey = getServiceKey(res);
+        if (!serviceKey) return;
+
+        const existing = await sb('GET', `sp_device_license?device_id=eq.${encodeURIComponent(device_id)}&select=device_id`, null, serviceKey);
+        if (Array.isArray(existing) && existing.length) {
+          if (label) {
+            await sb('PATCH', `sp_device_license?device_id=eq.${encodeURIComponent(device_id)}`, { label }, serviceKey);
+          }
+        } else {
+          await sb('POST', 'sp_device_license', {
+            device_id,
+            label:        label || null,
+            requested_at: new Date().toISOString(),
+            enabled:      false
+          }, serviceKey);
+        }
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      // -- 'enable' / 'disable': richiede password admin --
       let expiresIso = null;
       if (action === 'enable') {
         const d = new Date(expires_at);
@@ -89,11 +153,13 @@ module.exports = async function handler(req, res) {
         res.status(401).json({ ok: false, error: 'Password admin richiesta' });
         return;
       }
+      const serviceKey = getServiceKey(res);
+      if (!serviceKey) return;
 
       const enabled = action === 'enable';
       const nowIso  = new Date().toISOString();
 
-      const existing = await sb('GET', `sp_device_license?device_id=eq.${encodeURIComponent(device_id)}&select=device_id`, null);
+      const existing = await sb('GET', `sp_device_license?device_id=eq.${encodeURIComponent(device_id)}&select=device_id`, null, serviceKey);
 
       if (Array.isArray(existing) && existing.length) {
         await sb('PATCH', `sp_device_license?device_id=eq.${encodeURIComponent(device_id)}`, {
@@ -101,12 +167,8 @@ module.exports = async function handler(req, res) {
           expires_at: enabled ? expiresIso : null,
           enabled_at: enabled ? nowIso : null,
           enabled_by: enabled ? 'admin' : null
-        });
+        }, serviceKey);
       } else if (enabled) {
-        // Dispositivo abilitato manualmente senza essere mai passato dalla
-        // richiesta automatica (es. l'utente ha comunicato il codice a
-        // voce/WhatsApp senza che l'app l'avesse ancora registrato): lo
-        // creiamo comunque, già abilitato.
         await sb('POST', 'sp_device_license', {
           device_id,
           label:        null,
@@ -115,10 +177,8 @@ module.exports = async function handler(req, res) {
           expires_at:   expiresIso,
           enabled_at:   nowIso,
           enabled_by:   'admin'
-        });
+        }, serviceKey);
       }
-      // Se enabled=false e non esiste nessuna riga, non c'è nulla da
-      // disabilitare: nessuna azione necessaria.
 
       res.status(200).json({ ok: true });
       return;
