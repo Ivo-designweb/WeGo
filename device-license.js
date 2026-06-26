@@ -1,8 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — /api/device-license.js  (v3 — errore Postgres completo)
+// WeGo — /api/device-license.js  (v4 — diagnostica "Azione non valida")
 // Gestisce la tabella sp_device_license (abilitazione "versione Pro" per
 // singolo dispositivo — vedi license.js / impostazioni.html / admin.html).
 //
+// v4: "device_id mancante"/"Azione non valida" ora mostrano il body
+//     ricevuto per intero (e per l'azione, il valore + tipo esatto) — non
+//     erano errori di Postgres (succedevano PRIMA di toccare il database),
+//     quindi v3 non li copriva. Serve a capire se il problema è nel client
+//     (campo sbagliato) o nel parsing di req.body lato Vercel.
 // v3: sb() ora propaga l'errore Postgres COMPLETO (code/message/details/
 //     hint), non solo il messaggio breve — per diagnosticare con
 //     certezza problemi di permessi (es. "permission denied for table",
@@ -99,11 +104,15 @@ module.exports = async function handler(req, res) {
       const { action, device_id, label, expires_at } = body || {};
 
       if (!device_id) {
-        res.status(400).json({ ok: false, error: 'device_id mancante' });
+        res.status(400).json({ ok: false, error: `device_id mancante (body ricevuto: ${JSON.stringify(body)})` });
         return;
       }
       if (action !== 'request' && action !== 'enable' && action !== 'disable') {
-        res.status(400).json({ ok: false, error: 'Azione non valida' });
+        // FIX diagnostico: prima diceva solo "Azione non valida" senza
+        // mostrare COSA era arrivato — impossibile capire se il client non
+        // mandava il campo giusto o se Vercel non stava interpretando il
+        // body come ci si aspettava. Ora mostra il valore esatto ricevuto.
+        res.status(400).json({ ok: false, error: `Azione non valida: action="${action}" (tipo ${typeof action}). Body ricevuto: ${JSON.stringify(body)}` });
         return;
       }
 
