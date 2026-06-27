@@ -1,6 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — utils.js v1.3
+// WeGo — utils.js v1.4
 // Funzioni di utilità condivise da tutti i moduli
+// v1.4: NUOVA calculateCassaComune() — saldo informativo "Cassa Comune"
+//       per utente, SEPARATO dal saldo normale (calculateBalances, mai
+//       toccata): per ogni utente è la somma di tutti i movimenti
+//       "+Cassiere" dove lui è il cassiere (paid_by) MENO la somma di
+//       tutte le spese marcate col nuovo flag expenses.is_cassa_comune
+//       dove lui ha pagato (paid_by) — vedi spesa.html/spesa.js v2.7 e
+//       situazione.md. Le previsioni sono escluse (mai spesa reale).
+//       Usata da evento.js _renderSaldi() per mostrare "(Cassa Comune:
+//       …)" accanto al saldo di un utente, solo se diverso da zero.
 // v1.3: calculateBalances() — nuovo ramo per il tipo 'cashier'
 //       ("+Cassiere", spesa.html/spesa.js): si comporta come una spesa
 //       normale (paid_by = "A" il cassiere, participants = "Da" chi
@@ -559,6 +568,50 @@ const Utils = {
     }
 
     return balances;
+  },
+
+  /**
+   * Calcola il saldo "Cassa Comune" per ogni utente (v1.4) — un dato
+   * PURAMENTE INFORMATIVO, separato dal saldo normale (calculateBalances,
+   * mai modificata da questa funzione): rappresenta quanta cassa comune
+   * un utente ha ancora "in mano" come cassiere.
+   *
+   * Per ogni utente è: somma di tutti i movimenti "+Cassiere" (type:
+   * 'cashier') dove lui è il cassiere (paid_by) — l'INTERO importo
+   * incassato, non diviso — MENO la somma di tutte le spese (type:
+   * 'expense') marcate col flag is_cassa_comune dove lui ha pagato
+   * (paid_by) — anche qui l'intero importo, non la quota.
+   *
+   * Esempio: Pippo incassa 200€ come cassiere (4 persone, 50€ a testa),
+   * poi paga una spesa di 80€ con le stesse 4 persone marcandola "Uso
+   * Cassa Comune" → Cassa Comune di Pippo = 200 - 80 = 120€. Gli altri 3
+   * partecipanti hanno Cassa Comune = 0 (non sono mai stati cassiere né
+   * hanno mai pagato col flag).
+   *
+   * Le previsioni (is_forecast) sono sempre escluse, come per il saldo
+   * normale: non sono mai cassa reale.
+   *
+   * @param {Array} expenses - lista movimenti (spese/cassiere/trasf.)
+   * @param {Array} users    - lista utenti [{id, name}]
+   * @returns {Object} - { userId: importo } (può essere negativo se è
+   *                      stato speso più di quanto incassato come cassiere)
+   */
+  calculateCassaComune(expenses, users) {
+    const cassa = {};
+    users.forEach(u => { cassa[u.id] = 0; });
+
+    for (const exp of expenses) {
+      if (exp.deleted || exp.is_forecast) continue;
+      if (!exp.paid_by) continue;
+
+      if (exp.type === 'cashier') {
+        cassa[exp.paid_by] = (cassa[exp.paid_by] || 0) + (parseFloat(exp.amount) || 0);
+      } else if (exp.type === 'expense' && exp.is_cassa_comune) {
+        cassa[exp.paid_by] = (cassa[exp.paid_by] || 0) - (parseFloat(exp.amount) || 0);
+      }
+    }
+
+    return cassa;
   }
 };
 

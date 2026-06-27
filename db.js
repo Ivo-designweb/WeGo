@@ -1,6 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — db.js v1.8
+// WeGo — db.js v1.9
 // Gestione dati locali con IndexedDB (offline-first)
+// v1.9: nuovo campo expenses.is_cassa_comune (booleano, sincronizzato —
+//       flag "Uso Cassa Comune", solo per il tipo 'expense', vedi
+//       spesa.html/spesa.js v2.7 e utils.js v1.4 calculateCassaComune())
 // v1.8: RIMOSSA la sincronizzazione selettiva eventi esterni (gating —
 //       vedi app.js v2.18/sync.js v2.0): events.save() forza ora sempre
 //       gated:false / sync_allowed:true, qualunque sia il valore passato
@@ -311,6 +314,14 @@ const DB = (() => {
         // evento.js _renderSpese/_renderSaldi). Sempre false per i
         // trasferimenti (impostato così già in spesa.js).
         is_forecast:    !!expense.is_forecast,
+        // Flag "Uso Cassa Comune" (NUOVO v1.9) — solo per il tipo
+        // 'expense' (spesa.js lo forza a false per 'transfer'/'cashier'):
+        // indica che questa spesa è stata pagata con la cassa comune
+        // raccolta da un movimento "+Cassiere", invece che di tasca
+        // propria. Usato SOLO da Utils.calculateCassaComune() (saldo
+        // informativo "Cassa Comune" nei Saldi) — non influisce in
+        // alcun modo sul saldo normale (calculateBalances).
+        is_cassa_comune: !!expense.is_cassa_comune,
         date:           expense.date || Utils.today(),
         location:       expense.location || null,   // { lat, lng, address }
         has_photo:      expense.has_photo || false,

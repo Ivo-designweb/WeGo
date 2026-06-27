@@ -1,6 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.19
+// WeGo — evento.js v2.20
 // Logica pagina dettaglio evento
+// v2.20: NUOVO saldo informativo "Cassa Comune" nella tab Saldi (vedi
+//        utils.js v1.4 calculateCassaComune(), spesa.html/spesa.js v2.7
+//        flag "Uso Cassa Comune") — _calcBalances() lo calcola in
+//        EventoApp._cassaComune SENZA toccare il saldo normale
+//        (_balances, calcolato come sempre); _renderSaldi() lo mostra
+//        sulla stessa riga del Saldo, subito alla sua sinistra, in
+//        formato "(Cassa Comune: +120,00 €)" — SOLO se diverso da zero
+//        per quel partecipante (per la maggior parte sarà 0 e non
+//        comparirà nulla).
 // v2.19: RIMOSSA la sincronizzazione selettiva eventi esterni (gating —
 //        vedi app.js v2.18/sync.js v2.0): rimosso il puntino "syncGateDot"
 //        in header (sempre verde, non aveva più senso), il controllo
@@ -217,6 +226,14 @@ const EventoApp = {
     // non sono affetti: is_forecast è sempre false per quel tipo.
     const balanceableExpenses = EventoApp._expenses.filter(e => !e.is_forecast);
     EventoApp._balances = Utils.calculateBalances(
+      balanceableExpenses,
+      EventoApp._users
+    );
+    // Cassa Comune (v2.20): saldo PURAMENTE INFORMATIVO per utente,
+    // calcolato a parte — non influisce in alcun modo su _balances sopra
+    // (vedi utils.js calculateCassaComune()). Mostrato in _renderSaldi()
+    // solo per chi ha un valore diverso da zero.
+    EventoApp._cassaComune = Utils.calculateCassaComune(
       balanceableExpenses,
       EventoApp._users
     );
@@ -778,6 +795,11 @@ const EventoApp = {
       const pct   = Math.round((Math.abs(bal) / maxAbs) * 100);
       const idx   = Utils.avatarColorIndex(u.name);
       const prev  = forecastByUser[u.id] || 0;
+      // Cassa Comune (v2.20): mostrata sulla stessa riga del Saldo,
+      // subito alla sua sinistra, SOLO se diversa da zero per questo
+      // partecipante (per la maggior parte sarà 0, niente da mostrare).
+      const cassaRaw = Math.round((EventoApp._cassaComune?.[u.id] || 0) * 100) / 100;
+      const showCassa = Math.abs(cassaRaw) >= 0.01;
       balHtml += `
         <div class="balance-item">
           <div class="avatar avatar-${idx} avatar--sm">${Utils.initials(u.name)}</div>
@@ -788,6 +810,7 @@ const EventoApp = {
             </div>
           </div>
           ${prev > 0 ? `<div class="balance-forecast">${Utils.formatAmount(prev, currency)}</div>` : ''}
+          ${showCassa ? `<div class="balance-cassa">(Cassa Comune: ${cassaRaw > 0 ? '+' : ''}${Utils.formatAmount(cassaRaw, currency)})</div>` : ''}
           <div class="balance-val" style="color:${color};">
             ${bal > 0 ? '+' : ''}${Utils.formatAmount(bal, currency)}
           </div>

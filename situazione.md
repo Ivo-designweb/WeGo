@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v5.6 (v3.7 per spesa.html/spesa.js) — Aggiornato: 26 giugno 2026**
+**Versione corrente: v5.7 (v3.8 per spesa.html/spesa.js) — Aggiornato: 27 giugno 2026**
 
 ---
 
@@ -43,23 +43,23 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v5.6   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
-├── evento.html          v5.6  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
-├── spesa.html            v3.7 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere"
-├── impostazioni.html    v5.6   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (richiesta auto-apribile da evento.html), link Admin
+├── index.html          v5.7   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
+├── evento.html          v5.7  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
+├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere", flag "Uso Cassa Comune"
+├── impostazioni.html    v5.7   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (richiesta auto-apribile da evento.html), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso
-├── sw.js                v5.6   Service Worker (CACHE_NAME: wego-v5.6) — esclude /api/* dalla cache
-├── manifest.json        v5.6   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v5.7   Service Worker (CACHE_NAME: wego-v5.7) — esclude /api/* dalla cache
+├── manifest.json        v5.7   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.18 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA — RIMOSSO il gating sync esterni
-├── evento.js             v2.19 Logica pagina evento: movimenti, saldi (con Prev. e "+Cassiere"), partecipanti, ricerca, foto, 4 totali, gate downgrade — RIMOSSO il gating sync esterni, menu "Passa a Pro"
-├── spesa.js               v2.6 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", fix layout flex in modifica, fix licenza foto per-evento
+├── evento.js             v2.20 Logica pagina evento: movimenti, saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, 4 totali, gate downgrade — RIMOSSO il gating sync esterni, menu "Passa a Pro"
+├── spesa.js               v2.7 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.0 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza — RIMOSSO il gating eventi esterni
-├── supabase.js            v1.12 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast, events.photo_sync_enabled — FIX GRANT service_role
-├── db.js                  v1.8 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast — gated/sync_allowed sempre false/true
-├── utils.js               v1.3 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier')
+├── supabase.js            v1.12 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune, events.photo_sync_enabled — FIX GRANT service_role
+├── db.js                  v1.9 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast/is_cassa_comune — gated/sync_allowed sempre false/true
+├── utils.js               v1.4 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier', NUOVA calculateCassaComune())
 ├── notifications.js       v1.3 Notifiche push Web Push (VAPID) + Supabase, fix percorso icone
 ├── payments.js            v1.1 Metodi di pagamento + NUOVO ExpenseCategories (categorie di spesa, stesso pattern)
 ├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis e §5quater)
@@ -783,6 +783,59 @@ con un tap solo, invece di un semplice "Disabilita" senza via di rinnovo rapido.
 
 ---
 
+## 5undecies. Flag "Uso Cassa Comune" + saldo informativo "Cassa Comune" nei Saldi (v5.7 / v3.8 spesa)
+
+### Flag "Uso Cassa Comune" (spesa.html/spesa.js v2.7, solo tipo "Spesa")
+Nuovo toggle nella card "Importo", a destra del campo importo: etichetta "Uso Cassa
+Comune" sopra, interruttore "mini" sotto, entrambi volutamente più piccoli (meno
+della metà) del font dell'importo — flag usato raramente. Di default spento.
+- Indica che quella spesa è stata pagata usando la cassa comune raccolta in
+  precedenza con un movimento "+Cassiere", invece che di tasca propria.
+- Visibile **solo per il tipo "Spesa"**: nascosto e forzato spento passando a
+  "Trasf."/"+Cassiere" (stesso meccanismo già usato per "Previsione"), perché la
+  formula del saldo Cassa Comune (vedi sotto) lo considera solo per le spese reali.
+- Nuovo campo `expenses.is_cassa_comune` (booleano, sincronizzato — `db.js` v1.9,
+  `supabase.js` v1.12 create/update, colonna `sp_expenses.is_cassa_comune` nello
+  schema SQL — **migrazione da eseguire, vedi §11**).
+- **Non cambia in alcun modo il saldo normale** (`Utils.calculateBalances()`,
+  invariata): è un dato puramente informativo, letto solo dalla nuova funzione
+  sotto.
+
+### Saldo informativo "Cassa Comune" nei Saldi (`Utils.calculateCassaComune()` — utils.js v1.4)
+Per ogni partecipante: somma di tutti i movimenti "+Cassiere" dove lui è il
+cassiere (`paid_by`) — l'**intero** importo incassato, non diviso — MENO la somma
+di tutte le spese marcate "Uso Cassa Comune" dove lui ha pagato (`paid_by`) —
+anche qui l'intero importo, non la quota. Le previsioni sono sempre escluse (mai
+cassa reale, stesso criterio del saldo normale).
+
+**Esempio**: Pippo registra un movimento "+Cassiere" da 200€ (lui cassiere,
+4 persone — lui incluso — versano 50€ a testa in "Da"). Poi paga una spesa reale
+di 80€ con le stesse 4 persone, marcandola "Uso Cassa Comune". Cassa Comune di
+Pippo = 200 − 80 = **120€**. Gli altri 3 partecipanti hanno Cassa Comune = 0 (non
+sono mai stati cassiere né hanno mai pagato col flag) — per loro non compare
+nulla. Il saldo normale di tutti resta calcolato esattamente come prima (Pippo in
+debito di 90€ verso gli altri, gli altri 3 in credito di 30€ ciascuno) — il nuovo
+calcolo Cassa Comune è solo un'informazione aggiuntiva, non lo cambia.
+
+### Visualizzazione in Saldi (evento.js v2.20)
+`_calcBalances()` calcola `EventoApp._cassaComune` **separatamente** da
+`EventoApp._balances` (mai mischiati). `_renderSaldi()` mostra, sulla stessa riga
+del Saldo di ogni partecipante, subito alla sua sinistra, la scritta
+"(Cassa Comune: +120,00 €)" — **solo se diversa da zero** per quel partecipante
+(per la maggior parte sarà 0 e non comparirà nulla). Colore neutro (ambra, come
+"Prev.") per non confonderla col verde/rosso del saldo personale; nessuna nuova
+colonna/intestazione in alto (il testo include già l'etichetta).
+
+### Decisioni prese (confermate con l'utente prima di implementare)
+- Il flag è visibile solo per "Spesa", non per "Trasf."/"+Cassiere".
+- Nessun badge nell'elenco Movimenti per le spese con flag attivo (a differenza di
+  "previsione"/"cassiere") — solo nel form e nei Saldi.
+- "(Cassa Comune: …)" sulla stessa riga del Saldo, alla sua sinistra, solo se ≠ 0.
+- Non toccato `shareRiepilogo()` (il riepilogo testuale condivisibile): non
+  richiesto, resta come prima (nessuna menzione di Cassa Comune in quel testo).
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -882,8 +935,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v5.6 (v3.7 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v5.6`
+**Versione attuale:** v5.7 (v3.8 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v5.7`
 
 ---
 
@@ -902,6 +955,7 @@ la funzione server non avrà ancora la chiave nuova):
 4. [ ] Solo dopo i punti 1-3, carica i file nuovi su GitHub/Vercel
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
+- [ ] **🆕 NUOVO v5.7 — Eseguire la migrazione SQL per `sp_expenses.is_cassa_comune`** (Admin → Schema SQL → copia → Supabase SQL Editor → Run): aggiunge la colonna booleana per il nuovo flag "Uso Cassa Comune" (vedi §5septies). **Senza questa colonna il flag si salva solo in locale (IndexedDB) e non si sincronizza mai sul server** (fallisce silenziosamente, stessa dinamica già nota per category/is_forecast)
 - [ ] **🔴 URGENTE v5.4 — Rieseguire lo schema SQL aggiornato** (Admin → Schema SQL → copia → Supabase SQL Editor → Run): aggiunge il `GRANT` a `service_role` su `sp_device_license`/`sp_sync_status` che risolve "permission denied for table sp_device_license" quando abiliti/disabiliti la versione Pro da admin.html. Un redeploy del codice da solo NON applica questo GRANT, va eseguito a mano sul database
 - [ ] **v5.6 — prossimo passo concreto**: ricarica `license.js` (v1.4) insieme agli altri file di questa sessione, poi da un device qualsiasi vai su Impostazioni → "Richiedi soluzione completa" → invia una richiesta di prova. Se c'è ancora un problema di permessi, ORA comparirà un toast con l'errore vero (prima veniva nascosto) — riportalo per la diagnosi definitiva. Se invece "Richiesta inviata!" questa volta è vero, controlla che il dispositivo compaia nella lista di admin.html
 - [ ] **Eseguire le migrazioni SQL non ancora confermate**: `sp_users.joined_at`, `sp_users.last_sync_at`, tabella `sp_push_subscriptions`, colonna `sp_events.photo`, tabella `sp_expense_photos` (per la sincronizzazione foto movimenti), tabella `sp_device_license` (per la licenza Base/Pro), le `REVOKE` su sp_sync_status/sp_device_license (v4.7), **NUOVO v4.8: colonne `sp_events.photo_sync_enabled`, `sp_expenses.category`, `sp_expenses.is_forecast`**. Schema completo sempre disponibile in Admin → Schema SQL. **Senza queste colonne/tabelle, le funzioni "connesso multi-device", "ultima sincronizzazione", "modifica evento", "sincronizzazione foto movimenti", "richiesta soluzione completa", "Previsione/Tipo" e "fix licenza foto per-evento" falliranno silenziosamente** (la app non si rompe, ma quei campi non si aggiorneranno mai sul server). La tabella `sp_sync_status` (sincronizzazione eventi esterni) è VESTIGIALE da v5.3 — non serve più crearla, nessun file la usa più

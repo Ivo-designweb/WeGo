@@ -1,6 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v2.6
+// WeGo — spesa.js v2.7
 // Logica pagina inserimento / modifica spesa
+// v2.7: NUOVO flag "Uso Cassa Comune" (solo tipo "Spesa") — indica che
+//       quella spesa è stata pagata con la cassa comune raccolta da un
+//       movimento "+Cassiere", invece che di tasca propria. Toggle a
+//       destra dell'Importo, etichetta+interruttore "mini" (meno della
+//       metà del font importo), di default spento — si nasconde/forza
+//       spento passando a "Trasf."/"+Cassiere", stesso schema di
+//       "Previsione". Nuovo campo expenses.is_cassa_comune (db.js v1.9,
+//       supabase.js v1.12). Usato SOLO da Utils.calculateCassaComune()
+//       (saldo informativo "Cassa Comune" nei Saldi, evento.js) — non
+//       influisce in alcun modo sul saldo normale.
 // v2.6: FIX CRITICO — in modifica (e solo in modifica, mai in una spesa
 //       nuova) la riga "Previsione" e la riga "Tipo" perdevano il loro
 //       layout flex: setType() impostava "el.style.display = ''" per
@@ -56,6 +66,7 @@ const SpesaApp = {
   _users:        [],
   _type:         'expense',   // 'expense' | 'transfer' | 'cashier'
   _isForecast:   false,       // true = "Previsione" — non va divisa, non conta nei saldi
+  _isCassaComune: false,      // true = "Uso Cassa Comune" — solo tipo "Spesa", vedi calculateCassaComune
   _location:     null,        // { lat, lng, address }
   _photo:        null,        // base64 — qualità alta, resta solo su questo device
   _photoSync:    null,        // base64 — versione compatta (max 900px/60%) sincronizzata
@@ -411,14 +422,23 @@ const SpesaApp = {
     // originale). Ora ripristiniamo esplicitamente "flex" invece di "''".
     const forecastRow = document.getElementById('forecastRow');
     const categoryRow = document.getElementById('categoryRow');
+    const cassaComuneRow = document.getElementById('cassaComuneRow');
     if (forecastRow) forecastRow.style.display = type === 'expense' ? 'flex' : 'none';
     if (categoryRow) categoryRow.style.display = type === 'expense' ? 'flex' : 'none';
+    if (cassaComuneRow) cassaComuneRow.style.display = type === 'expense' ? 'flex' : 'none';
     if (type !== 'expense' && SpesaApp._isForecast) {
       // Si passa a Trasf./+Cassiere con Previsione attiva: la disattiviamo,
       // non avrebbe senso lasciarla "appesa" su un movimento di cassa.
       const toggle = document.getElementById('forecastToggle');
       if (toggle) toggle.checked = false;
       SpesaApp.toggleForecast(false);
+    }
+    if (type !== 'expense' && SpesaApp._isCassaComune) {
+      // Stesso ragionamento di "Previsione": "Uso Cassa Comune" ha senso
+      // solo per una "Spesa" reale, non per Trasf./+Cassiere.
+      const cassaToggle = document.getElementById('cassaComuneToggle');
+      if (cassaToggle) cassaToggle.checked = false;
+      SpesaApp.toggleCassaComune(false);
     }
 
     SpesaApp._setPageTitle(
@@ -459,6 +479,17 @@ const SpesaApp = {
       el.style.opacity       = enabled ? '' : '0.4';
       el.style.pointerEvents = enabled ? '' : 'none';
     });
+  },
+
+  // ─── USO CASSA COMUNE ───────────────────────────────────────
+  // Flag poco usato (solo tipo "Spesa"): indica che questa spesa è
+  // stata pagata con la cassa comune raccolta da un movimento
+  // "+Cassiere", invece che di tasca propria. Non cambia in alcun modo
+  // il form (a differenza di "Previsione"): è solo un dato salvato e
+  // letto da Utils.calculateCassaComune() per il saldo informativo
+  // "Cassa Comune" nei Saldi (evento.js).
+  toggleCassaComune(checked) {
+    SpesaApp._isCassaComune = checked;
   },
 
   // ─── GPS ──────────────────────────────────────────────────
@@ -683,6 +714,13 @@ const SpesaApp = {
       SpesaApp.toggleForecast(true);
     }
 
+    // Uso Cassa Comune
+    if (expense.is_cassa_comune) {
+      const cassaToggle = document.getElementById('cassaComuneToggle');
+      if (cassaToggle) cassaToggle.checked = true;
+      SpesaApp.toggleCassaComune(true);
+    }
+
     // Pagante
     if (expense.paid_by) {
       document.getElementById('expensePaidBy').value = expense.paid_by;
@@ -829,6 +867,11 @@ const SpesaApp = {
         // nel DOM finché non si ricarica la pagina).
         category:       (isTransfer || isCashier) ? null : category,
         is_forecast:    (!isTransfer && !isCashier) && SpesaApp._isForecast,
+        // "Uso Cassa Comune": stesso schema di "Previsione" — solo per
+        // "Spesa", sempre false per Trasf./+Cassiere (la riga è
+        // nascosta/forzata spenta in setType(), questo è il rinforzo
+        // finale al salvataggio).
+        is_cassa_comune: (!isTransfer && !isCashier) && SpesaApp._isCassaComune,
         date,
         location:       SpesaApp._location,
         has_photo:      !!SpesaApp._photo,

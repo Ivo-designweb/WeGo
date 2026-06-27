@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Spesa — WeGo v3.7</title>
+  <title>Spesa — WeGo v3.8</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -99,6 +99,22 @@
       border-color: var(--green);
       background: rgba(16,185,129,0.1);
       color: var(--green);
+    }
+
+    /* ─── USO CASSA COMUNE: flag poco usato, etichetta + interruttore
+       volutamente più piccoli (meno della metà) del font dell'importo
+       (25.5px, vedi .amount-hero__input duplicato in #expenseAmount2) —
+       interruttore "mini" derivato da .toggle/.toggle-slider (style.css)
+       ma ridimensionato qui solo per questo contesto. ─── */
+    .toggle--mini {
+      width: 22px; height: 12px;
+      margin-left: 0;
+    }
+    .toggle--mini .toggle-slider::before {
+      width: 8px; height: 8px; left: 2px;
+    }
+    .toggle--mini input:checked + .toggle-slider::before {
+      left: calc(100% - 10px);
     }
 
     /* ─── FORM CARD ─── */
@@ -296,6 +312,18 @@
           placeholder="0,00" step="0.01" min="0" inputmode="decimal"
           onfocus="this.select()"
           style="width:140px;min-width:80px;background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-md);padding:8px 10px;font-size:25.5px;font-weight:800;color:var(--text-primary);outline:none;text-align:right;" />
+        <!-- USO CASSA COMUNE: solo per il tipo "Spesa" (nascosta/forzata
+             spenta per "Trasf."/"+Cassiere" — vedi SpesaApp.setType).
+             Etichetta sopra, interruttore sotto, entrambi più piccoli
+             (meno della metà) del font dell'importo — flag poco usato,
+             vedi situazione.md. Di default spento. -->
+        <div id="cassaComuneRow" style="display:flex;flex-direction:column;align-items:center;gap:3px;margin-left:auto;flex-shrink:0;">
+          <span style="font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.2px;text-align:center;line-height:1.15;max-width:60px;">Uso Cassa Comune</span>
+          <label class="toggle toggle--mini">
+            <input type="checkbox" id="cassaComuneToggle" onchange="SpesaApp.toggleCassaComune(this.checked)" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
       <!-- TIPO (categoria di spesa) — solo per il tipo "Spesa", gestita
            liberamente da Impostazioni → Categorie spesa. Facoltativo.

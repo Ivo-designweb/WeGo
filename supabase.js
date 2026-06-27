@@ -1,6 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.11
+// WeGo — supabase.js v1.12
 // Client Supabase — lettura config da localStorage
+// v1.12: nuovo campo expenses.is_cassa_comune in expenses.create()/
+//        update() — flag "Uso Cassa Comune" (vedi spesa.html/spesa.js
+//        v2.7, db.js v1.9, utils.js v1.4 calculateCassaComune()).
+//        Schema SQL: 1 nuova colonna (ALTER TABLE ADD COLUMN IF NOT EXISTS)
 // v1.11: RIMOSSO il namespace "syncStatus" (request/getByCode) — la
 //        sincronizzazione selettiva eventi esterni non esiste più (vedi
 //        app.js v2.18/sync.js v2.0). La tabella sp_sync_status e
@@ -216,6 +220,7 @@ const SupabaseClient = (() => {
         payment_method: expense.payment_method || 'contanti',
         category:       expense.category || null,
         is_forecast:    !!expense.is_forecast,
+        is_cassa_comune: !!expense.is_cassa_comune,
         date:           expense.date,
         location_lat:   expense.location?.lat || null,
         location_lng:   expense.location?.lng || null,
@@ -248,6 +253,7 @@ const SupabaseClient = (() => {
         payment_method: expense.payment_method,
         category:       expense.category || null,
         is_forecast:    !!expense.is_forecast,
+        is_cassa_comune: !!expense.is_cassa_comune,
         date:           expense.date,
         location_lat:   expense.location?.lat || null,
         location_lng:   expense.location?.lng || null,
@@ -568,6 +574,13 @@ ALTER TABLE sp_events ADD COLUMN IF NOT EXISTS photo_sync_enabled BOOLEAN DEFAUL
 -- v4.8, solo per il tipo 'expense' (mai per 'transfer').
 ALTER TABLE sp_expenses ADD COLUMN IF NOT EXISTS category    VARCHAR(50);
 ALTER TABLE sp_expenses ADD COLUMN IF NOT EXISTS is_forecast BOOLEAN DEFAULT FALSE;
+
+-- Flag "Uso Cassa Comune" (NUOVO v1.12, solo per il tipo 'expense') —
+-- indica che quella spesa è stata pagata con la cassa comune raccolta
+-- da un movimento "+Cassiere", invece che di tasca propria. Usato SOLO
+-- dal calcolo informativo "Cassa Comune" nei Saldi (utils.js ->
+-- calculateCassaComune()), non influisce sul saldo normale.
+ALTER TABLE sp_expenses ADD COLUMN IF NOT EXISTS is_cassa_comune BOOLEAN DEFAULT FALSE;
 
 -- TABELLA SOTTOSCRIZIONI PUSH (Web Push / notifiche)
 -- Collega un device a un evento: serve al backend per sapere a chi inviare

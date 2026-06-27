@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v5.6
+// WeGo — sw.js v5.7
 // Service Worker — cache offline + background sync
+// v5.7: nessuna modifica alla lista di precache — NUOVO flag "Uso Cassa
+//       Comune" (spesa.html/spesa.js v2.7) e saldo informativo "Cassa
+//       Comune" nei Saldi (evento.js v2.20, utils.js v1.4) — solo
+//       bump di versione per la "famiglia" index/evento/impostazioni,
+//       tutto interno ai file già precaricati
 // v5.6: nessuna modifica alla lista di precache — FIX CRITICO
 //       license.js v1.4: requestPro() non nasconde più un errore reale
 //       del server dietro un falso "Richiesta inviata!" (vedi
@@ -78,7 +83,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v5.6';
+const CACHE_NAME = 'wego-v5.7';
 
 const STATIC_ASSETS = [
   '/',
@@ -103,7 +108,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v5.6');
+  console.log('[SW] Install v5.7');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -129,7 +134,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v5.6');
+  console.log('[SW] Activate v5.7');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

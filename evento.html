@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v5.6</title>
+  <title>Evento — WeGo v5.7</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -210,6 +210,11 @@
     .balance-bar { height: 100%; border-radius: 2px; transition: width 0.4s; }
     .balance-val { font-size: 18.5px; font-weight: 700; text-align: right; flex-shrink: 0; }
     .balance-forecast { font-size: 13.5px; font-weight: 700; color: var(--amber); text-align: right; flex-shrink: 0; min-width: 58px; }
+    /* "Cassa Comune" (v5.7): mostrata solo se diversa da zero, subito a
+       sinistra del Saldo — colore neutro (ambra) per non confonderla col
+       verde/rosso del saldo personale. Testo variabile, niente colonna
+       fissa (a differenza di .balance-forecast): è un caso raro. */
+    .balance-cassa { font-size: 12.5px; font-weight: 700; color: var(--amber); text-align: right; flex-shrink: 0; white-space: nowrap; }
 
     .txn-item {
       display: flex; align-items: center; gap: 10px;
