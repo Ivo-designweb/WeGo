@@ -604,6 +604,18 @@ const EventoApp = {
       : '';
     const gpsBadge   = (exp.location_lat || exp.location?.lat) ? `<span class="exp-badge">📍</span>` : '';
     const methodBadge = exp.payment_method ? `<span class="exp-badge">${Utils.escapeHtml(exp.payment_method)}</span>` : '';
+    // "Uso Cassa Comune": stessa moneta gialla del bottone "+Cassiere"
+    // (spesa.html), subito a destra del metodo di pagamento — solo se il
+    // flag è attivo su questa spesa (vedi spesa.js v2.7, utils.js v1.4).
+    const cassaBadge = exp.is_cassa_comune
+      ? `<span class="exp-badge exp-badge--cassa" title="Pagato con la Cassa Comune">
+          <svg viewBox="0 0 24 24" width="13" height="13">
+            <circle cx="12" cy="12" r="9.5" fill="#FBBF24" stroke="#92400E" stroke-width="1.3"/>
+            <circle cx="12" cy="12" r="6.8" fill="none" stroke="#92400E" stroke-width="0.8" opacity="0.55"/>
+            <text x="12" y="16.2" text-anchor="middle" font-size="10.5" font-weight="800" fill="#92400E" font-family="Arial,sans-serif">&#8364;</text>
+          </svg>
+        </span>`
+      : '';
     // Previsione: piccolo richiamo visivo per distinguerla a colpo
     // d'occhio nell'elenco — stesso pattern del badge "pagamento" sopra.
     const forecastBadge = exp.is_forecast
@@ -620,7 +632,7 @@ const EventoApp = {
             ${forecastBadge}
             ${payer ? `<span class="exp-meta-txt">${Utils.escapeHtml(payer.name)}</span>` : ''}
             ${nPart ? `<span class="exp-meta-txt">· diviso tra ${nPart}</span>` : ''}
-            ${photoBadge}${gpsBadge}${methodBadge}${syncBadge}
+            ${photoBadge}${gpsBadge}${methodBadge}${cassaBadge}${syncBadge}
           </div>
         </div>
         <div class="exp-amount">
