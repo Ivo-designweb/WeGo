@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v5.7 (v3.8 per spesa.html/spesa.js) — Aggiornato: 27 giugno 2026**
+**Versione corrente: v5.9 (v3.8 per spesa.html/spesa.js) — Aggiornato: 27 giugno 2026**
 
 ---
 
@@ -43,17 +43,17 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v5.7   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
-├── evento.html          v5.7  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali, colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
+├── index.html          v5.9   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
+├── evento.html          v5.9  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
 ├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere", flag "Uso Cassa Comune"
-├── impostazioni.html    v5.7   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (richiesta auto-apribile da evento.html), link Admin
+├── impostazioni.html    v5.9   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (richiesta auto-apribile da evento.html), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso
-├── sw.js                v5.7   Service Worker (CACHE_NAME: wego-v5.7) — esclude /api/* dalla cache
-├── manifest.json        v5.7   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v5.9   Service Worker (CACHE_NAME: wego-v5.9) — esclude /api/* dalla cache
+├── manifest.json        v5.9   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.18 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA — RIMOSSO il gating sync esterni
-├── evento.js             v2.20 Logica pagina evento: movimenti, saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, 4 totali, gate downgrade — RIMOSSO il gating sync esterni, menu "Passa a Pro"
+├── evento.js             v2.22 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile coerente coi totali — RIMOSSO il gating sync esterni, menu "Passa a Pro"
 ├── spesa.js               v2.7 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.0 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza — RIMOSSO il gating eventi esterni
@@ -836,6 +836,42 @@ colonna/intestazione in alto (il testo include già l'etichetta).
 
 ---
 
+## 5duodecies. 4 totali Movimenti: "+Cassiere" escluso, "Spese" diventa un conteggio (v5.8)
+
+Richiesta del cliente: nei 4 totali in alto nella tab Movimenti (Totale /
+Previsione / Spese / Pro capite), i movimenti "+Cassiere" non devono più
+influenzare in alcun modo Totale/Spese/Pro capite (prima il loro importo veniva
+SOTTRATTO — vedi §5sexies/v4.9 — per evitare un doppio conteggio quando il
+cassiere spendeva poi quella cassa per una spesa vera). **Ora "+Cassiere" è
+semplicemente ignorato** in questi 3 totali: né sommato né sottratto.
+
+Inoltre, la voce **"Spese" non mostra più un importo**: mostra invece il
+**numero** di registrazioni di spesa reale, escludendo Trasf., "+Cassiere" e
+Previsione (stesso filtro già usato per "Pro capite", solo che ora compare anche
+qui come conteggio invece che come somma). "Pro capite" resta una formula su
+importi (somma spese reali ÷ partecipanti) — il calcolo interno non cambia,
+cambia solo cosa viene MOSTRATO sotto l'etichetta "Spese".
+
+Implementato in `evento.js` v2.21, `_renderSpese()`:
+- `speseTotale` ora è la sola somma delle spese reali (mai più `- cashierTotale`).
+- `summarySpese.textContent` ora è `count` (numero), non più un importo formattato.
+- "Pro capite" invariato nella formula (`speseTotale / users.length`).
+
+**Non toccato in questa sessione**: Saldi/Versato-Incassato non sono interessati
+da questa modifica — "+Cassiere" continua a contare lì esattamente come prima
+(segno opposto, vedi §5sexies).
+
+**Aggiornamento (v5.9)**: anche `shareRiepilogo()` (il riepilogo testuale
+condivisibile, bottone "Condividi riepilogo" in Saldi) è stato reso coerente con
+questa stessa logica — la cifra "Totale" nel testo condiviso non sottrae più
+"+Cassiere" (prima sì, con lo stesso meccanismo v4.9 ormai superato). "X spese"
+nel testo non cambia (già escludeva Trasf./"+Cassiere"/Previsione). I saldi/"Da
+saldare" calcolati nello stesso testo NON sono toccati: "+Cassiere" continua a
+contare lì come sempre, segno opposto — è una formula completamente separata
+dalla cifra "Totale" mostrata sopra.
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -935,8 +971,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v5.7 (v3.8 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v5.7`
+**Versione attuale:** v5.9 (v3.8 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v5.9`
 
 ---
 

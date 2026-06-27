@@ -1,6 +1,27 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.20
+// WeGo — evento.js v2.22
 // Logica pagina dettaglio evento
+// v2.22: shareRiepilogo() (riepilogo testuale condivisibile) reso
+//        COERENTE con i 4 totali della tab Movimenti (v2.21, vedi
+//        sotto): "Totale" nel testo condiviso non sottrae più
+//        "+Cassiere" — ora è completamente escluso, come in
+//        _renderSpese(). "X spese" non cambia (già escludeva
+//        Trasf./"+Cassiere"/Previsione). I saldi/"Da saldare" nel testo
+//        NON sono toccati: "+Cassiere" continua a contare lì come
+//        sempre (segno opposto).
+// v2.21: 4 totali in alto nei Movimenti — "+Cassiere" ORA COMPLETAMENTE
+//        ESCLUSO da Totale/Spese/Pro capite (_renderSpese()): prima il
+//        suo importo veniva SOTTRATTO, ora non viene più né sommato né
+//        sottratto, semplicemente ignorato in questi 3 totali (resta
+//        invece conteggiato come sempre nei saldi/Versato-Incassato,
+//        _calcBalances()/_calcUserContribution(), MAI toccati). "Spese"
+//        non mostra più un importo: ora il NUMERO di registrazioni di
+//        spesa reale (esclude Trasf./"+Cassiere"/Previsione). "Pro
+//        capite" resta una formula su importi (spese reali ÷
+//        partecipanti), solo calcolata internamente — non cambia.
+//        shareRiepilogo() (riepilogo testuale condivisibile) NON
+//        toccato in questa sessione: continua a sottrarre "+Cassiere"
+//        dal totale come prima — vedi situazione.md.
 // v2.20: NUOVO saldo informativo "Cassa Comune" nella tab Saldi (vedi
 //        utils.js v1.4 calculateCassaComune(), spesa.html/spesa.js v2.7
 //        flag "Uso Cassa Comune") — _calcBalances() lo calcola in
@@ -366,27 +387,29 @@ const EventoApp = {
     // Le spese di tipo 'expense' si dividono in reali e "Previsione" (non
     // vanno divise né contano nei saldi/pro capite — vedi spesa.js
     // toggleForecast() e _renderSaldi() più sotto). I trasferimenti non
-    // contano in nessuno dei 4 totali. "+Cassiere" invece conta come un
-    // movimento normale ma con segno OPPOSTO (vedi situazione.md): il suo
-    // importo viene SOTTRATTO da Spese/Totale/Pro capite invece che
-    // sommato — è cassa che rientra nel gruppo, non una spesa reale.
+    // contano in nessuno dei 4 totali. "+Cassiere" (v5.8): ORA COMPLETAMENTE
+    // ESCLUSO da Totale/Spese/Pro capite — prima il suo importo veniva
+    // SOTTRATTO (era "cassa che rientra nel gruppo"), ora non viene più né
+    // sommato né sottratto, semplicemente ignorato in questi 3 totali
+    // (resta invece conteggiato come sempre nei saldi/Versato-Incassato).
     const expenseTypeOnly = expenses.filter(e => (e.type || 'expense') === 'expense');
-    const cashierMovements = expenses.filter(e => e.type === 'cashier');
     const forecastExpenses    = expenseTypeOnly.filter(e => e.is_forecast);
     const nonForecastExpenses = expenseTypeOnly.filter(e => !e.is_forecast);
 
     const forecastTotale = forecastExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const cashierTotale  = cashierMovements.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const speseTotale    = nonForecastExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0) - cashierTotale;
+    const speseTotale    = nonForecastExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
     const totaleGenerale = speseTotale + forecastTotale;
     const count           = nonForecastExpenses.length;
 
     document.getElementById('summaryTotal').textContent    = Utils.formatAmount(totaleGenerale, currency);
     document.getElementById('summaryForecast').textContent = Utils.formatAmount(forecastTotale, currency);
-    document.getElementById('summarySpese').textContent    = Utils.formatAmount(speseTotale, currency);
-    // Pro capite: SOLO sulle spese reali (no previsioni) ÷ partecipanti —
-    // stessa identica formula di sempre, semplicemente la fonte ora si
-    // chiama "Spese" invece di "Totale" nelle 3 colonne di prima.
+    // "Spese" (v5.8): NON più un importo — ora il NUMERO di registrazioni
+    // di spesa reale (esclude Trasf./"+Cassiere"/Previsione, già escluse
+    // qui sopra in nonForecastExpenses). L'importo (speseTotale) resta
+    // usato solo internamente per "Pro capite" qui sotto.
+    document.getElementById('summarySpese').textContent    = String(count);
+    // Pro capite: SOLO sulle spese reali (no previsioni, no cassiere) ÷
+    // partecipanti — stessa identica formula di sempre.
     document.getElementById('summaryAvg').textContent =
       count > 0 && users.length > 0
         ? Utils.formatAmount(speseTotale / users.length, currency)
@@ -1321,11 +1344,12 @@ const EventoApp = {
     });
 
     const txs    = Utils.calculateMinimalTransactions(balances, usersMap);
-    // Totale netto: spese reali meno i versamenti al cassiere (cassa che
-    // rientra nel gruppo, non una spesa reale — evita il doppio conteggio
-    // quando il cassiere la spenderà poi per una spesa vera).
-    const cashierTotale = cashierMovements.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
-    const totale = realExpenses.reduce((s, e) => s + parseFloat(e.amount), 0) - cashierTotale;
+    // Totale (v5.9): COERENTE con i 4 totali della tab Movimenti
+    // (_renderSpese(), vedi §5duodecies) — "+Cassiere" è ORA COMPLETAMENTE
+    // ESCLUSO, non viene più sottratto. Resta comunque conteggiato come
+    // sempre nei saldi/Da saldare sopra (balances, segno opposto), qui
+    // sotto cambia SOLO la cifra "Totale" mostrata nel testo.
+    const totale = realExpenses.reduce((s, e) => s + parseFloat(e.amount), 0);
 
     let text = '📊 Riepilogo WeGo — ' + (ev?.title || 'Evento') + '\n';
     text += 'Totale: ' + Utils.formatAmount(totale, cur) + ' · ' + realExpenses.length + ' spese\n\n';
