@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <script>try{var _t=JSON.parse(localStorage.getItem("wego_config")||"{}").theme||"dark";document.documentElement.setAttribute("data-theme",_t);if(document.querySelector('meta[name="theme-color"]'))document.querySelector('meta[name="theme-color"]').setAttribute("content",_t==="dark"?"#0F172A":"#F8FAFC")}catch(e){}</script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0F172A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Guida — WeGo v1.0</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/icon192.png" />
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    /* ─── Pagina Guida (aiuto.html v1.0) ───────────────────────
+       Spiegazione semplice dell'app per chi non l'ha mai usata: pochi
+       passaggi essenziali in cima, dettagli/casi particolari raccolti
+       in fondo dentro elementi <details> richiudibili (così chi non è
+       interessato non li vede nemmeno) — vedi situazione.md §5quaterdecies. */
+    .help-intro {
+      padding: 18px 2px 22px;
+      text-align: center;
+    }
+    .help-intro h1 {
+      font-size: 21px; font-weight: 800; letter-spacing: -0.3px;
+      color: var(--text-primary); margin: 0 0 6px;
+    }
+    .help-intro p {
+      font-size: 14px; color: var(--text-secondary); margin: 0;
+      max-width: 320px; margin-left: auto; margin-right: auto;
+    }
+
+    .help-step {
+      display: flex; gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 13px 14px;
+      margin-bottom: 10px;
+    }
+    .help-step__icon {
+      width: 34px; height: 34px; border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: #fff;
+    }
+    .help-step__icon svg { width: 17px; height: 17px; }
+    .help-step__body { flex: 1; min-width: 0; }
+    .help-step__title {
+      font-size: 15.5px; font-weight: 700; color: var(--text-primary);
+      margin: 0 0 3px;
+    }
+    .help-step__text {
+      font-size: 13.5px; color: var(--text-secondary); line-height: 1.45;
+      margin: 0;
+    }
+
+    .help-sync {
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.25);
+      border-radius: var(--r-lg);
+      padding: 12px 14px;
+      margin: 4px 0 22px;
+      font-size: 13px; color: var(--text-secondary); line-height: 1.45;
+    }
+    .help-sync svg { width: 20px; height: 20px; color: var(--accent); flex-shrink: 0; }
+
+    .help-plan {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 13px 14px;
+      margin-bottom: 8px;
+    }
+    .help-plan__title {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 14.5px; font-weight: 700; margin-bottom: 8px;
+    }
+    .help-plan__title svg { width: 15px; height: 15px; }
+    .help-plan ul {
+      margin: 0; padding: 0 0 0 18px;
+      font-size: 13.5px; color: var(--text-secondary); line-height: 1.6;
+    }
+    .help-plan ul li { margin-bottom: 2px; }
+
+    .help-link {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 13px; font-weight: 600; color: var(--accent);
+      text-decoration: none; margin: 10px 2px 24px;
+    }
+    .help-link svg { width: 13px; height: 13px; }
+
+    details.help-detail {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      margin-bottom: 6px;
+      overflow: hidden;
+    }
+    details.help-detail summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 11px 13px;
+      font-size: 14px; font-weight: 600; color: var(--text-primary);
+      display: flex; align-items: center; justify-content: space-between;
+      -webkit-tap-highlight-color: transparent;
+    }
+    details.help-detail summary::-webkit-details-marker { display: none; }
+    details.help-detail summary::after {
+      content: '';
+      width: 8px; height: 8px;
+      border-right: 1.6px solid var(--text-muted);
+      border-bottom: 1.6px solid var(--text-muted);
+      transform: rotate(45deg);
+      transition: transform var(--ease);
+      flex-shrink: 0;
+    }
+    details.help-detail[open] summary::after { transform: rotate(-135deg); }
+    details.help-detail .help-detail__body {
+      padding: 0 13px 13px;
+      font-size: 13.5px; color: var(--text-secondary); line-height: 1.5;
+    }
+    details.help-detail .help-detail__body p { margin: 0 0 8px; }
+    details.help-detail .help-detail__body p:last-child { margin-bottom: 0; }
+  </style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="app-header__logo">
+      <a href="/index.html" class="btn btn--icon" title="Indietro">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </a>
+      <div class="app-header__logo-mark">WG</div>
+      <span class="app-header__title">Guida</span>
+    </div>
+  </header>
+
+  <main class="page-content">
+
+    <div class="help-intro">
+      <h1>Come funziona WeGo</h1>
+      <p>Tre passaggi per iniziare a condividere le spese con il tuo gruppo, senza fare calcoli a mano.</p>
+    </div>
+
+    <!-- PASSO 1 -->
+    <div class="help-step">
+      <div class="help-step__icon" style="background:var(--accent);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+        </svg>
+      </div>
+      <div class="help-step__body">
+        <div class="help-step__title">1. Crea un evento, o unisciti a uno</div>
+        <p class="help-step__text">Un "evento" è il gruppo in cui condividete le spese: una vacanza, una cena, una gita. Puoi crearne uno nuovo tu, oppure unirti a uno già esistente con il codice che ti ha dato chi lo ha creato.</p>
+      </div>
+    </div>
+
+    <!-- PASSO 2 -->
+    <div class="help-step">
+      <div class="help-step__icon" style="background:var(--purple);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+        </svg>
+      </div>
+      <div class="help-step__body">
+        <div class="help-step__title">2. Registra le spese</div>
+        <p class="help-step__text">Ogni volta che qualcuno paga qualcosa per il gruppo, registralo in pochi tocchi: quanto, chi ha pagato e tra chi va divisa. WeGo fa subito i conti per te.</p>
+      </div>
+    </div>
+
+    <!-- PASSO 3 -->
+    <div class="help-step">
+      <div class="help-step__icon" style="background:var(--green);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-14"/>
+        </svg>
+      </div>
+      <div class="help-step__body">
+        <div class="help-step__title">3. Guarda chi deve cosa a chi</div>
+        <p class="help-step__text">Nella tab "Saldi" di ogni evento vedi sempre chi è in credito e chi è in debito, e i pochi pagamenti necessari per chiudere i conti — non serve fare calcoli a mano.</p>
+      </div>
+    </div>
+
+    <!-- SINCRONIZZAZIONE -->
+    <div class="help-sync">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 12v-1a8 8 0 0114.93-4M20 12v1a8 8 0 01-14.93 4"/>
+        <polyline points="20 4 20 8 16 8"/><polyline points="4 20 4 16 8 16"/>
+      </svg>
+      <span>Tutti i partecipanti collegati allo stesso codice evento vedono automaticamente le stesse spese e gli stessi saldi, aggiornati per tutti quando sono online — non devi fare nulla.</span>
+    </div>
+
+    <!-- BASE / PRO -->
+    <div class="section-header"><span class="section-title">Versione Base o Pro?</span></div>
+
+    <div class="help-plan">
+      <div class="help-plan__title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>
+        Base
+      </div>
+      <ul>
+        <li>Un evento attivo alla volta</li>
+        <li>Fino a 15 partecipanti per evento</li>
+        <li>Le foto delle spese restano solo sul tuo dispositivo (non sincronizzate)</li>
+      </ul>
+    </div>
+
+    <div class="help-plan" style="border-color:rgba(245,158,11,0.4);">
+      <div class="help-plan__title" style="color:var(--amber);">
+        <svg viewBox="0 0 24 24" fill="var(--amber)" stroke="var(--amber)" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Pro
+      </div>
+      <ul>
+        <li>Puoi creare molti più eventi in contemporanea</li>
+        <li>Fino a 50 partecipanti per evento</li>
+        <li>Le foto delle spese si sincronizzano automaticamente tra tutti i partecipanti</li>
+      </ul>
+    </div>
+
+    <a class="help-link" href="/impostazioni.html#licenzaSection">
+      Vedi i dettagli e passa a Pro
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+    </a>
+
+    <!-- APPROFONDIMENTI -->
+    <div class="section-header"><span class="section-title">Per saperne di più</span></div>
+
+    <details class="help-detail">
+      <summary>Cos'è "+Cassiere"?</summary>
+      <div class="help-detail__body">
+        <p>È un tipo di movimento speciale per registrare quando una persona raccoglie soldi dagli altri partecipanti in una "cassa comune", da spendere più avanti per il gruppo (es. tutti versano la propria quota a chi farà la spesa).</p>
+        <p>A differenza di una spesa normale, l'importo non viene considerato come una spesa reale nei totali del gruppo: è semplicemente cassa che passa di mano.</p>
+      </div>
+    </details>
+
+    <details class="help-detail">
+      <summary>Cos'è il flag "Uso Cassa Comune"?</summary>
+      <div class="help-detail__body">
+        <p>Quando registri una spesa, puoi indicare che è stata pagata usando i soldi raccolti in precedenza con un "+Cassiere", invece che di tasca propria.</p>
+        <p>Nella tab Saldi, chi ha fatto da cassiere vedrà quanto gli resta ancora in cassa comune, accanto al proprio saldo personale.</p>
+      </div>
+    </details>
+
+    <details class="help-detail">
+      <summary>Cos'è una spesa "Previsione"?</summary>
+      <div class="help-detail__body">
+        <p>Serve per segnare una spesa futura che prevedi di dover fare, ma che non è ancora avvenuta — utile per farsi un'idea del totale prima del tempo.</p>
+        <p>Non viene divisa tra i partecipanti e non conta nei saldi, finché non la trasformi in una spesa reale.</p>
+      </div>
+    </details>
+
+    <details class="help-detail">
+      <summary>Pagamenti tra utenti: a cosa servono?</summary>
+      <div class="help-detail__body">
+        <p>Se qualcuno salda il proprio debito fuori dall'app (in contanti, con un bonifico, ecc.), puoi registrare quel pagamento in WeGo: i saldi si aggiornano subito, senza dover creare una spesa finta.</p>
+      </div>
+    </details>
+
+    <details class="help-detail">
+      <summary>Posso allegare foto e posizione a una spesa?</summary>
+      <div class="help-detail__body">
+        <p>Sì — quando registri una spesa puoi aggiungere una foto (utile per lo scontrino) e la posizione in cui l'hai fatta, comode per ritrovarla più avanti tra i movimenti.</p>
+      </div>
+    </details>
+
+    <details class="help-detail">
+      <summary>Metodi di pagamento e categorie</summary>
+      <div class="help-detail__body">
+        <p>Puoi personalizzare l'elenco dei metodi di pagamento (contanti, carta, ecc.) e delle categorie di spesa dalle Impostazioni, per organizzare i movimenti come preferisci.</p>
+      </div>
+    </details>
+
+    <div style="height:14px;"></div>
+
+  </main>
+
+</div>
+
+</body>
+</html>

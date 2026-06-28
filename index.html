@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>WeGo v6.0</title>
+  <title>WeGo v6.1</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -209,8 +209,15 @@
     <!-- WELCOME (nessun evento) -->
     <div id="welcomeScreen" class="hidden">
       <div style="padding:32px 0 18px;text-align:center;">
-        <div style="display:inline-flex;align-items:flex-end;gap:6px;">
-          <span style="font-size:48.5px;font-weight:800;color:var(--accent);letter-spacing:-1px;line-height:1;">WeGo</span>
+        <div style="display:inline-flex;align-items:flex-end;gap:8px;">
+          <!-- Logo grande "WeGo" + icona app, entrambi link alla Guida
+               (aiuto.html v1.0) — richiesta cliente. L'icona è la stessa
+               usata per l'installazione PWA (icon192.png), alta come la
+               "W" di "WeGo" (48.5px). -->
+          <a href="/aiuto.html" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;" title="Come funziona WeGo">
+            <img src="/icon192.png" alt="" width="48" height="48" style="width:48.5px;height:48.5px;object-fit:contain;flex-shrink:0;border-radius:10px;" />
+            <span style="font-size:48.5px;font-weight:800;color:var(--accent);letter-spacing:-1px;line-height:1;">WeGo</span>
+          </a>
           <span class="badge badge--amber" id="proBadge" style="display:none;background:transparent;padding:0;border-radius:0;font-style:italic;line-height:1;margin-bottom:1px;" title="Eventi Pro ancora disponibili (creati su 100)">Pro</span>
         </div>
         <div style="font-size:15px;color:var(--text-secondary);margin-top:6px;">Condividi spese con il tuo gruppo</div>

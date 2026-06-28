@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v6.0 (v3.8 per spesa.html/spesa.js) — Aggiornato: 27 giugno 2026**
+**Versione corrente: v6.1 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 27 giugno 2026**
 
 ---
 
@@ -43,13 +43,14 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v6.0   Home: lista eventi, crea/unisciti, badge "Pro N"/"Base" corsivo a destra del logo "WeGo" grande (solo schermata "nessun evento"), bottone "Installa"
-├── evento.html          v6.0  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
+├── index.html          v6.1   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo", badge "Pro N"/"Base" corsivo (solo schermata "nessun evento"), bottone "Installa"
+├── evento.html          v6.1  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
 ├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
-├── impostazioni.html    v6.0   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (richiesta auto-apribile da evento.html), link Admin
+├── impostazioni.html    v6.1   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso
-├── sw.js                v6.0   Service Worker (CACHE_NAME: wego-v6.0) — esclude /api/* dalla cache
-├── manifest.json        v6.0   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── aiuto.html            v1.0  🆕 Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili (+Cassiere, Uso Cassa Comune, Previsione, Pagamenti, foto/GPS, metodi pagamento)
+├── sw.js                v6.1   Service Worker (CACHE_NAME: wego-v6.1) — esclude /api/* dalla cache, precache include /aiuto.html
+├── manifest.json        v6.1   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.18 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA — RIMOSSO il gating sync esterni
@@ -944,6 +945,60 @@ calcolo dei saldi, che ora si propagano automaticamente anche qui).
 
 ---
 
+## 5quaterdecies. Nuova pagina "Guida" (aiuto.html v1.0) + icona/link sul logo home (v6.1)
+
+### Nuova pagina `aiuto.html` (v1.0, versione indipendente come admin.html)
+Pagina di guida pensata per chi non ha mai usato l'app: linguaggio semplice,
+SENZA dettagli tecnici (niente menzione di server/database/linguaggio — solo
+"i dati si sincronizzano automaticamente tra i partecipanti online con lo
+stesso codice evento"). Struttura:
+- **3 passi essenziali** in cima (card con icona): 1) crea un evento o
+  unisciti con un codice, 2) registra le spese, 3) guarda chi deve cosa a chi
+  nei Saldi.
+- **Box sincronizzazione**: una riga, nessun dettaglio implementativo.
+- **Confronto Base/Pro**: Base = 1 evento attivo, 15 partecipanti, foto non
+  sincronizzate · Pro = "molti più eventi" (volutamente SENZA scrivere il
+  numero esatto 100, su richiesta cliente), 50 partecipanti, foto
+  sincronizzate. Link "Vedi i dettagli e passa a Pro" →
+  `/impostazioni.html#licenzaSection` (vedi sotto) per chi vuole i numeri
+  precisi.
+- **Approfondimenti** in `<details>`/`<summary>` richiudibili (nessun JS
+  necessario): "+Cassiere", flag "Uso Cassa Comune", "Previsione", Pagamenti
+  tra utenti, foto/posizione, metodi di pagamento — chi non è interessato non
+  li vede nemmeno, chi vuole approfondire li apre con un tap.
+
+Aggiunta alla lista di precache di `sw.js` (funziona anche offline, come le
+altre pagine). **Non** ha il footer "Contatta lo sviluppatore" (quella regola
+è specifica della pagina Impostazioni, non di ogni pagina HTML).
+
+### Icona app + link alla Guida sul logo grande "WeGo" (index.html)
+A sinistra del logo grande "WeGo" (schermata di benvenuto), aggiunta l'icona
+dell'app (stessa usata per l'installazione PWA, `icon192.png`), alta come la
+"W" — **unica icona disponibile nel progetto**, quindi la scritta "WEGO" compare
+due volte (una volta disegnata a mano dentro l'icona, una volta nel testo
+grande) — accettato così non avendo un logo "pulito" alternativo. Sia l'icona
+che il testo grande sono ora un link a `/aiuto.html`.
+
+**Scoperto durante questa sessione (NON corretto su richiesta esplicita del
+cliente)**: la classe `.hidden` usata da `#welcomeScreen`/`#eventsScreen` (e
+da `Utils.show()`/`Utils.hide()` in app.js) **non ha alcun effetto visivo** —
+`style.css` definisce solo `.sync-bar.hidden{display:none}`, non una regola
+generica `.hidden{display:none}`. Risultato pratico: la schermata di
+benvenuto (logo grande + bottoni "Crea"/"Unisciti") resta SEMPRE visibile
+sopra la lista eventi, anche quando ci sono già eventi — il cliente ha
+confermato che questo è il comportamento che osserva e che gli va bene così,
+quindi non è stato toccato. Annotato qui per consapevolezza futura: se in una
+sessione successiva si decidesse di "pulire" la home nascondendo davvero la
+welcome screen quando ci sono eventi, occorre aggiungere la regola CSS
+generica mancante.
+
+### Badge "Pro N"/"Base" (id="proBadge")
+Restano valide le note della sessione precedente (§5terdecies) — nessuna
+modifica aggiuntiva qui, il badge è rimasto un fratello (sibling) del link
+icona+testo, non dentro di esso.
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -1043,8 +1098,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v6.0 (v3.8 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v6.0`
+**Versione attuale:** v6.1 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
+**Service Worker cache:** `wego-v6.1`
 
 ---
 
