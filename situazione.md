@@ -47,7 +47,7 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 ├── evento.html          v6.2  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
 ├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
 ├── impostazioni.html    v6.2   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), link Admin
-├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso
+├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
 ├── sw.js                v6.2   Service Worker (CACHE_NAME: wego-v6.2) — esclude /api/* dalla cache, precache include /aiuto.html
 ├── manifest.json        v6.2   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
@@ -1055,6 +1055,50 @@ freccia), implementata per davvero nella welcome screen:
   "Help" segue la stessa sorte — è soggetta alle stesse identiche regole
   (prime 2 visite/clic) indipendentemente dal fatto che l'utente abbia o no
   eventi.
+
+---
+
+## 5sexdecies. Fix overlap header su freccia "Help" + bottone reset per i test (nessun bump versione — richiesta esplicita cliente)
+
+### Fix: la barra in alto coprivo parzialmente freccia+"Help" (index.html)
+Bug segnalato dal cliente testando su mobile: `.app-header` è `position:sticky;
+top:0; z-index:100` (style.css) — più "in alto" di tutto il resto della
+pagina. Il calcolo originale del posizionamento di `#helpPointer`
+(`top:-58px` rispetto al logo) non teneva conto dello spazio occupato
+dall'header sticky + dal padding di `.page-content` (12px), risultando in un
+overlap: la freccia e l'etichetta "Help" finivano parzialmente sotto la barra
+in alto, quindi tagliate/invisibili in cima.
+
+**Fix**: aumentato il padding-top della hero (il div che contiene
+icona+testo+badge nella welcome screen) da `32px` a `56px` — lascia
+abbastanza spazio sopra il logo perché freccia+etichetta (alte circa 56px in
+totale) si posizionino interamente SOTTO il bordo inferiore dell'header
+(52px), con un margine di sicurezza di circa 10px. Nessun'altra modifica:
+stesse animazioni, stesso bordo, stessa logica di comparsa.
+
+**Effetto collaterale accettato**: la welcome screen ha ora ~24px di spazio
+in più sopra il logo SEMPRE, anche per chi ha già esaurito le 2 visite o ha
+già cliccato il link (il padding è statico via CSS, non condizionale via
+JS) — scelta deliberata per restare semplice; l'effetto visivo è minimo
+(spaziatura leggermente più ampia in cima), non è stato reso condizionale.
+
+### Bottone "Reset evidenziazione Help" in admin.html (per ritestare)
+Il cliente ha chiesto come ritestare la freccia dopo aver già esaurito le 2
+visite consentite. Aggiunta una nuova sezione "Test / Debug locale" in
+`admin.html`, con un bottone che cancella le due chiavi `localStorage`
+dedicate (`wego_help_hint_views` e `wego_help_hint_clicked`) SOLO su questo
+browser/dispositivo — non tocca altri dati (tema, sessioni, licenza), a
+differenza di un "cancella dati del sito" generico dal browser che
+azzererebbe anche quelli. Dopo il reset basta riaprire/ricaricare la home.
+
+**In alternativa**, senza passare da admin.html, lo stesso risultato si
+ottiene aprendo la Console del browser (es. via ispezione remota da desktop
+se si sta testando su mobile) sulla pagina `index.html` ed eseguendo:
+```js
+localStorage.removeItem('wego_help_hint_views');
+localStorage.removeItem('wego_help_hint_clicked');
+```
+poi ricaricando la pagina.
 
 ---
 

@@ -248,7 +248,11 @@
 
     <!-- WELCOME (nessun evento) -->
     <div id="welcomeScreen" class="hidden">
-      <div style="padding:32px 0 18px;text-align:center;">
+      <!-- padding-top aumentato da 32 a 56px (v6.3): la freccia "Help"
+           (#helpPointer, top:-58px relativo al logo) altrimenti finiva
+           parzialmente coperta dalla barra in alto, che è sticky/sopra
+           a tutto (z-index:100) — vedi situazione.md §5sexdecies. -->
+      <div style="padding:56px 0 18px;text-align:center;">
         <div style="display:inline-flex;align-items:flex-end;gap:8px;">
           <!-- Logo grande "WeGo" + icona app, entrambi link alla Guida
                (aiuto.html v1.0) — richiesta cliente. L'icona è la stessa

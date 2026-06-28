@@ -274,6 +274,23 @@
       </div>
     </div>
 
+    <!-- TEST / DEBUG LOCALE -->
+    <div class="admin-section">
+      <div class="section-header"><span class="section-title">Test / Debug locale (su questo browser)</span></div>
+      <div class="admin-group">
+        <div class="admin-row">
+          <p class="config-note" style="margin-bottom:8px;">
+            Per ritestare l'evidenziazione "Help" sul logo in home (compare solo
+            per le prime 2 visite, finché non si clicca — vedi situazione.md
+            §5sexdecies) dopo averla già esaurita su questo dispositivo/browser.
+          </p>
+          <button class="btn btn--ghost btn--sm" onclick="AdminApp.resetHelpHint()">
+            Reset evidenziazione Help
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- BACKUP CONFIG -->
     <div class="admin-section">
       <div class="section-header"><span class="section-title">Backup configurazione</span></div>
@@ -481,6 +498,21 @@
 <script src="/supabase.js"></script>
 <script>
 const AdminApp = {
+
+  // Reset evidenziazione "Help" sul logo home (solo questo browser/device —
+  // vedi app.js _renderHelpHint(), index.html, situazione.md §5sexdecies).
+  // Comodo per ritestarla più volte durante lo sviluppo, senza dover
+  // cancellare manualmente i dati del sito dal browser (che resetterebbe
+  // anche tema/altre preferenze locali).
+  resetHelpHint() {
+    try {
+      localStorage.removeItem('wego_help_hint_views');
+      localStorage.removeItem('wego_help_hint_clicked');
+      Utils.toast('Evidenziazione Help resettata — riapri la home', 'success');
+    } catch (e) {
+      Utils.toast('Errore: ' + e.message, 'error');
+    }
+  },
   async init() {
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
     AdminApp._loadSavedCredentials();
