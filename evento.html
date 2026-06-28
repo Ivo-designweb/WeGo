@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v6.1</title>
+  <title>Evento — WeGo v6.2</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -348,6 +348,15 @@
         <path d="M12 19V5"/><path d="M5 12l7-7 7 7"/>
       </svg>
       Passa a Pro
+    </button>
+    <!-- Guida: spiegazione semplice del funzionamento dell'app (aiuto.html) -->
+    <button class="ctx-item" onclick="window.location.href='/aiuto.html'">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M9.09 9a3 3 0 115.83 1c0 2-3 3-3 3"/>
+        <line x1="12" y1="17" x2="12" y2="17.01"/>
+      </svg>
+      Guida
     </button>
     <div class="ctx-divider"></div>
     <!-- Elimina evento: visibile solo al creatore (gestito da JS) -->

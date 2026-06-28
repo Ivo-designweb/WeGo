@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v6.1 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 27 giugno 2026**
+**Versione corrente: v6.2 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 27 giugno 2026**
 
 ---
 
@@ -43,17 +43,17 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v6.1   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo", badge "Pro N"/"Base" corsivo (solo schermata "nessun evento"), bottone "Installa"
-├── evento.html          v6.1  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
+├── index.html          v6.2   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa"
+├── evento.html          v6.2  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
 ├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
-├── impostazioni.html    v6.1   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), link Admin
+├── impostazioni.html    v6.2   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso
-├── aiuto.html            v1.0  🆕 Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili (+Cassiere, Uso Cassa Comune, Previsione, Pagamenti, foto/GPS, metodi pagamento)
-├── sw.js                v6.1   Service Worker (CACHE_NAME: wego-v6.1) — esclude /api/* dalla cache, precache include /aiuto.html
-├── manifest.json        v6.1   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
+├── sw.js                v6.2   Service Worker (CACHE_NAME: wego-v6.2) — esclude /api/* dalla cache, precache include /aiuto.html
+├── manifest.json        v6.2   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
-├── app.js                v2.18 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA — RIMOSSO il gating sync esterni
+├── app.js                v2.19 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA, evidenziazione "Help" sul logo (prime 2 visite, solo localStorage) — RIMOSSO il gating sync esterni
 ├── evento.js             v2.23 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi — RIMOSSO il gating sync esterni, menu "Passa a Pro"
 ├── spesa.js               v2.7 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
@@ -999,6 +999,65 @@ icona+testo, non dentro di esso.
 
 ---
 
+## 5quindecies. Voce "Guida" nel menu "⋮", fix freccia indietro, evidenziazione "Help" sul logo (v6.1 → v6.2)
+
+### Voce "Guida" nel menu contestuale "⋮" (evento.html)
+Aggiunta una nuova riga "Guida" nel menu a tre puntini in alto in evento.html
+(`#eventMenu`), tra "Passa a Pro" e il divider che precede "Elimina evento" —
+icona "?" in un cerchio, porta a `/aiuto.html`. Stesso identico markup/pattern
+delle altre voci (`.ctx-item`).
+
+### Fix freccia "Indietro" in aiuto.html
+Con due punti di ingresso ora attivi alla Guida (logo grande in home, voce
+"Guida" nel menu di un evento), la freccia "Indietro" con `href="/index.html"`
+fisso sarebbe stata sbagliata quando si arriva da un evento (avrebbe riportato
+in home invece che all'evento di provenienza). Corretto con
+`onclick="if(window.history.length>1){event.preventDefault();window.history.back();}"`
+— torna alla pagina di provenienza quando possibile, mantenendo `/index.html`
+come fallback (href nativo) se la Guida viene apera direttamente (es. da un
+collegamento esterno, history.length 1).
+
+### Evidenziazione "Help" sul logo — IMPLEMENTATA (v6.2, index.html + app.js v2.19)
+Dopo conferma del cliente sull'anteprima (`preview_help_hint.html` — bordo
+tratteggiato ambra pulsante intorno a icona+testo "WeGo", freccetta animata
+con etichetta "Help" in alto a destra, punta verso il bordo; movimento
+dell'animazione da alto verso basso-SINISTRA, coerente con la direzione della
+freccia), implementata per davvero nella welcome screen:
+
+- **Markup** (`index.html`): due nuovi elementi `#helpPulseBorder` (il bordo)
+  e `#helpPointer` (freccia+etichetta "Help") dentro il link `<a>` che avvolge
+  icona+testo "WeGo" — nascosti di default (`display:none` inline), mostrati
+  da JS solo quando serve. Stesse identiche classi/animazioni CSS
+  dell'anteprima approvata (`.help-pulse-border`, `.help-pointer`,
+  `@keyframes helpPulseBorder`, `@keyframes helpNudge`).
+- **Click = scompare per sempre**: il link ha un `onclick` che scrive subito
+  `localStorage.setItem('wego_help_hint_clicked','1')` PRIMA di navigare verso
+  `/aiuto.html` — da quel momento l'evidenziazione non comparirà mai più su
+  questo dispositivo.
+- **Contatore visite** (`app.js` v2.19, `App._renderHelpHint()`, richiamata da
+  `_render()`): legge/scrive due chiavi `localStorage` dedicate —
+  `wego_help_hint_views` (contatore) e `wego_help_hint_clicked` (flag). Mostra
+  bordo+freccia solo se `!clicked && views < 2`; ad ogni NUOVO caricamento
+  pagina (non ad ogni `_render()` — vedi sotto) incrementa il contatore di 1.
+  **Tutto e solo sul dispositivo**: NESSUNA sincronizzazione col server, è
+  un suggerimento visivo locale, non un dato dell'evento.
+- **Guardia anti-doppio-conteggio** (`App._helpHintCounted`, flag in
+  memoria): `_render()` può essere richiamata più volte nello stesso
+  caricamento di pagina (es. una volta con i dati locali, di nuovo dopo ogni
+  sync in background via `_syncQuiet()`) — senza questa guardia il contatore
+  "visite" si sarebbe potuto incrementare più volte per una singola visita
+  reale dell'utente, facendo sparire l'evidenziazione troppo in fretta. Con
+  la guardia, l'incremento avviene una sola volta per caricamento pagina,
+  indipendentemente da quante volte `_render()` viene richiamata.
+- **Nota legata al "bug" `.hidden` già documentato sopra**: poiché la welcome
+  screen resta sempre visibile anche con eventi presenti (comportamento
+  confermato e voluto dal cliente, non corretto), anche l'evidenziazione
+  "Help" segue la stessa sorte — è soggetta alle stesse identiche regole
+  (prime 2 visite/clic) indipendentemente dal fatto che l'utente abbia o no
+  eventi.
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -1098,8 +1157,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v6.1 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
-**Service Worker cache:** `wego-v6.1`
+**Versione attuale:** v6.2 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
+**Service Worker cache:** `wego-v6.2`
 
 ---
 

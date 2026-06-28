@@ -1,6 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.18
+// WeGo — app.js v2.19
 // Logica principale pagina Home (index.html)
+// v2.19: NUOVA evidenziazione "Help" sul logo grande "WeGo"
+//        (_renderHelpHint(), richiamata da _render()) — bordo tratteggiato
+//        ambra pulsante + freccetta animata con etichetta "Help", solo
+//        per le prime 2 visite alla home e solo se l'utente non ha ancora
+//        cliccato quel link (poi sparisce per sempre). Contatore
+//        "wego_help_hint_views" e flag "wego_help_hint_clicked" SOLO in
+//        localStorage del dispositivo — nessuna sincronizzazione col
+//        server, è solo un suggerimento visivo locale (vedi
+//        situazione.md §5sexdecies).
 // v2.18: RIMOSSA la sincronizzazione selettiva eventi esterni (gating):
 //        ogni evento creato si sincronizza ora sempre automaticamente,
 //        come un device "proprietario" prima di questa versione — niente
@@ -62,7 +71,7 @@ const App = {
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
-    console.log('[App] WeGo v2.17 init');
+    console.log('[App] WeGo v2.19 init');
 
     // Tema: già applicato dall'inline script nell'<head>, ma ripetiamo
     // qui per sicurezza nel caso in cui lo script inline non sia ancora eseguito
@@ -332,6 +341,13 @@ const App = {
   },
 
   // ─── RENDER ───────────────────────────────────────────────
+  // Guardia "una volta per caricamento pagina" per _renderHelpHint() —
+  // _render() può essere richiamata più volte nello stesso caricamento
+  // (es. dopo ogni sync in background, vedi _syncQuiet()): senza questa
+  // guardia il contatore "visite" rischierebbe di incrementarsi più
+  // volte per una singola visita reale dell'utente.
+  _helpHintCounted: false,
+
   async _render() {
     const hasEvents = App._events.length > 0;
 
@@ -341,6 +357,8 @@ const App = {
     if (typeof License !== 'undefined') {
       License.renderProBadge('proBadge').catch(() => {});
     }
+
+    App._renderHelpHint();
 
     if (!hasEvents) {
       Utils.show('welcomeScreen');
@@ -356,6 +374,44 @@ const App = {
 
     App._renderCurrentUser();
     await App._renderEventListAsync();
+  },
+
+  // ─── EVIDENZIAZIONE "HELP" SUL LOGO (v2.19) ────────────────
+  /**
+   * Mostra il bordo pulsante + freccetta "Help" intorno al logo grande
+   * "WeGo" SOLO per le prime 2 visite alla home e solo se l'utente non
+   * ha ancora cliccato quel link (il click imposta subito
+   * 'wego_help_hint_clicked' in localStorage, vedi onclick sul link in
+   * index.html — sparisce per sempre da quel momento). Dato puramente
+   * locale al dispositivo, NESSUNA sincronizzazione col server: è solo
+   * un suggerimento visivo per chi apre l'app per la prima volta.
+   * Eseguita una sola volta per caricamento pagina (vedi
+   * _helpHintCounted) anche se _render() viene richiamata più volte.
+   */
+  _renderHelpHint() {
+    const border  = document.getElementById('helpPulseBorder');
+    const pointer = document.getElementById('helpPointer');
+    if (!border || !pointer) return;
+
+    let alreadyClicked = false;
+    let views = 0;
+    try {
+      alreadyClicked = localStorage.getItem('wego_help_hint_clicked') === '1';
+      views = parseInt(localStorage.getItem('wego_help_hint_views') || '0', 10) || 0;
+    } catch (e) { /* localStorage non disponibile: niente evidenziazione */ alreadyClicked = true; }
+
+    const show = !alreadyClicked && views < 2;
+    border.style.display  = show ? '' : 'none';
+    pointer.style.display = show ? '' : 'none';
+
+    // Conta questa visita una sola volta per caricamento pagina, non a
+    // ogni _render() ripetuta nello stesso caricamento.
+    if (!App._helpHintCounted) {
+      App._helpHintCounted = true;
+      if (!alreadyClicked && views < 2) {
+        try { localStorage.setItem('wego_help_hint_views', String(views + 1)); } catch (e) {}
+      }
+    }
   },
 
   _renderCurrentUser() {

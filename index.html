@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>WeGo v6.1</title>
+  <title>WeGo v6.2</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -27,6 +27,46 @@
     .ev-card__top {
       display: flex; align-items: center; gap: 10px;
     }
+
+    /* ── Evidenziazione "Help" sul logo grande (solo prime 2 visite,
+         finché non si clicca — vedi App._renderHelpHint() in app.js v2.19
+         e situazione.md §5sexdecies). Bordo tratteggiato ambra pulsante
+         intorno a icona+testo "WeGo" + freccetta animata con etichetta
+         "Help" in alto a destra, punta verso il bordo. Nessuna libreria
+         esterna, solo CSS. ── */
+    .help-pulse-border {
+      position: absolute;
+      top: -6px; left: -6px; right: -10px; bottom: -6px;
+      border: 2px dashed var(--amber);
+      border-radius: 18px;
+      pointer-events: none;
+      animation: helpPulseBorder 1.8s ease-in-out infinite;
+    }
+    @keyframes helpPulseBorder {
+      0%   { opacity: 0.35; box-shadow: 0 0 0px rgba(245,158,11,0.0); }
+      50%  { opacity: 1;    box-shadow: 0 0 14px rgba(245,158,11,0.55); }
+      100% { opacity: 0.35; box-shadow: 0 0 0px rgba(245,158,11,0.0); }
+    }
+    .help-pointer {
+      position: absolute;
+      top: -58px; right: -8px;
+      display: flex; flex-direction: column; align-items: center;
+      animation: helpNudge 1.4s ease-in-out infinite;
+      z-index: 3;
+    }
+    @keyframes helpNudge {
+      0%, 100% { transform: translate(0, 0); }
+      50%      { transform: translate(-3px, 5px); }
+    }
+    .help-pointer span {
+      font-size: 13px; font-weight: 800; color: var(--amber);
+      background: rgba(245,158,11,0.15);
+      padding: 2px 9px; border-radius: 999px;
+      letter-spacing: 0.2px;
+      margin-bottom: 2px;
+      white-space: nowrap;
+    }
+    .help-pointer svg { width: 28px; height: 32px; color: var(--amber); }
     .ev-card__thumb {
       width: 38px; height: 38px; border-radius: var(--r-md);
       background: var(--bg-input); flex-shrink: 0; overflow: hidden;
@@ -214,9 +254,20 @@
                (aiuto.html v1.0) — richiesta cliente. L'icona è la stessa
                usata per l'installazione PWA (icon192.png), alta come la
                "W" di "WeGo" (48.5px). -->
-          <a href="/aiuto.html" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;" title="Come funziona WeGo">
+          <a href="/aiuto.html" id="helpLogoLink" style="display:inline-flex;align-items:center;gap:8px;text-decoration:none;position:relative;" title="Come funziona WeGo" onclick="try{localStorage.setItem('wego_help_hint_clicked','1');}catch(e){}">
             <img src="/icon192.png" alt="" width="48" height="48" style="width:48.5px;height:48.5px;object-fit:contain;flex-shrink:0;border-radius:10px;" />
             <span style="font-size:48.5px;font-weight:800;color:var(--accent);letter-spacing:-1px;line-height:1;">WeGo</span>
+            <!-- Evidenziazione "Help" — nascosta di default, mostrata da
+                 App._renderHelpHint() (app.js) solo se è una delle prime
+                 2 visite e l'utente non ha già cliccato qui. -->
+            <div class="help-pulse-border" id="helpPulseBorder" style="display:none;"></div>
+            <div class="help-pointer" id="helpPointer" style="display:none;">
+              <span>Help</span>
+              <svg viewBox="0 0 34 40" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M28 3 C 20 12, 10 22, 7 34"/>
+                <polyline points="1 25 7 36 17 31"/>
+              </svg>
+            </div>
           </a>
           <span class="badge badge--amber" id="proBadge" style="display:none;background:transparent;padding:0;border-radius:0;font-style:italic;line-height:1;margin-bottom:1px;" title="Eventi Pro ancora disponibili (creati su 100)">Pro</span>
         </div>

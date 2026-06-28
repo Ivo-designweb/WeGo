@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v6.1
+// WeGo — sw.js v6.2
 // Service Worker — cache offline + background sync
+// v6.2: nessuna modifica alla lista di precache — NUOVA evidenziazione
+//       "Help" sul logo grande "WeGo" in home (bordo pulsante + freccia
+//       animata, app.js v2.19/index.html) — solo bump di versione per
+//       la "famiglia" index/evento/impostazioni, tutto interno ai file
+//       già precaricati
 // v6.1: NUOVA pagina /aiuto.html (Guida) aggiunta alla lista di precache
 //       — link raggiungibile dalla scritta grande "WeGo"/icona app in
 //       home (index.html). Icona app a sinistra del logo grande, link
@@ -102,7 +107,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v6.1';
+const CACHE_NAME = 'wego-v6.2';
 
 const STATIC_ASSETS = [
   '/',
@@ -128,7 +133,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v6.1');
+  console.log('[SW] Install v6.2');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -154,7 +159,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v6.1');
+  console.log('[SW] Activate v6.2');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
