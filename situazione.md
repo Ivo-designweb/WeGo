@@ -1102,6 +1102,38 @@ poi ricaricando la pagina.
 
 ---
 
+## 5septendecies. Divisione delle migliaia negli importi (nessun bump versione — richiesta esplicita cliente)
+
+### Fix centralizzato in `Utils.formatAmount()` (utils.js)
+Richiesta cliente: gli importi nelle tab Movimenti/Partecipanti/Saldi
+mancavano del separatore delle migliaia (es. "1234,56 €" invece di
+"1.234,56 €"). `formatAmount()` è l'UNICA funzione usata in tutto il
+progetto per formattare un importo in valuta (richiamata 15 volte in
+`evento.js` e 1 volta in `spesa.js`) — corretta lì, il fix si propaga
+automaticamente a tutti i punti che la usano: Movimenti, Saldi (saldi
+personali E il nuovo saldo informativo "Cassa Comune"), Partecipanti
+(Versato/Incassato), i 4 totali in alto, e anche il testo di "Condividi
+riepilogo" e la vista di un movimento già salvato in spesa.html — non solo
+le 3 tab esplicitamente citate dal cliente, per coerenza in tutta l'app.
+
+**Scoperta interessante durante l'implementazione**: il modo "ovvio"
+(`n.toLocaleString('it-IT', {minimumFractionDigits:2,maximumFractionDigits:2})`)
+NON avrebbe risolto il problema per gli importi a 4 cifre (1.000–9.999): i
+dati locale italiani in JavaScript **non raggruppano i numeri a 4 cifre**
+(es. restituiscono "1234,56" senza punto — pensato per non separare gli
+anni, es. "1984"), e raggruppano solo da 5 cifre in su (10.000+). Per un
+importo in euro questo comportamento non va bene (un conto di 1.234,56€ va
+scritto col punto). Risolto raggruppando le migliaia A MANO con una regex
+(`replace(/\B(?=(\d{3})+(?!\d))/g, '.')`), indipendente da qualunque dato
+locale del browser — stesso risultato identico su tutti i dispositivi.
+
+Nessun cambiamento di comportamento per il resto: 2 decimali sempre,
+virgola come separatore decimale, posizionamento del simbolo di valuta
+invariato, numeri negativi (debiti) gestiti correttamente
+(es. "-1.234,56 €").
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |

@@ -113,7 +113,17 @@ const Utils = {
     const symbols = { EUR: '€', USD: '$', GBP: '£', CHF: 'CHF', JPY: '¥' };
     const sym = symbols[cur] || cur;
     const n = parseFloat(amount) || 0;
-    const formatted = n.toFixed(2).replace('.', ',');
+    // Formato italiano: punto come separatore delle migliaia, virgola
+    // come separatore decimale, sempre 2 decimali (es. 1.234,56) — prima
+    // mancava la divisione delle migliaia (solo "1234,56"). Raggruppamento
+    // fatto A MANO (non con toLocaleString('it-IT')): i dati locale di
+    // it-IT in JS NON raggruppano i numeri a 4 cifre (1000-9999, es.
+    // "1234,56" senza punto — pensato per gli anni), che invece per un
+    // importo in euro va raggruppato come tutti gli altri ("1.234,56").
+    const isNeg = n < 0;
+    const parts = Math.abs(n).toFixed(2).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const formatted = (isNeg ? '-' : '') + parts[0] + ',' + parts[1];
     // Posizionamento simbolo
     if (cur === 'EUR' || cur === 'CHF') {
       return `${formatted} ${sym}`;
