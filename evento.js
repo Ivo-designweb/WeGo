@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.22
+// WeGo — evento.js v2.23
 // Logica pagina dettaglio evento
+// v2.23: FIX coerenza — shareRiepilogo() (richiamabile da Saldi o dal
+//        menu "⋮") non ricalcola più i saldi da zero con una propria
+//        copia della logica: ora usa direttamente EventoApp._balances
+//        (la stessa fonte di _renderSaldi()) passata a
+//        Utils.calculateMinimalTransactions(), esattamente come
+//        "Transazioni minime" in Saldi — UNA SOLA fonte di verità per
+//        i saldi/"da saldare" in tutta l'app.
 // v2.22: shareRiepilogo() (riepilogo testuale condivisibile) reso
 //        COERENTE con i 4 totali della tab Movimenti (v2.21, vedi
 //        sotto): "Totale" nel testo condiviso non sottrae più
@@ -1314,53 +1321,30 @@ const EventoApp = {
   // ─── CONDIVIDI RIEPILOGO ──────────────────────────────────
   async shareRiepilogo() {
     EventoApp.closeEventMenu();
-    const ev       = EventoApp._event;
-    const users    = EventoApp._users;
-    const expenses = EventoApp._expenses.filter(e => !e.deleted);
-    const payments = EventoApp._payments || [];
-    const cur      = ev?.currency || 'EUR';
-
+    const ev    = EventoApp._event;
+    const users = EventoApp._users;
+    const cur   = ev?.currency || 'EUR';
     const usersMap = Object.fromEntries(users.map(u => [u.id, u.name]));
-    const balances = {};
-    users.forEach(u => { balances[u.id] = 0; });
 
-    // Le "Previsione" non vanno mai divise né conteggiate (stesso criterio
-    // di _calcBalances() — vedi situazione.md): escluse anche qui.
-    // "+Cassiere" gestito a parte, con segno invertito (vedi sotto).
-    const realExpenses    = expenses.filter(e => e.type !== 'transfer' && e.type !== 'cashier' && !e.is_forecast);
-    const cashierMovements = expenses.filter(e => e.type === 'cashier');
+    // "Da saldare" (v2.23): ORA usa esattamente lo STESSO calcolo della
+    // tab Saldi — EventoApp._balances (Utils.calculateBalances() +
+    // pagamenti, già pronto da _calcBalances(), chiamata ad ogni
+    // loadAll() indipendentemente dalla tab attiva) passato a
+    // Utils.calculateMinimalTransactions(), TALE E QUALE a come fa
+    // _renderSaldi() per "Transazioni minime". PRIMA questa funzione
+    // ricalcolava i saldi da zero con una propria copia (quasi identica
+    // ma duplicata) della logica — rischio di disallineamento se
+    // Utils.calculateBalances() cambia in futuro. Ora c'è UNA SOLA fonte
+    // di verità per i saldi/"da saldare" in tutta l'app, usata sia in
+    // Saldi che qui (richiamabile da Saldi o dal menu "⋮" in alto).
+    const balances = EventoApp._balances;
+    const txs = Utils.calculateMinimalTransactions(balances, usersMap);
 
-    realExpenses.forEach(exp => {
-      const amount = parseFloat(exp.amount) || 0;
-      const nPart  = (exp.participants || []).length || 1;
-      const share  = amount / nPart;
-      if (exp.paid_by) balances[exp.paid_by] = (balances[exp.paid_by] || 0) + amount;
-      (exp.participants || []).forEach(uid => {
-        balances[uid] = (balances[uid] || 0) - share;
-      });
-    });
-    // "+Cassiere": stesso meccanismo, segno opposto — il cassiere
-    // (paid_by) va in debito, chi versa (participants) va in credito.
-    cashierMovements.forEach(exp => {
-      const amount = parseFloat(exp.amount) || 0;
-      const nPart  = (exp.participants || []).length || 1;
-      const share  = amount / nPart;
-      if (exp.paid_by) balances[exp.paid_by] = (balances[exp.paid_by] || 0) - amount;
-      (exp.participants || []).forEach(uid => {
-        balances[uid] = (balances[uid] || 0) + share;
-      });
-    });
-    payments.forEach(p => {
-      balances[p.from_user] = (balances[p.from_user] || 0) + parseFloat(p.amount);
-      balances[p.to_user]   = (balances[p.to_user]   || 0) - parseFloat(p.amount);
-    });
-
-    const txs    = Utils.calculateMinimalTransactions(balances, usersMap);
-    // Totale (v5.9): COERENTE con i 4 totali della tab Movimenti
-    // (_renderSpese(), vedi §5duodecies) — "+Cassiere" è ORA COMPLETAMENTE
-    // ESCLUSO, non viene più sottratto. Resta comunque conteggiato come
-    // sempre nei saldi/Da saldare sopra (balances, segno opposto), qui
-    // sotto cambia SOLO la cifra "Totale" mostrata nel testo.
+    // Totale (v5.9): coerente con i 4 totali della tab Movimenti —
+    // "+Cassiere" completamente escluso (vedi _renderSpese()/§5duodecies).
+    const realExpenses = EventoApp._expenses.filter(e =>
+      e.type !== 'transfer' && e.type !== 'cashier' && !e.is_forecast
+    );
     const totale = realExpenses.reduce((s, e) => s + parseFloat(e.amount), 0);
 
     let text = '📊 Riepilogo WeGo — ' + (ev?.title || 'Evento') + '\n';

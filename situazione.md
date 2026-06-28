@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v5.9 (v3.8 per spesa.html/spesa.js) — Aggiornato: 27 giugno 2026**
+**Versione corrente: v6.0 (v3.8 per spesa.html/spesa.js) — Aggiornato: 27 giugno 2026**
 
 ---
 
@@ -43,17 +43,17 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v5.9   Home: lista eventi, crea/unisciti, badge "Pro N" vicino al logo, bottone "Installa"
-├── evento.html          v5.9  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
-├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere", flag "Uso Cassa Comune"
-├── impostazioni.html    v5.9   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (richiesta auto-apribile da evento.html), link Admin
+├── index.html          v6.0   Home: lista eventi, crea/unisciti, badge "Pro N"/"Base" corsivo a destra del logo "WeGo" grande (solo schermata "nessun evento"), bottone "Installa"
+├── evento.html          v6.0  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "Passa a Pro"
+├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
+├── impostazioni.html    v6.0   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (richiesta auto-apribile da evento.html), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso
-├── sw.js                v5.9   Service Worker (CACHE_NAME: wego-v5.9) — esclude /api/* dalla cache
-├── manifest.json        v5.9   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v6.0   Service Worker (CACHE_NAME: wego-v6.0) — esclude /api/* dalla cache
+├── manifest.json        v6.0   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.18 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA — RIMOSSO il gating sync esterni
-├── evento.js             v2.22 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile coerente coi totali — RIMOSSO il gating sync esterni, menu "Passa a Pro"
+├── evento.js             v2.23 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi — RIMOSSO il gating sync esterni, menu "Passa a Pro"
 ├── spesa.js               v2.7 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.0 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza — RIMOSSO il gating eventi esterni
@@ -872,6 +872,78 @@ dalla cifra "Totale" mostrata sopra.
 
 ---
 
+## 5terdecies. Icona moneta "+Cassiere"/"Uso Cassa Comune", badge Pro/Base nella welcome, fix shareRiepilogo (v6.0)
+
+### Icona "moneta gialla" (spesa.html, evento.js — nessun bump versione richiesto all'epoca)
+Su richiesta del cliente, sostituita l'icona a stroke del bottone "+Cassiere"
+(spesa.html) con una moneta gialla piena (cerchio oro `#FBBF24`, anello/simbolo
+"€" in un marrone-oro `#92400E` per contrasto) — colore FISSO, non segue più lo
+stato attivo/inattivo del bottone (resta gialla sempre). Scelta tra 2 varianti
+proposte in anteprima (artifact HTML dedicato) — confermata la "Variante A"
+(moneta singola con "€" dentro, non il "mucchietto" di 2 monete).
+
+Stessa identica icona riusata nell'elenco Movimenti (`evento.js`
+`_renderMovimentList()`): nuovo badge `.exp-badge--cassa`, subito a destra del
+badge metodo di pagamento, mostrato SOLO se `exp.is_cassa_comune` è true — stesso
+pattern visivo di `.exp-badge--photo` (nessuno sfondo, solo l'icona inline).
+
+### Badge "Pro N"/"Base": spostato nella welcome screen, ora corsivo e allineato alla base (index.html)
+Il badge (mostra "Pro N" in ambra se il device è Pro, "Base" in verde vivace se
+non lo è — introdotto nella sessione precedente) è stato **rimosso dall'header
+in alto** (che ora mostra solo "WeGo", a sinistra, senza badge) e **spostato
+dentro `#welcomeScreen`**, subito a destra del logo grande "WeGo" (48.5px,
+centrato) mostrato SOLO quando l'utente non ha ancora nessun evento. Stesso
+font/colore di sempre per il testo, ma ora in **corsivo**
+(`font-style:italic`) e allineato alla **base** del logo grande
+(`align-items:flex-end` nel contenitore flex, non più `center`).
+
+**Nota tecnica importante**: questo badge usa lo stesso elemento
+`id="proBadge"`, quindi `License.renderProBadge('proBadge')` (richiamata da
+`App._render()` in app.js, NON modificata) continua a funzionare senza alcuna
+modifica JS — solo la sua posizione nel DOM/HTML è cambiata. **Conseguenza
+accettata dal cliente**: essendo dentro `#welcomeScreen`, il badge è visibile
+SOLO quando l'utente non ha ancora eventi — appena ne ha almeno uno
+(`#eventsScreen` sostituisce `#welcomeScreen`), il badge non è più visibile da
+nessuna parte nella home.
+
+### Fix coerenza `shareRiepilogo()` — UNICA fonte di verità per i saldi (evento.js v2.23)
+`shareRiepilogo()` (richiamabile sia dal bottone in Saldi sia dal menu "⋮" in
+alto — STESSA funzione in entrambi i casi, mai stata duplicata lì) **ricalcolava
+i saldi da zero** con una propria copia quasi identica della logica di
+`Utils.calculateBalances()` (rischio di disallineamento futuro). Ora usa
+direttamente `EventoApp._balances` — già calcolato da `_calcBalances()` ad ogni
+`loadAll()`, indipendentemente da quale tab sia attiva — passato a
+`Utils.calculateMinimalTransactions()`, esattamente come fa `_renderSaldi()`
+per la sezione "Transazioni minime". Risultato: **garantito** che "Da saldare"
+nel testo condiviso sia sempre identico, cifra per cifra, a "Transazioni
+minime" in Saldi, in ogni circostanza (incluse eventuali modifiche future al
+calcolo dei saldi, che ora si propagano automaticamente anche qui).
+
+### Logica di `Utils.calculateMinimalTransactions()` — come si scelgono "chi paga chi" (per riferimento)
+1. Dai saldi (`EventoApp._balances`, già netti di spese/trasf./"+Cassiere"/
+   pagamenti) si separano i partecipanti in due liste: **creditori** (saldo
+   positivo, ">+0,01" — gli altri devono soldi a loro) e **debitori** (saldo
+   negativo, "<-0,01" — devono soldi agli altri).
+2. Entrambe le liste vengono **ordinate in modo decrescente** per importo
+   assoluto: il creditore con il credito più alto per primo, il debitore con il
+   debito più alto per primo.
+3. Algoritmo goloso ("greedy"): si prende il **primo creditore** (il più
+   esposto in credito) e il **primo debitore** (il più esposto in debito),
+   si genera una transazione debitore → creditore per `min(credito
+   rimanente, debito rimanente)`, si scalano entrambi gli importi residui;
+   chi arriva a ~0 passa al successivo della propria lista; si ripete finché
+   una delle due liste si esaurisce.
+4. La **priorità** con cui un debitore viene assegnato a un creditore è quindi
+   **esclusivamente l'importo del saldo** (chi deve/ha diritto a più soldi viene
+   gestito prima) — NON il nome, l'ordine di inserimento, né la data del
+   movimento. È l'algoritmo "debt settlement" goloso standard: minimizza in
+   pratica il numero di transazioni necessarie a chiudere tutti i conti (non è
+   la soluzione matematicamente minima in senso assoluto in ogni caso — quel
+   problema è NP-hard in generale — ma è l'euristica comune, efficiente e
+   quasi sempre ottima o vicina all'ottimo).
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -971,8 +1043,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v5.9 (v3.8 per spesa.html/spesa.js)
-**Service Worker cache:** `wego-v5.9`
+**Versione attuale:** v6.0 (v3.8 per spesa.html/spesa.js)
+**Service Worker cache:** `wego-v6.0`
 
 ---
 
