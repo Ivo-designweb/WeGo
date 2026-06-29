@@ -589,7 +589,7 @@ const App = {
     if (!confirm(
       `Scollegarsi da "${eventTitle}"?\n\n` +
       `L'evento verrà rimosso da questo dispositivo. Potrai riunirti in futuro con il codice.\n\n` +
-      `I dati (spese, pagamenti) rimangono su Supabase.`
+      `I dati (spese, pagamenti) rimangono nel Database centrale e non vengono persi.`
     )) return;
 
     try {
