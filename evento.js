@@ -1,6 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.23
+// WeGo — evento.js v2.24
 // Logica pagina dettaglio evento
+// v2.24: NUOVO 4° tab "Riepilogo" (evento.html v6.3) — grafico a torta
+//        (CSS conic-gradient, nessuna libreria) delle sole spese reali
+//        (stesso filtro dei 4 totali Movimenti: esclude Previsioni,
+//        Trasferimenti, "+Cassiere" — vedi _riepilogoRealExpenses()),
+//        suddivisibile con 3 chip per Partecipante (chi ha pagato,
+//        stesso colore avatar usato ovunque), Data (giorno esatto,
+//        Utils.formatDateLabel) o Tipo spesa (ExpenseCategories, le
+//        spese senza categoria confluiscono in "Senza categoria").
+//        Nuove funzioni: setRiepilogoGroup(), _renderRiepilogo(),
+//        _riepilogoRealExpenses(). switchTab()/_renderTab() estesi per
+//        includere il nuovo tab.
 // v2.23: FIX coerenza — shareRiepilogo() (richiamabile da Saldi o dal
 //        menu "⋮") non ricalcola più i saldi da zero con una propria
 //        copia della logica: ora usa direttamente EventoApp._balances
@@ -112,6 +123,7 @@ const EventoApp = {
   _balances:      {},
   _menuOpen:      false,
   _searchQuery:   '',
+  _riepilogoGroupBy: 'partecipante', // 'partecipante' | 'data' | 'tipo' — NUOVO v2.24
 
   // ─── INIT ─────────────────────────────────────────────────
   async init() {
@@ -335,7 +347,7 @@ const EventoApp = {
   switchTab(tab) {
     EventoApp._currentTab = tab;
 
-    ['spese', 'partecipanti', 'saldi'].forEach(t => {
+    ['spese', 'partecipanti', 'saldi', 'riepilogo'].forEach(t => {
       const cap = t.charAt(0).toUpperCase() + t.slice(1);
       const btn   = document.getElementById(`tab${cap}`);
       const panel = document.getElementById(`panel${cap}`);
@@ -357,6 +369,119 @@ const EventoApp = {
     if (tab === 'spese')        EventoApp._renderSpese();
     if (tab === 'partecipanti') EventoApp._renderPartecipanti();
     if (tab === 'saldi')        EventoApp._renderSaldi();
+    if (tab === 'riepilogo')    EventoApp._renderRiepilogo();
+  },
+
+  // ─── RIEPILOGO (grafico a torta) — NUOVO v2.24 ─────────────
+  // Stessa definizione di "spesa reale" usata dai 4 totali in Movimenti
+  // (_renderSpese()): tipo 'expense' e non "Previsione". Esclude quindi
+  // sempre Trasferimenti, "+Cassiere" e Previsioni.
+  _riepilogoRealExpenses() {
+    return EventoApp._expenses.filter(e => (e.type || 'expense') === 'expense' && !e.is_forecast);
+  },
+
+  setRiepilogoGroup(mode) {
+    EventoApp._riepilogoGroupBy = mode;
+    ['Partecipante', 'Data', 'Tipo'].forEach(cap => {
+      const chip = document.getElementById(`riepChip${cap}`);
+      if (chip) chip.classList.toggle('selected', cap.toLowerCase() === mode);
+    });
+    EventoApp._renderRiepilogo();
+  },
+
+  _renderRiepilogo() {
+    // Stessa palette usata per gli avatar (.avatar-0…7 in style.css) —
+    // coerenza visiva col resto dell'app, specialmente per "Partecipante"
+    // dove ogni fetta usa lo stesso colore dell'avatar di quella persona.
+    const AVATAR_COLORS = ['#3B82F6','#10B981','#8B5CF6','#F59E0B','#EF4444','#06B6D4','#EC4899','#84CC16'];
+    const currency = EventoApp._event?.currency || 'EUR';
+    const users    = EventoApp._users;
+    const userMap  = {};
+    users.forEach(u => { userMap[u.id] = u; });
+
+    const mode = EventoApp._riepilogoGroupBy || 'partecipante';
+    const realExpenses = EventoApp._riepilogoRealExpenses();
+    const total = realExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+
+    const totalEl   = document.getElementById('riepilogoTotal');
+    const emptyEl   = document.getElementById('riepilogoEmpty');
+    const chartWrap = document.getElementById('riepilogoChartWrap');
+
+    if (totalEl) totalEl.textContent = Utils.formatAmount(total, currency);
+
+    if (!realExpenses.length || total <= 0) {
+      if (emptyEl)   emptyEl.style.display   = '';
+      if (chartWrap) chartWrap.style.display = 'none';
+      return;
+    }
+    if (emptyEl)   emptyEl.style.display   = 'none';
+    if (chartWrap) chartWrap.style.display = '';
+
+    // Raggruppamento per bucket in base al criterio selezionato
+    const buckets = {}; // key -> { key, label, amount }
+    for (const exp of realExpenses) {
+      const amount = parseFloat(exp.amount || 0);
+      let key, label;
+
+      if (mode === 'data') {
+        key   = exp.date || Utils.formatDate(exp.created_at);
+        label = Utils.formatDateLabel(key);
+      } else if (mode === 'tipo') {
+        key   = exp.category || '__none__';
+        label = exp.category ? ExpenseCategories.getById(exp.category).label : 'Senza categoria';
+      } else { // 'partecipante'
+        key   = exp.paid_by || '__none__';
+        label = userMap[exp.paid_by] ? userMap[exp.paid_by].name : 'Sconosciuto';
+      }
+
+      if (!buckets[key]) buckets[key] = { key, label, amount: 0 };
+      buckets[key].amount += amount;
+    }
+
+    // Fette ordinate per importo decrescente (più leggibile in legenda)
+    let groups = Object.values(buckets).sort((a, b) => b.amount - a.amount);
+    groups = groups.map((g, i) => {
+      let color;
+      if (mode === 'partecipante') {
+        const u = userMap[g.key];
+        color = AVATAR_COLORS[u ? Utils.avatarColorIndex(u.name) : 0];
+      } else {
+        color = AVATAR_COLORS[i % AVATAR_COLORS.length];
+      }
+      return { ...g, color };
+    });
+
+    // Torta CSS (conic-gradient) — niente SVG/librerie esterne
+    const donut = document.getElementById('riepilogoDonut');
+    if (donut) {
+      if (groups.length === 1) {
+        donut.style.background = groups[0].color;
+      } else {
+        let cursor = 0;
+        const stops = groups.map(g => {
+          const pct   = (g.amount / total) * 100;
+          const start = cursor;
+          cursor += pct;
+          return `${g.color} ${start}% ${cursor}%`;
+        });
+        donut.style.background = `conic-gradient(${stops.join(', ')})`;
+      }
+    }
+
+    // Legenda
+    const legend = document.getElementById('riepilogoLegend');
+    if (legend) {
+      legend.innerHTML = groups.map(g => {
+        const pct = ((g.amount / total) * 100).toFixed(1);
+        return `
+          <div class="riepilogo-legend__row">
+            <span class="riepilogo-legend__swatch" style="background:${g.color};"></span>
+            <span class="riepilogo-legend__label">${Utils.escapeHtml(g.label)}</span>
+            <span class="riepilogo-legend__pct">${pct}%</span>
+            <span class="riepilogo-legend__amount">${Utils.formatAmount(g.amount, currency)}</span>
+          </div>`;
+      }).join('');
+    }
   },
 
   // ─── RICERCA MOVIMENTI (descrizione, note, data) ──────────

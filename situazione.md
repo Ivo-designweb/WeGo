@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v6.2 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 27 giugno 2026**
+**Versione corrente: v6.3 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
 
 ---
 
@@ -43,18 +43,18 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v6.2   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa"
-├── evento.html          v6.2  Pagina evento: tab Movimenti / Saldi / Partecipanti, 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
+├── index.html          v6.3   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
+├── evento.html          v6.3  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (NUOVO — grafico a torta), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
 ├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
-├── impostazioni.html    v6.2   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), link Admin
+├── impostazioni.html    v6.3   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
-├── sw.js                v6.2   Service Worker (CACHE_NAME: wego-v6.2) — esclude /api/* dalla cache, precache include /aiuto.html
-├── manifest.json        v6.2   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v6.3   Service Worker (CACHE_NAME: wego-v6.3) — esclude /api/* dalla cache, precache include /aiuto.html
+├── manifest.json        v6.3   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.19 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA, evidenziazione "Help" sul logo (prime 2 visite, solo localStorage) — RIMOSSO il gating sync esterni
-├── evento.js             v2.23 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi — RIMOSSO il gating sync esterni, menu "Passa a Pro"
+├── evento.js             v2.24 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, NUOVO tab "Riepilogo" con grafico a torta (per Partecipante/Data/Tipo spesa) — RIMOSSO il gating sync esterni, menu "Passa a Pro"
 ├── spesa.js               v2.7 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.0 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza — RIMOSSO il gating eventi esterni
@@ -1134,6 +1134,60 @@ invariato, numeri negativi (debiti) gestiti correttamente
 
 ---
 
+## 5duodevicies. Numero di versione accanto al logo "WeGo" + tab "Riepilogo" con grafico a torta (v6.3)
+
+### Numero di versione nell'header (index.html)
+Richiesta cliente: la scritta "WeGo" in alto a sinistra nell'header
+(non il logo grande della welcome screen) ora mostra anche il numero di
+versione, es. "WeGo v. 6.3", con carattere il 50% più piccolo (14px
+contro i 28px di "WeGo") e colore attenuato (`var(--text-secondary)`),
+allineato alla base del testo principale. Valore scritto a mano nel
+markup (come già il resto dei numeri di versione in tutta l'app — nessun
+meccanismo automatico), va aggiornato manualmente ad ogni bump insieme
+al `<title>`.
+
+### Nuovo 4° tab "Riepilogo" (evento.html v6.3 / evento.js v2.24)
+Aggiunto un tab dopo "Saldi": "Movimenti / Partecipanti / Saldi /
+Riepilogo". Contiene un grafico a torta (donut) delle spese, con 3 chip
+per scegliere la suddivisione delle fette:
+- **Partecipante** (default): importo raggruppato per chi ha pagato
+  (`paid_by`) — fetta = totale pagato da quella persona, stesso colore
+  del suo avatar ovunque nell'app (`Utils.avatarColorIndex`).
+- **Data**: raggruppato per giorno esatto (`exp.date`), etichetta con
+  `Utils.formatDateLabel()` ("Oggi"/"Ieri"/data estesa).
+- **Tipo spesa**: raggruppato per categoria (`ExpenseCategories`); le
+  spese senza categoria confluiscono in una fetta "Senza categoria".
+
+**Quali movimenti entrano nel grafico**: SOLO le spese reali, la stessa
+identica definizione già usata dai 4 totali in Movimenti
+(`_riepilogoRealExpenses()`: tipo `'expense'` e `!is_forecast`) —
+Previsioni, Trasferimenti e "+Cassiere" sono sempre esclusi, per
+coerenza con il resto della pagina.
+
+**Implementazione tecnica**: torta CSS pura con `conic-gradient`
+generato in JS (nessun canvas/SVG/libreria esterna — coerente con "no
+framework, no build step", vedi §2), "buco" del donut ottenuto con un
+div sovrapposto dello stesso colore di sfondo della pagina
+(`var(--bg-primary)`), che mostra il totale al centro. Sotto la torta,
+legenda con pallino colore, etichetta, percentuale e importo, ordinata
+per importo decrescente. Stato vuoto ("Nessuna spesa da riepilogare")
+se non ci sono spese reali nell'evento.
+
+### Decisioni prese (confermate con l'utente prima di implementare)
+- "Per Partecipante" = chi ha pagato (paid_by), NON la quota pro-capite
+  a carico di ciascuno (importo diviso tra i partecipanti alla spesa).
+- "Per Data" = giorno esatto, non raggruppato per settimana/mese.
+- Il totale del grafico usa solo le spese reali (stessa base dei 4
+  totali Movimenti), le Previsioni sono escluse.
+
+### File toccati
+`index.html` (v6.3), `evento.html` (v6.3), `evento.js` (v2.24),
+`sw.js` (v6.3 — solo bump "famiglia", nessuna modifica alla lista di
+precache), `manifest.json` (v6.3), `impostazioni.html` (v6.3 — solo
+bump "famiglia", nessun contenuto nuovo).
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -1233,8 +1287,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v6.2 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
-**Service Worker cache:** `wego-v6.2`
+**Versione attuale:** v6.3 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
+**Service Worker cache:** `wego-v6.3`
 
 ---
 
@@ -1268,7 +1322,7 @@ la funzione server non avrà ancora la chiave nuova):
 - [ ] `offline.html` — pagina mostrata dal SW quando si è offline e la pagina non è in cache
 - [ ] Archiviazione evento (flag `archived`)
 - [ ] Gestione conflitti di merge (attuale: last-write-wins su `updated_at`)
-- [ ] 🔜 **PROSSIMO STEP (richiesto dal cliente, v4.8)**: nuovo tab dopo "Saldi" con un grafico delle spese per categoria ("Tipo", vedi `ExpenseCategories` in payments.js — usa le stesse categorie già implementate in v4.8). Non ancora progettato nei dettagli (tipo di grafico, periodo, se includere le previsioni o no — da chiarire quando si affronta)
+- [x] ✅ **FATTO in v6.3** — nuovo tab "Riepilogo" dopo "Saldi" con grafico a torta delle spese, suddivisibile per Partecipante/Data/Tipo spesa (categoria, `ExpenseCategories`) — vedi §5duodevicies per il dettaglio. Le Previsioni NON sono incluse (stessa base dei 4 totali Movimenti).
 - [ ] Esportazione riepilogo in PDF
 - [ ] Supporto multi-valuta per spesa singola con conversione
 - [ ] Risoluzione spese orfane dopo eliminazione partecipante

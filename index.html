@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>WeGo v6.2</title>
+  <title>WeGo v6.3</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -211,7 +211,13 @@
   <!-- HEADER -->
   <header class="app-header">
     <div class="app-header__logo">
-      <span class="app-header__title" style="font-size:28px;font-weight:800;letter-spacing:-0.5px;">WeGo</span>
+      <!-- Numero di versione accanto al logo (v6.3) — carattere 50% più
+           piccolo (14px vs 28px), colore attenuato, allineato alla base
+           della scritta "WeGo". -->
+      <span class="app-header__title" style="display:inline-flex;align-items:baseline;gap:4px;font-weight:800;letter-spacing:-0.5px;">
+        <span style="font-size:28px;">WeGo</span>
+        <span style="font-size:14px;font-weight:600;letter-spacing:0;color:var(--text-secondary);">v. 6.3</span>
+      </span>
     </div>
     <div class="app-header__actions">
       <!-- INSTALLA PWA: nascosto di default, mostrato da App._initInstallButton()
