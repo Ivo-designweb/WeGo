@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v6.3 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
+**Versione corrente: v6.4 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
 
 ---
 
@@ -43,18 +43,19 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v6.3   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
-├── evento.html          v6.3  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (NUOVO — grafico a torta), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
+├── index.html          v6.4   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
+├── evento.html          v6.4  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
 ├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
-├── impostazioni.html    v6.3   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), link Admin
+├── impostazioni.html    v6.4   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
-├── sw.js                v6.3   Service Worker (CACHE_NAME: wego-v6.3) — esclude /api/* dalla cache, precache include /aiuto.html
-├── manifest.json        v6.3   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v6.4   Service Worker (CACHE_NAME: wego-v6.4) — esclude /api/* dalla cache, precache include /aiuto.html e /exceljs.min.js
+├── manifest.json        v6.4   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── exceljs.min.js        4.4.0 Libreria ExcelJS vendorizzata in locale (build "bare", nessun CDN) — usata solo da EventoApp.exportRiepilogoExcel() (evento.js), precaricata da sw.js per funzionare offline
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.19 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA, evidenziazione "Help" sul logo (prime 2 visite, solo localStorage) — RIMOSSO il gating sync esterni
-├── evento.js             v2.24 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, NUOVO tab "Riepilogo" con grafico a torta (per Partecipante/Data/Tipo spesa) — RIMOSSO il gating sync esterni, menu "Passa a Pro"
+├── evento.js             v2.25 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (per Partecipante/Data/Tipo spesa) + export Excel dettagliato (NUOVO) — RIMOSSO il gating sync esterni, menu "Passa a Pro"
 ├── spesa.js               v2.7 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.0 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza — RIMOSSO il gating eventi esterni
@@ -1188,6 +1189,79 @@ bump "famiglia", nessun contenuto nuovo).
 
 ---
 
+## 5undevicies. Export Excel del riepilogo movimenti (v6.4)
+
+Bottone "Esporta in Excel" nel tab Riepilogo (sotto il grafico a
+torta), richiesto dal cliente con un file .xls di esempio ("fax
+simile") da cui è stata dedotta la struttura.
+
+### Libreria usata
+**ExcelJS 4.4.0**, build "bare" (senza polyfill core-js — adatta a
+browser moderni), vendorizzata in locale come `exceljs.min.js` (≈840KB
+minificato, nessun CDN esterno) e aggiunta a `STATIC_ASSETS` in
+`sw.js` per funzionare offline dopo il primo caricamento. Necessaria
+perché SheetJS/xlsx "community" (l'alternativa più nota) non supporta
+la formattazione (colori, grassetto, bordi, merge) in scrittura nella
+versione gratuita — qui invece serve un file "ben impostato".
+
+### Struttura del file generato
+Replica la struttura del file di esempio fornito dal cliente:
+- **Riga 1**: titolo evento + data di esportazione (celle unite).
+- **Righe 2-3**: intestazione — colonne fisse (Titolo, **Tipologia**
+  [NUOVO, non presente nell'esempio — valori "Spesa"/"Trasf."/
+  "Cassiere"], Importo, Valuta, Da, Data, Creato il) unite in
+  verticale; poi una coppia di colonne per ogni partecipante
+  dell'evento, intestazione col nome unita in orizzontale e sotto
+  due sotto-colonne "Versato" (credito) / "Quota" (debito).
+- **Una riga per movimento**, ordinato per data crescente (data del
+  movimento, o data creazione se assente). Per ogni riga, "Versato" e
+  "Quota" di ciascun partecipante sono calcolati con
+  `_riepilogoMovementDeltas()` — la STESSA logica di
+  `Utils.calculateBalances()` (utils.js) riapplicata riga per riga
+  invece che in accumulo:
+  - **Spesa**: chi paga (`paid_by`) → Versato = intero importo; ogni
+    partecipante (`participants`) → Quota = -importo/n. partecipanti
+    (chi paga, se è anche partecipante, ha valorizzate entrambe le
+    colonne sulla stessa riga).
+  - **Trasferimento**: chi invia (`paid_by`) → Versato = +importo; chi
+    riceve (`paid_for`) → Quota = -importo. Nessuno split.
+  - **"+Cassiere"**: segno invertito rispetto a una spesa — il
+    cassiere (`paid_by`) → Quota = -importo (intero, non diviso); ogni
+    versante (`participants`) → Versato = +importo/n. versanti.
+- **Riga TOTALE**: una formula Excel `SUM()` per colonna (non un
+  valore precalcolato) che copre entrambe le sotto-colonne di ogni
+  partecipante su tutte le righe dati — il risultato combacia SEMPRE
+  con `EventoApp._balances`/tab Saldi, perché entrambi derivano dalla
+  stessa logica di calcolo sugli stessi movimenti. Verificato con
+  `scripts/recalc.py` (LibreOffice): 0 errori di formula.
+
+### Quali movimenti include
+**Tutti i movimenti reali**: spese + trasferimenti + "+Cassiere" — a
+differenza del grafico a torta del tab Riepilogo (che esclude
+Trasf./Cassiere), qui sono sempre inclusi perché è proprio la colonna
+"Tipologia" richiesta dal cliente a doverli distinguere. Escluse solo
+le **Previsioni** (`is_forecast`), stessa base di `_calcBalances()` —
+scelta per coerenza con tutto il resto dell'app (mai chiesto
+esplicitamente, assunzione dichiarata all'utente).
+
+### Consegna del file
+Doppio percorso, senza bisogno di chiedere all'utente ogni volta:
+1. Se il browser/OS supporta la Web Share API con i file
+   (`navigator.canShare({files:[...]})`, Chrome Android e Safari iOS
+   moderni) → apre il foglio di condivisione nativo (WhatsApp, Mail,
+   Drive, Salva su File...).
+2. Altrimenti (desktop o browser non supportati) → download diretto
+   del file (link temporaneo con `download`).
+
+### File toccati
+`evento.html` (v6.4 — script `exceljs.min.js` + bottone), `evento.js`
+(v2.25 — `exportRiepilogoExcel()` e `_riepilogoMovementDeltas()`),
+`sw.js` (v6.4 — `exceljs.min.js` aggiunto a `STATIC_ASSETS`),
+`exceljs.min.js` (NUOVO file, vendorizzato), `index.html`/
+`impostazioni.html`/`manifest.json` (v6.4 — solo bump "famiglia").
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -1287,8 +1361,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v6.3 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
-**Service Worker cache:** `wego-v6.3`
+**Versione attuale:** v6.4 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
+**Service Worker cache:** `wego-v6.4`
 
 ---
 

@@ -1,6 +1,21 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.24
+// WeGo — evento.js v2.25
 // Logica pagina dettaglio evento
+// v2.25: NUOVO bottone "Esporta in Excel" nel tab Riepilogo (evento.html
+//        v6.4) — exportRiepilogoExcel() genera un .xlsx con ExcelJS
+//        (vendorizzato in locale, exceljs.min.js, nessuna dipendenza
+//        esterna/CDN per restare offline-capable — vedi sw.js precache).
+//        Un rigo per movimento (Titolo, Tipologia [Spesa/Trasf./
+//        Cassiere], Importo, Valuta, Da, Data, Creato il, poi 2 colonne
+//        "Versato"/"Quota" per ogni partecipante), riga TOTALE con
+//        formule SUM che devono coincidere con Saldi/EventoApp._balances
+//        (stessa logica di Utils.calculateBalances() riapplicata riga
+//        per riga — vedi _riepilogoMovementDeltas()). Include SEMPRE
+//        Trasferimenti e "+Cassiere" (a differenza del grafico a torta
+//        qui sopra, che li esclude) — solo le Previsioni sono escluse,
+//        stessa base di _balances. Condivisione via Web Share API
+//        (file) se supportata dal browser/OS, altrimenti download
+//        diretto del file.
 // v2.24: NUOVO 4° tab "Riepilogo" (evento.html v6.3) — grafico a torta
 //        (CSS conic-gradient, nessuna libreria) delle sole spese reali
 //        (stesso filtro dei 4 totali Movimenti: esclude Previsioni,
@@ -481,6 +496,244 @@ const EventoApp = {
             <span class="riepilogo-legend__amount">${Utils.formatAmount(g.amount, currency)}</span>
           </div>`;
       }).join('');
+    }
+  },
+
+  // ─── ESPORTA RIEPILOGO IN EXCEL — NUOVO v2.25 ──────────────
+  // Per ogni movimento (riga) calcola l'impatto sul saldo di ciascun
+  // utente scomposto in "Versato" (credito, positivo) e "Quota" (debito,
+  // negativo) — STESSA identica logica di Utils.calculateBalances(), solo
+  // applicata riga per riga invece che in accumulo, così la riga TOTALE
+  // (somma per colonna) torna sempre esattamente uguale a
+  // EventoApp._balances / tab Saldi.
+  _riepilogoMovementDeltas(m) {
+    const type   = m.type || 'expense';
+    const amount = parseFloat(m.amount) || 0;
+    const pos = {}, neg = {}; // pos = Versato (credito), neg = Quota (debito)
+
+    if (type === 'transfer') {
+      if (m.paid_by)  pos[m.paid_by]  = (pos[m.paid_by]  || 0) + amount;
+      if (m.paid_for) neg[m.paid_for] = (neg[m.paid_for] || 0) - amount;
+    } else if (type === 'cashier') {
+      const parts = m.participants || [];
+      if (m.paid_by) neg[m.paid_by] = (neg[m.paid_by] || 0) - amount;
+      if (parts.length) {
+        const share = amount / parts.length;
+        parts.forEach(uid => { pos[uid] = (pos[uid] || 0) + share; });
+      }
+    } else { // 'expense'
+      const parts = m.participants || [];
+      if (m.paid_by) pos[m.paid_by] = (pos[m.paid_by] || 0) + amount;
+      if (parts.length) {
+        const share = amount / parts.length;
+        parts.forEach(uid => { neg[uid] = (neg[uid] || 0) - share; });
+      }
+    }
+    return { pos, neg };
+  },
+
+  async exportRiepilogoExcel() {
+    if (typeof ExcelJS === 'undefined') {
+      Utils.toast('Libreria Excel non disponibile — riprova dopo aver aggiornato l\'app', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btnExportRiepilogo');
+    if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
+    Utils.toast('Preparazione file Excel…', 'info', 2500);
+
+    try {
+      const ev    = EventoApp._event;
+      const users = EventoApp._users;
+      const cur   = ev?.currency || 'EUR';
+      const userMap = {};
+      users.forEach(u => { userMap[u.id] = u; });
+
+      // Tutti i movimenti reali: spese + trasferimenti + "+Cassiere" —
+      // SOLO le Previsioni sono escluse (stessa base di _calcBalances()/
+      // Saldi). A differenza del grafico a torta qui sopra (che esclude
+      // Trasf./Cassiere), l'export deve mostrarli tutti perché l'utente
+      // ha chiesto esplicitamente la colonna "Tipologia" per distinguerli.
+      const movements = EventoApp._expenses
+        .filter(e => !e.is_forecast)
+        .slice()
+        .sort((a, b) => {
+          const da = a.date || a.created_at || '';
+          const db = b.date || b.created_at || '';
+          return da < db ? -1 : da > db ? 1 : 0;
+        });
+
+      if (!movements.length) {
+        Utils.toast('Nessun movimento da esportare', 'info');
+        return;
+      }
+
+      const wb = new ExcelJS.Workbook();
+      wb.creator = 'WeGo';
+      wb.created = new Date();
+      const ws = wb.addWorksheet('Riepilogo', {
+        views: [{ state: 'frozen', ySplit: 3 }],
+        pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+      });
+
+      const FIXED_COLS = ['Titolo', 'Tipologia', 'Importo', 'Valuta', 'Da', 'Data', 'Creato il'];
+      const nFixed  = FIXED_COLS.length;
+      const nUsers  = users.length;
+      const totalCols = nFixed + nUsers * 2;
+
+      // ── Riga 1: titolo evento + data esportazione ──
+      ws.mergeCells(1, 1, 1, totalCols);
+      const titleCell = ws.getCell(1, 1);
+      titleCell.value = (ev?.title || 'Evento') + ' — Riepilogo movimenti — ' + Utils.formatDate(Utils.now());
+      titleCell.font = { bold: true, size: 14, color: { argb: 'FF1F2937' } };
+      titleCell.alignment = { horizontal: 'left', vertical: 'middle' };
+      ws.getRow(1).height = 26;
+
+      // ── Righe 2-3: intestazioni (colonne fisse unite in verticale,
+      //    una coppia di colonne "Versato"/"Quota" per ogni partecipante) ──
+      const HEAD_FILL = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E3A5F' } };
+      const HEAD_FONT = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10.5 };
+      const SUB_FILL  = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3B5B7E' } };
+      const SUB_FONT  = { bold: true, color: { argb: 'FFFFFFFF' }, size: 9 };
+      const THIN = { style: 'thin', color: { argb: 'FFCBD5E1' } };
+      const BORDER_ALL = { top: THIN, bottom: THIN, left: THIN, right: THIN };
+
+      FIXED_COLS.forEach((label, i) => {
+        const col = i + 1;
+        const c2 = ws.getCell(2, col);
+        c2.value = label; c2.font = HEAD_FONT; c2.fill = HEAD_FILL;
+        c2.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        c2.border = BORDER_ALL;
+        const c3 = ws.getCell(3, col);
+        c3.font = HEAD_FONT; c3.fill = HEAD_FILL; c3.border = BORDER_ALL;
+      });
+
+      users.forEach((u, ui) => {
+        const col1 = nFixed + ui * 2 + 1;
+        const col2 = col1 + 1;
+        const nameCell = ws.getCell(2, col1);
+        nameCell.value = u.name; nameCell.font = HEAD_FONT; nameCell.fill = HEAD_FILL;
+        nameCell.alignment = { horizontal: 'center', vertical: 'middle' };
+        nameCell.border = BORDER_ALL;
+        ws.getCell(2, col2).fill = HEAD_FILL;
+        ws.getCell(2, col2).border = BORDER_ALL;
+
+        const versatoCell = ws.getCell(3, col1);
+        versatoCell.value = 'Versato'; versatoCell.font = SUB_FONT; versatoCell.fill = SUB_FILL;
+        versatoCell.alignment = { horizontal: 'center' }; versatoCell.border = BORDER_ALL;
+
+        const quotaCell = ws.getCell(3, col2);
+        quotaCell.value = 'Quota'; quotaCell.font = SUB_FONT; quotaCell.fill = SUB_FILL;
+        quotaCell.alignment = { horizontal: 'center' }; quotaCell.border = BORDER_ALL;
+      });
+
+      // Merge DOPO aver impostato stile/valore su tutte le celle coinvolte
+      FIXED_COLS.forEach((_, i) => ws.mergeCells(2, i + 1, 3, i + 1));
+      users.forEach((u, ui) => {
+        const col1 = nFixed + ui * 2 + 1;
+        ws.mergeCells(2, col1, 2, col1 + 1);
+      });
+
+      // ── Righe dati: un rigo per movimento ──
+      const TYPE_LABELS = { expense: 'Spesa', transfer: 'Trasf.', cashier: 'Cassiere' };
+      const firstDataRow = 4;
+      let r = firstDataRow;
+
+      movements.forEach(m => {
+        const type   = m.type || 'expense';
+        const amount = parseFloat(m.amount) || 0;
+        const row    = ws.getRow(r);
+
+        row.getCell(1).value = m.title || (type === 'transfer' ? 'Trasferimento' : type === 'cashier' ? 'Versamento cassiere' : 'Spesa');
+        row.getCell(2).value = TYPE_LABELS[type] || 'Spesa';
+        row.getCell(2).alignment = { horizontal: 'center' };
+        const impCell = row.getCell(3); impCell.value = amount; impCell.numFmt = '#,##0.00'; impCell.alignment = { horizontal: 'right' };
+        row.getCell(4).value = m.currency || cur;
+        row.getCell(4).alignment = { horizontal: 'center' };
+        row.getCell(5).value = userMap[m.paid_by] ? userMap[m.paid_by].name : '—';
+        row.getCell(6).value = m.date ? Utils.formatDate(m.date) : '–';
+        row.getCell(6).alignment = { horizontal: 'center' };
+        row.getCell(7).value = m.created_at ? Utils.formatDate(m.created_at) : '–';
+        row.getCell(7).alignment = { horizontal: 'center' };
+
+        const { pos, neg } = EventoApp._riepilogoMovementDeltas(m);
+        users.forEach((u, ui) => {
+          const col1 = nFixed + ui * 2 + 1;
+          const col2 = col1 + 1;
+          if (pos[u.id]) { const c = row.getCell(col1); c.value = pos[u.id]; c.numFmt = '#,##0.00'; c.alignment = { horizontal: 'right' }; }
+          if (neg[u.id]) { const c = row.getCell(col2); c.value = neg[u.id]; c.numFmt = '#,##0.00'; c.alignment = { horizontal: 'right' }; }
+        });
+
+        for (let c = 1; c <= totalCols; c++) {
+          row.getCell(c).border = { bottom: { style: 'hair', color: { argb: 'FFE5E7EB' } } };
+        }
+        r++;
+      });
+
+      // ── Riga TOTALE: formule SUM, deve coincidere con Saldi ──
+      const lastDataRow = r - 1;
+      const totalsRow = ws.getRow(r);
+      totalsRow.getCell(1).value = 'TOTALE';
+      totalsRow.getCell(1).font = { bold: true };
+
+      users.forEach((u, ui) => {
+        const col1 = nFixed + ui * 2 + 1;
+        const col2 = col1 + 1;
+        const letter1 = ws.getColumn(col1).letter;
+        const letter2 = ws.getColumn(col2).letter;
+        const cell = totalsRow.getCell(col1);
+        cell.value = { formula: `SUM(${letter1}${firstDataRow}:${letter2}${lastDataRow})` };
+        cell.numFmt = '#,##0.00';
+        cell.font = { bold: true };
+        cell.alignment = { horizontal: 'right' };
+      });
+      totalsRow.eachCell({ includeEmpty: true }, (cell) => {
+        cell.border = { top: { style: 'double', color: { argb: 'FF1E3A5F' } } };
+        cell.fill   = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } };
+      });
+
+      // ── Larghezze colonne ──
+      ws.getColumn(1).width = 22;
+      ws.getColumn(2).width = 11;
+      ws.getColumn(3).width = 11;
+      ws.getColumn(4).width = 8;
+      ws.getColumn(5).width = 14;
+      ws.getColumn(6).width = 11;
+      ws.getColumn(7).width = 11;
+      for (let i = 0; i < nUsers; i++) {
+        ws.getColumn(nFixed + i * 2 + 1).width = 11;
+        ws.getColumn(nFixed + i * 2 + 2).width = 11;
+      }
+
+      // ── Genera il file e condividi/scarica ──
+      const buffer = await wb.xlsx.writeBuffer();
+      const safeName = (ev?.title || 'evento').replace(/[^a-z0-9]+/gi, '_');
+      const fileName = `WeGo_${safeName}_riepilogo.xlsx`;
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const file = new File([blob], fileName, { type: blob.type });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'WeGo — Riepilogo ' + (ev?.title || '') });
+          return;
+        } catch (e) {
+          if (e.name === 'AbortError') return; // utente ha annullato la condivisione
+          // altrimenti prosegue col download diretto sotto
+        }
+      }
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      Utils.toast('File Excel scaricato', 'success', 2500);
+
+    } catch (e) {
+      console.error('[Riepilogo] Errore export Excel:', e);
+      Utils.toast('Errore nella generazione del file: ' + e.message, 'error');
+    } finally {
+      if (btn) { btn.style.opacity = ''; btn.style.pointerEvents = ''; }
     }
   },
 

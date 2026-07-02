@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v6.3</title>
+  <title>Evento — WeGo v6.4</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -579,7 +579,25 @@
           </div>
         </div>
 
-        <div class="riepilogo-legend" id="riepilogoLegend" style="padding:12px 0 80px;"></div>
+        <div class="riepilogo-legend" id="riepilogoLegend" style="padding:12px 0 0;"></div>
+      </div>
+
+      <!-- Esporta in Excel — NUOVO v6.4 (evento.js v2.25): elenco
+           dettagliato di tutti i movimenti reali (spese + trasferimenti +
+           cassiere, esclude solo le Previsioni) con colonna Tipologia,
+           indipendente dal filtro Partecipante/Data/Tipo del grafico
+           qui sopra. Richiede exceljs.min.js (vendorizzato in locale,
+           precache offline — vedi sw.js). -->
+      <div style="padding:16px 0 80px;">
+        <button class="btn btn--primary btn--full" onclick="EventoApp.exportRiepilogoExcel()" id="btnExportRiepilogo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="9" y1="14" x2="15" y2="20"/>
+            <line x1="15" y1="14" x2="9" y2="20"/>
+          </svg>
+          Esporta in Excel
+        </button>
       </div>
     </div>
 
@@ -682,6 +700,7 @@
 <script src="/sync.js"></script>
 <script src="/notifications.js"></script>
 <script src="/payments.js"></script>
+<script src="/exceljs.min.js"></script>
 <script src="/evento.js"></script>
 <script>document.addEventListener('DOMContentLoaded', () => EventoApp.init());</script>
 </body>

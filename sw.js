@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v6.3
+// WeGo — sw.js v6.4
 // Service Worker — cache offline + background sync
+// v6.4: AGGIUNTO 'exceljs.min.js' a STATIC_ASSETS — libreria vendorizzata
+//       in locale (nessun CDN) usata dal bottone "Esporta in Excel" nel
+//       tab Riepilogo (evento.js v2.25), così l'export funziona anche
+//       offline dopo il primo caricamento. Nessun'altra modifica alla
+//       lista di precache — solo bump di versione per la "famiglia"
+//       index/evento/impostazioni.
 // v6.3: nessuna modifica alla lista di precache — NUOVO 4° tab
 //       "Riepilogo" con grafico a torta delle spese in evento.html
 //       (evento.js v2.24) e numero di versione accanto al logo "WeGo"
@@ -112,7 +118,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v6.3';
+const CACHE_NAME = 'wego-v6.4';
 
 const STATIC_ASSETS = [
   '/',
@@ -134,11 +140,12 @@ const STATIC_ASSETS = [
   '/app.js',
   '/evento.js',
   '/spesa.js',
+  '/exceljs.min.js',
 ];
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v6.3');
+  console.log('[SW] Install v6.4');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -164,7 +171,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v6.3');
+  console.log('[SW] Activate v6.4');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
