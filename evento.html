@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v6.2</title>
+  <title>Evento — WeGo v6.3</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -88,15 +88,80 @@
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
+    /* NUOVO v6.3: font-size/padding leggermente ridotti (14px→13px,
+       10px 6px→10px 4px) per fare spazio al 4° tab "Riepilogo" senza
+       forzare l'andata a capo del testo su schermi stretti. */
     .tab-btn {
-      flex: 1; padding: 10px 6px;
+      flex: 1; padding: 10px 4px;
       background: none; border: none; border-bottom: 2px solid transparent;
-      font-family: var(--font); font-size: 14px; font-weight: 600;
+      font-family: var(--font); font-size: 13px; font-weight: 600;
       color: var(--text-muted); cursor: pointer;
       transition: all var(--ease);
       -webkit-tap-highlight-color: transparent;
     }
     .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ─── RIEPILOGO (grafico a torta) — NUOVO v6.3 ───
+       Torta CSS pura (conic-gradient), niente SVG/librerie esterne —
+       coerente con "nessun framework, nessun build step" (vedi
+       situazione.md §2). Il "buco" al centro è un div sovrapposto dello
+       stesso colore dello sfondo pagina (var(--bg-primary)). */
+    .riepilogo-selector {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      padding: 14px 0 4px;
+    }
+    .riepilogo-donut-wrap {
+      position: relative;
+      width: 200px; height: 200px;
+      margin: 22px auto 6px;
+      flex-shrink: 0;
+    }
+    .riepilogo-donut {
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      background: var(--bg-input);
+    }
+    .riepilogo-donut-hole {
+      position: absolute; inset: 22%;
+      background: var(--bg-primary);
+      border-radius: 50%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 4px;
+    }
+    .riepilogo-donut-total {
+      font-size: 17px; font-weight: 700;
+      color: var(--text-primary); letter-spacing: -0.3px;
+    }
+    .riepilogo-donut-sub {
+      font-size: 10px; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.4px; margin-top: 2px;
+    }
+    .riepilogo-legend__row {
+      display: flex; align-items: center; gap: 9px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .riepilogo-legend__row:last-child { border-bottom: none; }
+    .riepilogo-legend__swatch {
+      width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
+    }
+    .riepilogo-legend__label {
+      flex: 1; font-size: 14.5px; font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .riepilogo-legend__pct {
+      font-size: 12px; color: var(--text-muted);
+      flex-shrink: 0; min-width: 40px; text-align: right;
+    }
+    .riepilogo-legend__amount {
+      font-size: 14.5px; font-weight: 700;
+      color: var(--text-primary);
+      flex-shrink: 0; min-width: 72px; text-align: right;
+    }
 
     /* ─── SUMMARY ROW ─── */
     .summary-row {
@@ -381,6 +446,9 @@
     <button class="tab-btn" id="tabSaldi" onclick="EventoApp.switchTab('saldi')">
       Saldi
     </button>
+    <button class="tab-btn" id="tabRiepilogo" onclick="EventoApp.switchTab('riepilogo')">
+      Riepilogo
+    </button>
   </div>
 
   <!-- TESTATA FISSA MOVIMENTI (rimane sempre visibile nello scroll, solo tab Movimenti) -->
@@ -483,6 +551,35 @@
           </svg>
           Condividi riepilogo
         </button>
+      </div>
+    </div>
+
+    <!-- TAB RIEPILOGO — NUOVO v6.3: grafico a torta delle sole spese
+         reali (esclude Previsioni/Trasferimenti/"+Cassiere", stessa
+         base dei 4 totali in Movimenti — vedi evento.js v2.24
+         _riepilogoRealExpenses()), suddivisibile per Partecipante (chi
+         ha pagato), Data (giorno esatto) o Tipo spesa (categoria). -->
+    <div id="panelRiepilogo" style="display:none;">
+      <div class="riepilogo-selector">
+        <button class="chip selected" id="riepChipPartecipante" onclick="EventoApp.setRiepilogoGroup('partecipante')">Partecipante</button>
+        <button class="chip" id="riepChipData" onclick="EventoApp.setRiepilogoGroup('data')">Data</button>
+        <button class="chip" id="riepChipTipo" onclick="EventoApp.setRiepilogoGroup('tipo')">Tipo spesa</button>
+      </div>
+
+      <div id="riepilogoEmpty" style="display:none;text-align:center;padding:50px 20px;color:var(--text-muted);font-size:14.5px;">
+        Nessuna spesa da riepilogare.
+      </div>
+
+      <div id="riepilogoChartWrap">
+        <div class="riepilogo-donut-wrap">
+          <div class="riepilogo-donut" id="riepilogoDonut"></div>
+          <div class="riepilogo-donut-hole">
+            <div class="riepilogo-donut-total" id="riepilogoTotal">—</div>
+            <div class="riepilogo-donut-sub">Totale spese</div>
+          </div>
+        </div>
+
+        <div class="riepilogo-legend" id="riepilogoLegend" style="padding:12px 0 80px;"></div>
       </div>
     </div>
 
