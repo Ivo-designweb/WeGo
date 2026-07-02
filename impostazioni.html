@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v6.4</title>
+  <title>Impostazioni — WeGo v6.6</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -92,6 +92,16 @@
     }
     .about-name  { font-size: 18.5px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.2px; }
     .about-ver   { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+    /* NUOVO v6.5 — badge "PRO" e stato "locked" per le righe di
+       Esporta/Importa dati (riservate alla versione Pro, vedi
+       SettingsApp._renderLicenseInfo()). */
+    .pro-lock-badge {
+      display: inline-block; background: var(--amber); color: #1a1200;
+      font-size: 9.5px; font-weight: 700; letter-spacing: .3px;
+      padding: 1px 6px; border-radius: 20px; margin-left: 6px;
+      vertical-align: middle;
+    }
+    .settings-row--locked { opacity: 0.55; }
     .about-div   { height: 1px; background: var(--border); margin: 12px 0; }
     .about-dev   { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
     .about-mail  {
@@ -304,7 +314,7 @@
       <div class="section-header"><span class="section-title">Dati e privacy</span></div>
       <div class="settings-group">
 
-        <div class="settings-row" onclick="SettingsApp.exportData()">
+        <div class="settings-row" id="rowExportData" onclick="SettingsApp.exportData()">
           <div class="settings-row__icon" style="background:#06B6D4;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
@@ -312,13 +322,35 @@
             </svg>
           </div>
           <div class="settings-row__body">
-            <div class="settings-row__label">Esporta dati locali</div>
-            <div class="settings-row__value">Scarica backup JSON</div>
+            <div class="settings-row__label">Esporta dati locali <span class="pro-lock-badge" id="badgeExportPro" style="display:none;">PRO</span></div>
+            <div class="settings-row__value">Scarica backup JSON completo (eventi, spese, partecipanti, pagamenti)</div>
           </div>
           <div class="settings-row__right settings-row__chevron">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
         </div>
+
+        <!-- Importa da backup — NUOVO v6.6: input file nascosto, aperto da
+             SettingsApp.importData() (che fa anche il gate Pro). Merge per
+             ID (upsert, non cancella nulla di locale) e nessuna sync
+             forzata dopo l'import — scelte confermate dal cliente in
+             chat, vedi situazione.md. -->
+        <div class="settings-row" id="rowImportData" onclick="SettingsApp.importData()">
+          <div class="settings-row__icon" style="background:#8B5CF6;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Importa da backup <span class="pro-lock-badge" id="badgeImportPro" style="display:none;">PRO</span></div>
+            <div class="settings-row__value">Ripristina da file JSON esportato in precedenza</div>
+          </div>
+          <div class="settings-row__right settings-row__chevron">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+        <input type="file" id="importFileInput" accept="application/json,.json" style="display:none;" onchange="SettingsApp._handleImportFile(event)">
 
         <div class="settings-row" onclick="SettingsApp.clearLocalData()" style="color:var(--red);">
           <div class="settings-row__icon" style="background:#EF4444;">
@@ -438,7 +470,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 6.4</div>
+        <div class="about-ver">Versione 6.6</div>
 
         <div class="about-div"></div>
 
@@ -638,6 +670,20 @@ const SettingsApp = {
         if (reqChevron) reqChevron.style.display = '';
       }
     }
+
+    // Riga "Esporta dati locali" — riservata alla versione Pro (v6.5):
+    // badge "PRO" + opacità ridotta quando il device è Base (il click
+    // resta attivo: apre l'upsell "Richiedi soluzione completa", vedi
+    // exportData()).
+    const exportRow   = document.getElementById('rowExportData');
+    const exportBadge = document.getElementById('badgeExportPro');
+    if (exportRow)   exportRow.classList.toggle('settings-row--locked', !isPro);
+    if (exportBadge) exportBadge.style.display = isPro ? 'none' : '';
+
+    const importRow   = document.getElementById('rowImportData');
+    const importBadge = document.getElementById('badgeImportPro');
+    if (importRow)   importRow.classList.toggle('settings-row--locked', !isPro);
+    if (importBadge) importBadge.style.display = isPro ? 'none' : '';
   },
 
   // ─── RICHIEDI SOLUZIONE COMPLETA ───────────────────────────
@@ -1001,21 +1047,129 @@ const SettingsApp = {
   },
 
   // ─── DATI ───────────────────────────────────────────────
+  // v6.5: FIX — prima esportava SOLO gli eventi (DB.events.getAll()),
+  // che in IndexedDB è uno store separato da spese/partecipanti/
+  // pagamenti (vedi db.js STORES): il backup non conteneva alcun
+  // movimento. Ora raccoglie tutti e 4 gli store (events/users/
+  // expenses/payments — DB.*.getAll(), NUOVI in db.js v1.10) così tutti
+  // i campi di ogni spesa/trasferimento/cassiere sono inclusi, comprese
+  // le aggiunte più recenti (is_cassa_comune, location, payment_method,
+  // has_photo, ecc. — vedi db.js expenses.save() per l'elenco completo).
+  // Le FOTO (store "photos", blob binari) restano escluse: farebbero
+  // esplodere le dimensioni del JSON — restano solo sincronizzate
+  // normalmente (vedi sync.js), non fanno parte di questo backup.
+  // "version" nel payload passa da '1.2' a '2.0' per distinguere un
+  // backup vecchio (solo eventi) da uno nuovo completo.
+  // NUOVO v6.5: riservato alla versione Pro (vedi _renderLicenseInfo()).
   async exportData() {
+    if (typeof License !== 'undefined' && !License.isPro()) {
+      Utils.toast('Backup completo riservato alla versione Pro', 'info', 3000);
+      SettingsApp.showRequestPro();
+      return;
+    }
     try {
-      const events   = await DB.events.getAll();
-      const cfg      = Utils.getAllConfig();
-      const payload  = { version: '1.2', exported_at: Utils.now(), config: cfg, events };
-      const blob     = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-      const url      = URL.createObjectURL(blob);
-      const a        = document.createElement('a');
-      a.href         = url;
-      a.download     = `wego-backup-${Utils.today()}.json`;
+      const [events, users, expenses, payments] = await Promise.all([
+        DB.events.getAll(),
+        DB.users.getAll(),
+        DB.expenses.getAll(),
+        DB.payments.getAll()
+      ]);
+      const cfg     = Utils.getAllConfig();
+      const payload = { version: '2.0', exported_at: Utils.now(), config: cfg, events, users, expenses, payments };
+      const blob    = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url     = URL.createObjectURL(blob);
+      const a       = document.createElement('a');
+      a.href        = url;
+      a.download    = `wego-backup-${Utils.today()}.json`;
       a.click();
       URL.revokeObjectURL(url);
       Utils.toast('Backup scaricato', 'success');
     } catch (e) {
       Utils.toast('Errore esportazione', 'error');
+    }
+  },
+
+  // ─── IMPORTA DA BACKUP (NUOVO v6.6) ────────────────────────
+  // Riservato alla versione Pro, stesso gate di exportData(). Scelte
+  // confermate dal cliente in chat (vedi situazione.md):
+  // 1) MERGE per ID (upsert tramite DB.*.save(), che fa un put()
+  //    IndexedDB — sovrascrive solo i record con lo stesso id, tutto il
+  //    resto dei dati locali resta intatto. Nessuna cancellazione.
+  // 2) NESSUNA sincronizzazione forzata dopo l'import: i record vengono
+  //    salvati così come sono nel backup (synced incluso) — quelli già
+  //    sincronizzati in origine non vengono ri-inviati inutilmente,
+  //    quelli non sincronizzati verranno ripresi in automatico dal
+  //    normale meccanismo di sync già esistente (Sync.push/pullEvent)
+  //    alla prossima apertura di ciascun evento — comportamento SOLO
+  //    locale, nessuna chiamata di rete qui.
+  importData() {
+    if (typeof License !== 'undefined' && !License.isPro()) {
+      Utils.toast('Ripristino da backup riservato alla versione Pro', 'info', 3000);
+      SettingsApp.showRequestPro();
+      return;
+    }
+    document.getElementById('importFileInput')?.click();
+  },
+
+  async _handleImportFile(event) {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = ''; // reset: permette di riselezionare lo stesso file una seconda volta
+    if (!file) return;
+
+    try {
+      const text    = await file.text();
+      const payload = JSON.parse(text);
+
+      const events   = Array.isArray(payload.events)   ? payload.events   : [];
+      const users    = Array.isArray(payload.users)    ? payload.users    : [];
+      const expenses = Array.isArray(payload.expenses) ? payload.expenses : [];
+      const payments = Array.isArray(payload.payments) ? payload.payments : [];
+      const config   = (payload.config && typeof payload.config === 'object') ? payload.config : {};
+
+      if (!events.length && !users.length && !expenses.length && !payments.length) {
+        Utils.toast('Il file non contiene dati riconoscibili', 'error');
+        return;
+      }
+
+      // Backup vecchi (versione payload '1.2', prima del fix v6.5)
+      // contenevano SOLO gli eventi — avvisiamo che spese/partecipanti
+      // non ci sono, invece di importare in silenzio un backup parziale.
+      const isOldFormat = !('users' in payload) || !('expenses' in payload);
+      const oldFormatWarning = isOldFormat
+        ? '\n\n⚠️ Backup in formato vecchio/incompleto: mancano spese e/o partecipanti — verranno importati solo gli eventi presenti nel file.'
+        : '';
+
+      const exportedAt = payload.exported_at ? Utils.formatDate(payload.exported_at) : 'data sconosciuta';
+      const summary =
+        `Backup del ${exportedAt}:\n` +
+        `${events.length} eventi, ${users.length} partecipanti, ${expenses.length} movimenti, ${payments.length} pagamenti.\n\n` +
+        `Verranno UNITI ai dati già presenti su questo device: i record con lo stesso ID vengono sovrascritti dal backup, tutto il resto NON viene toccato.` +
+        oldFormatWarning +
+        `\n\nContinuare?`;
+
+      if (!confirm(summary)) return;
+
+      Utils.toast('Ripristino in corso…', 'info', 3000);
+
+      await Promise.all(events.map(ev => DB.events.save(ev)));
+      await Promise.all(users.map(u => DB.users.save(u)));
+      await Promise.all(expenses.map(e => DB.expenses.save(e)));
+      await Promise.all(payments.map(p => DB.payments.save(p)));
+
+      // Config (nickname, tema, metodi pagamento, categorie spesa,
+      // sessioni device→utente per evento...): merge chiave per chiave,
+      // non tocca le chiavi assenti dal backup.
+      Object.entries(config).forEach(([k, v]) => Utils.setConfig(k, v));
+
+      Utils.toast(
+        `Ripristino completato: ${events.length} eventi, ${expenses.length} movimenti`,
+        'success', 4000
+      );
+      setTimeout(() => window.location.reload(), 1500);
+
+    } catch (e) {
+      console.error('[Import] Errore:', e);
+      Utils.toast('File non valido o corrotto: ' + e.message, 'error');
     }
   },
 

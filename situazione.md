@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v6.4 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
+**Versione corrente: v6.6 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
 
 ---
 
@@ -43,24 +43,24 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v6.4   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
-├── evento.html          v6.4  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
+├── index.html          v6.6   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
+├── evento.html          v6.6  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
 ├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
-├── impostazioni.html    v6.4   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), link Admin
+├── impostazioni.html    v6.6   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
-├── sw.js                v6.4   Service Worker (CACHE_NAME: wego-v6.4) — esclude /api/* dalla cache, precache include /aiuto.html e /exceljs.min.js
-├── manifest.json        v6.4   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v6.6   Service Worker (CACHE_NAME: wego-v6.6) — esclude /api/* dalla cache, precache include /aiuto.html e /exceljs.min.js
+├── manifest.json        v6.6   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── exceljs.min.js        4.4.0 Libreria ExcelJS vendorizzata in locale (build "bare", nessun CDN) — usata solo da EventoApp.exportRiepilogoExcel() (evento.js), precaricata da sw.js per funzionare offline
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.19 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA, evidenziazione "Help" sul logo (prime 2 visite, solo localStorage) — RIMOSSO il gating sync esterni
-├── evento.js             v2.25 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (per Partecipante/Data/Tipo spesa) + export Excel dettagliato (NUOVO) — RIMOSSO il gating sync esterni, menu "Passa a Pro"
+├── evento.js             v2.26 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (per Partecipante/Data/Tipo spesa) + export Excel dettagliato (NUOVO) — RIMOSSO il gating sync esterni, menu "Passa a Pro"
 ├── spesa.js               v2.7 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.0 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza — RIMOSSO il gating eventi esterni
 ├── supabase.js            v1.12 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune, events.photo_sync_enabled — FIX GRANT service_role
-├── db.js                  v1.9 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast/is_cassa_comune — gated/sync_allowed sempre false/true
+├── db.js                  v1.10 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast/is_cassa_comune — gated/sync_allowed sempre false/true — NUOVI users/expenses/payments.getAll() non filtrati (per il backup completo, vedi impostazioni.html)
 ├── utils.js               v1.4 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier', NUOVA calculateCassaComune())
 ├── notifications.js       v1.3 Notifiche push Web Push (VAPID) + Supabase, fix percorso icone
 ├── payments.js            v1.1 Metodi di pagamento + NUOVO ExpenseCategories (categorie di spesa, stesso pattern)
@@ -1262,6 +1262,100 @@ Doppio percorso, senza bisogno di chiedere all'utente ogni volta:
 
 ---
 
+## 5vicies. Fix grafico Riepilogo, bottone Excel, backup completo Pro (v6.5)
+
+### 1) Grafico Riepilogo — "Per Partecipante" include i Trasferimenti
+Bug segnalato dal cliente: la fetta "Per Partecipante" usava
+`_riepilogoRealExpenses()` (solo tipo `'expense'`) anche per questo
+criterio, escludendo di fatto chi aveva solo inviato Trasferimenti.
+Nuova funzione `_riepilogoPartecipanteMovements()` (spese + Trasf.,
+"+Cassiere" resta escluso — non richiesto, e nel modello dati il
+"pagatore" di un movimento cassiere è il cassiere che INCASSA, non chi
+versa: includerlo confonderebbe il significato della fetta). "Data" e
+"Tipo spesa" restano invariati (solo spese reali — non ha senso
+raggruppare un trasferimento per categoria). Di conseguenza anche il
+totale al centro della torta ora cambia in base al criterio
+selezionato, sempre coerente con le fette che lo compongono.
+
+### 2) Bottone export Excel: titolo, icona, conferma
+- Titolo: "Esporta in Excel" → **"Esporta Movimenti in Excel"**.
+- Icona: sostituita la generica icona "documento" con un'icona
+  "foglio di calcolo" originale (quadrato verde + griglia bianca —
+  NON il logo Excel di Microsoft, che è un marchio registrato e non va
+  riprodotto: qui è solo un'icona generica che richiama visivamente
+  "foglio di calcolo/verde").
+- Conferma: `confirm()` nativo in cima a `exportRiepilogoExcel()`,
+  PRIMA di qualunque generazione — stesso pattern già usato da
+  `SettingsApp.forceUpdate()` in impostazioni.html.
+
+### 3) Fix "Esporta dati locali" (impostazioni.html) — backup incompleto
+**Bug preesistente trovato verificando la richiesta del cliente**:
+`SettingsApp.exportData()` chiamava SOLO `DB.events.getAll()`. In
+IndexedDB "events" è uno store SEPARATO da "users"/"expenses"/
+"payments" (vedi `db.js` `STORES`) — il backup scaricato non conteneva
+NESSUNA spesa, partecipante o pagamento, solo i metadati degli eventi
+(titolo, codice, valuta...). Corretto: ora raccoglie anche
+`DB.users.getAll()` / `DB.expenses.getAll()` / `DB.payments.getAll()`
+(NUOVI in `db.js` v1.10 — non esistevano metodi pubblici non filtrati
+per queste tre entità, solo `getByEvent()`/`getUnsyced()`). Il backup
+ora include OGNI campo di ogni spesa (tipo, importo, valuta, paid_by,
+paid_for, participants, payment_method, category, is_forecast,
+is_cassa_comune, date, location, has_photo, notes, created_by,
+timestamps — l'elenco completo di `db.js` `expenses.save()`, comprese
+le aggiunte più recenti). Le **foto** (store "photos", blob binari)
+restano escluse dal JSON per non farne esplodere le dimensioni — non
+richiesto esplicitamente, e concettualmente sono già gestite dalla
+sincronizzazione normale. Campo `payload.version` passato da `'1.2'` a
+`'2.0'` per poter distinguere in futuro un backup vecchio (solo
+eventi, incompleto) da uno nuovo.
+
+### 4) Gate Pro su "Esporta dati locali"
+Riga "Esporta dati locali" ora riservata alla versione Pro: badge
+"PRO" (ambra) accanto all'etichetta + opacità ridotta quando il
+device è Base, controllati da `_renderLicenseInfo()`. Il click resta
+sempre attivo anche da Base: apre l'upsell "Richiedi soluzione
+completa" (`SettingsApp.showRequestPro()`) invece di essere un bottone
+morto — coerente con gli altri gate Pro già presenti nell'app.
+
+### Import da backup JSON (v6.6)
+Implementato dopo conferma del cliente su 2 scelte chiave:
+1. **Merge per ID** (non sostituzione totale): ogni entità del backup
+   passa per il rispettivo `DB.*.save()` esistente (che fa un `put()`
+   IndexedDB — upsert per `id`) — i record con lo stesso id vengono
+   sovrascritti dal backup, tutti gli altri dati locali restano
+   intatti. Nessuna cancellazione, nessun nuovo codice di merge: riuso
+   diretto delle stesse funzioni `.save()` già usate ovunque nell'app.
+2. **Nessuna sincronizzazione forzata**: i record vengono salvati così
+   come sono nel backup, flag `synced` incluso — quelli già
+   sincronizzati in origine non vengono ri-inviati, quelli non
+   sincronizzati verranno ripresi in automatico dal normale
+   `Sync.push()`/`pullEvent()` già esistente, alla prossima apertura di
+   ciascun evento. **Nessuna chiamata di rete durante l'import.**
+
+Anche il `config` (nickname, tema, metodi di pagamento, categorie
+spesa, sessioni device→utente per evento...) viene unito chiave per
+chiave (`Utils.setConfig`) — non tocca chiavi assenti dal backup.
+
+Flusso: `SettingsApp.importData()` (gate Pro, poi apre il file picker
+nascosto `#importFileInput`) → `_handleImportFile()` legge il JSON,
+valida che sia un oggetto con almeno uno tra events/users/expenses/
+payments non vuoto, rileva i backup vecchi (formato pre-v6.5, solo
+eventi) e lo segnala nel messaggio di conferma, mostra un riepilogo
+(quanti eventi/partecipanti/movimenti/pagamenti, data del backup) in
+un `confirm()` nativo PRIMA di scrivere qualunque cosa, poi importa e
+ricarica la pagina (`location.reload()`) per rendere visibile ovunque
+il nuovo stato.
+
+Riservato alla versione Pro, stesso gate/badge di "Esporta dati
+locali".
+
+### File toccati (import)
+`impostazioni.html` (v6.6 — riga "Importa da backup", input file
+nascosto, `importData()`/`_handleImportFile()`), `index.html`/
+`evento.html`/`sw.js`/`manifest.json` (v6.6 — solo bump "famiglia").
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -1361,8 +1455,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v6.4 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
-**Service Worker cache:** `wego-v6.4`
+**Versione attuale:** v6.6 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
+**Service Worker cache:** `wego-v6.6`
 
 ---
 

@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — db.js v1.9
+// WeGo — db.js v1.10
 // Gestione dati locali con IndexedDB (offline-first)
+// v1.10: NUOVI users.getAll()/expenses.getAll()/payments.getAll() (non
+//        filtrati, tutti gli eventi) — mancavano dei metodi pubblici non
+//        filtrati (esistevano solo getByEvent e getUnsyced): servono a
+//        SettingsApp.exportData() in impostazioni.html, che PRIMA
+//        esportava solo gli eventi (DB.events.getAll()) e non le spese/
+//        partecipanti/pagamenti veri e propri — backup incompleto, ora
+//        corretto (vedi impostazioni.html v6.5).
 // v1.9: nuovo campo expenses.is_cassa_comune (booleano, sincronizzato —
 //       flag "Uso Cassa Comune", solo per il tipo 'expense', vedi
 //       spesa.html/spesa.js v2.7 e utils.js v1.4 calculateCassaComune())
@@ -271,6 +278,13 @@ const DB = (() => {
       return all.find(u => u.name.toLowerCase() === name.toLowerCase()) || null;
     },
 
+    // NUOVO v1.10 — tutti gli utenti di TUTTI gli eventi (a differenza di
+    // getByEvent), usato da SettingsApp.exportData()/importData() in
+    // impostazioni.html per il backup/ripristino completo.
+    async getAll() {
+      return getAll('users');
+    },
+
     async getUnsyced() {
       const all = await getAll('users');
       return all.filter(u => !u.synced);
@@ -349,6 +363,13 @@ const DB = (() => {
 
     async hardDelete(id) {
       return remove('expenses', id);
+    },
+
+    // NUOVO v1.10 — tutte le spese di TUTTI gli eventi (comprese quelle
+    // già sincronizzate/deleted, a differenza di getUnsyced), usato dal
+    // backup/ripristino completo in impostazioni.html.
+    async getAll() {
+      return getAll('expenses');
     },
 
     async getUnsyced() {
@@ -462,6 +483,13 @@ const DB = (() => {
         pay.updated_at = Utils.now();
         await put('payments', pay);
       }
+    },
+
+    // NUOVO v1.10 — tutti i pagamenti di TUTTI gli eventi (compresi
+    // quelli deleted, a differenza di getByEvent), usato dal
+    // backup/ripristino completo in impostazioni.html.
+    async getAll() {
+      return getAll('payments');
     },
 
     async getUnsyced() {

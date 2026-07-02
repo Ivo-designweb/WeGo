@@ -1,6 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v6.4
+// WeGo — sw.js v6.6
 // Service Worker — cache offline + background sync
+// v6.6: nessuna modifica alla lista di precache — NUOVA funzione
+//       "Importa da backup" in impostazioni.html (merge per ID, nessuna
+//       sync forzata — solo locale) — solo bump di versione per la
+//       "famiglia" index/evento/impostazioni.
+// v6.5: nessuna modifica alla lista di precache — FIX grafico Riepilogo
+//       "Per Partecipante" (include anche i Trasferimenti), bottone
+//       Excel rinominato + icona + conferma (evento.js v2.26), fix
+//       "Esporta dati locali" ora completo con spese/partecipanti/
+//       pagamenti + gate Pro, db.js v1.10 (evento.js/impostazioni.html/
+//       db.js) — solo bump di versione per la "famiglia"
+//       index/evento/impostazioni.
 // v6.4: AGGIUNTO 'exceljs.min.js' a STATIC_ASSETS — libreria vendorizzata
 //       in locale (nessun CDN) usata dal bottone "Esporta in Excel" nel
 //       tab Riepilogo (evento.js v2.25), così l'export funziona anche
@@ -118,7 +129,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v6.4';
+const CACHE_NAME = 'wego-v6.6';
 
 const STATIC_ASSETS = [
   '/',
@@ -145,7 +156,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v6.4');
+  console.log('[SW] Install v6.6');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -171,7 +182,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v6.4');
+  console.log('[SW] Activate v6.6');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

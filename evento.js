@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.25
+// WeGo — evento.js v2.26
 // Logica pagina dettaglio evento
+// v2.26: FIX grafico Riepilogo — "Per Partecipante" ora include anche i
+//        Trasferimenti (non solo le spese), nuova
+//        _riepilogoPartecipanteMovements(); "Data"/"Tipo spesa" restano
+//        solo spese reali (invariato). Bottone Excel rinominato "Esporta
+//        Movimenti in Excel" + icona dedicata (evento.html v6.5) +
+//        richiesta conferma (confirm() nativo) PRIMA di generare il
+//        file, in cima a exportRiepilogoExcel().
 // v2.25: NUOVO bottone "Esporta in Excel" nel tab Riepilogo (evento.html
 //        v6.4) — exportRiepilogoExcel() genera un .xlsx con ExcelJS
 //        (vendorizzato in locale, exceljs.min.js, nessuna dipendenza
@@ -387,12 +394,28 @@ const EventoApp = {
     if (tab === 'riepilogo')    EventoApp._renderRiepilogo();
   },
 
-  // ─── RIEPILOGO (grafico a torta) — NUOVO v2.24 ─────────────
+  // ─── RIEPILOGO (grafico a torta) — v2.24, esteso v2.26 ─────
   // Stessa definizione di "spesa reale" usata dai 4 totali in Movimenti
   // (_renderSpese()): tipo 'expense' e non "Previsione". Esclude quindi
-  // sempre Trasferimenti, "+Cassiere" e Previsioni.
+  // sempre Trasferimenti, "+Cassiere" e Previsioni. Usata dai criteri
+  // "Data" e "Tipo spesa" (non ha senso raggruppare un trasferimento per
+  // categoria/tipo spesa, e "+Cassiere" resta escluso ovunque nel grafico
+  // come già deciso in origine).
   _riepilogoRealExpenses() {
     return EventoApp._expenses.filter(e => (e.type || 'expense') === 'expense' && !e.is_forecast);
+  },
+
+  // "Per Partecipante" (v2.26): a differenza di sopra, include ANCHE i
+  // Trasferimenti — richiesta cliente: chi ha inviato un trasferimento
+  // (paid_by) deve comparire nel grafico esattamente come chi ha pagato
+  // una spesa, con l'intero importo attribuito a lui. "+Cassiere" resta
+  // escluso (non richiesto, e nel modello dati il "pagatore" è il
+  // cassiere che INCASSA — includerlo confonderebbe "chi ha versato").
+  _riepilogoPartecipanteMovements() {
+    return EventoApp._expenses.filter(e => {
+      const t = e.type || 'expense';
+      return (t === 'expense' || t === 'transfer') && !e.is_forecast;
+    });
   },
 
   setRiepilogoGroup(mode) {
@@ -415,8 +438,14 @@ const EventoApp = {
     users.forEach(u => { userMap[u.id] = u; });
 
     const mode = EventoApp._riepilogoGroupBy || 'partecipante';
-    const realExpenses = EventoApp._riepilogoRealExpenses();
-    const total = realExpenses.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    // v2.26: "Partecipante" usa spese+trasferimenti, "Data"/"Tipo spesa"
+    // restano solo spese reali (vedi commenti sopra) — il totale mostrato
+    // al centro della torta cambia di conseguenza in base al criterio
+    // selezionato, sempre coerente con le fette che lo compongono.
+    const movements = mode === 'partecipante'
+      ? EventoApp._riepilogoPartecipanteMovements()
+      : EventoApp._riepilogoRealExpenses();
+    const total = movements.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
 
     const totalEl   = document.getElementById('riepilogoTotal');
     const emptyEl   = document.getElementById('riepilogoEmpty');
@@ -424,7 +453,7 @@ const EventoApp = {
 
     if (totalEl) totalEl.textContent = Utils.formatAmount(total, currency);
 
-    if (!realExpenses.length || total <= 0) {
+    if (!movements.length || total <= 0) {
       if (emptyEl)   emptyEl.style.display   = '';
       if (chartWrap) chartWrap.style.display = 'none';
       return;
@@ -434,7 +463,7 @@ const EventoApp = {
 
     // Raggruppamento per bucket in base al criterio selezionato
     const buckets = {}; // key -> { key, label, amount }
-    for (const exp of realExpenses) {
+    for (const exp of movements) {
       const amount = parseFloat(exp.amount || 0);
       let key, label;
 
@@ -444,7 +473,8 @@ const EventoApp = {
       } else if (mode === 'tipo') {
         key   = exp.category || '__none__';
         label = exp.category ? ExpenseCategories.getById(exp.category).label : 'Senza categoria';
-      } else { // 'partecipante'
+      } else { // 'partecipante' — chi ha pagato la spesa O inviato il
+               // trasferimento (paid_by in entrambi i casi)
         key   = exp.paid_by || '__none__';
         label = userMap[exp.paid_by] ? userMap[exp.paid_by].name : 'Sconosciuto';
       }
@@ -537,6 +567,10 @@ const EventoApp = {
       Utils.toast('Libreria Excel non disponibile — riprova dopo aver aggiornato l\'app', 'error');
       return;
     }
+
+    // Conferma PRIMA di generare il file (v2.26) — stesso pattern di
+    // SettingsApp.forceUpdate() in impostazioni.html.
+    if (!confirm('Esportare tutti i movimenti dell\'evento in un file Excel?')) return;
 
     const btn = document.getElementById('btnExportRiepilogo');
     if (btn) { btn.style.opacity = '0.5'; btn.style.pointerEvents = 'none'; }
