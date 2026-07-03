@@ -1,6 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.27
+// WeGo — evento.js v2.28
 // Logica pagina dettaglio evento
+// v2.28: _syncQuiet() ora usa Sync.scheduleQuietSync() (sync.js v2.1)
+//        invece di await diretto a Sync.push()/pullEvent() — la sync
+//        silenziosa (al caricamento pagina, al ritorno online, e di
+//        fatto anche subito dopo un salvataggio spesa, dato che
+//        spesa.js torna su questa pagina) parte 5s dopo l'ultima
+//        chiamata invece che subito, senza bloccare nulla. syncNow()
+//        (tap manuale sull'icona) annulla prima una eventuale sync
+//        differita in sospeso (Sync.cancelQuietSync()) per evitare un
+//        secondo giro superfluo pochi secondi dopo.
 // v2.27: NUOVO 4° criterio "Mappa" nel tab Riepilogo (evento.html v6.7)
 //        — mappa incorporata OpenStreetMap/Leaflet (vendorizzata in
 //        locale, nessuna API key) con un pin per ogni spesa con
@@ -1925,6 +1934,7 @@ const EventoApp = {
   async syncNow() {
     try {
       if (!Utils.isOnline()) { Utils.toast('Nessuna connessione', 'error'); return; }
+      Sync.cancelQuietSync(); // evita un secondo giro superfluo 5s dopo
       await Sync.push();
       await Sync.pullEvent(EventoApp._eventId);
       await EventoApp.loadAll();
@@ -1934,14 +1944,18 @@ const EventoApp = {
     }
   },
 
+  // Chiamata al caricamento pagina, al ritorno online, e (indirettamente)
+  // subito dopo il ritorno da un salvataggio spesa in spesa.js (che ora
+  // non chiama più Sync direttamente — vedi spesa.js v3.9): l'utente ha
+  // già salvato in locale e sta già guardando la pagina evento, la sync
+  // vera e propria con il server parte da sola 5s dopo, silenziosa
+  // (nessun blocco, nessun popup — vedi Sync.scheduleQuietSync() in
+  // sync.js v2.1). Il refresh dell'interfaccia (loadAll) avviene solo a
+  // sync completata, tramite il callback onDone.
   async _syncQuiet() {
-    try {
-      await Sync.push();
-      await Sync.pullEvent(EventoApp._eventId);
+    Sync.scheduleQuietSync(EventoApp._eventId, 5000, async () => {
       await EventoApp.loadAll();
-    } catch (e) {
-      console.warn('[Evento] Quiet sync failed:', e);
-    }
+    });
   }
 };
 

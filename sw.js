@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v6.7
+// WeGo — sw.js v6.8
 // Service Worker — cache offline + background sync
+// v6.8: nessuna modifica alla lista di precache (già includeva
+//       sync.js/evento.js/spesa.js) — bump versione per rigenerare la
+//       cache con la NUOVA sync differita ("quieta", sync.js v2.1):
+//       salvare una spesa non blocca più l'utente in attesa della rete,
+//       la sincronizzazione parte da sola 5s dopo in automatico — solo
+//       bump di versione per la "famiglia" index/evento/impostazioni.
 // v6.7: AGGIUNTI 'leaflet.js'/'leaflet.css'/'leaflet-marker-*.png' a
 //       STATIC_ASSETS — libreria vendorizzata in locale (nessun CDN,
 //       nessuna API key) usata dal nuovo criterio "Mappa" nel tab
@@ -141,7 +147,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v6.7';
+const CACHE_NAME = 'wego-v6.8';
 
 const STATIC_ASSETS = [
   '/',
@@ -173,7 +179,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v6.7');
+  console.log('[SW] Install v6.8');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -199,7 +205,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v6.7');
+  console.log('[SW] Activate v6.8');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

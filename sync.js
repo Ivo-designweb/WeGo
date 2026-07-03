@@ -1,6 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v2.0
+// WeGo — sync.js v2.1
 // Gestione sincronizzazione bidirezionale con Supabase
+// v2.1: NUOVA sync differita ("quieta") — scheduleQuietSync()/
+//       _runQuietSync()/flushQuietSyncNow()/cancelQuietSync(): il
+//       salvataggio di un movimento (spesa.js) non blocca più l'utente
+//       in attesa della rete — push()+pullEvent() partono da soli dopo
+//       5s di inattività (debounce vero, timer che riparte ad ogni
+//       chiamata, nessun tetto massimo — scelta del cliente), con una
+//       rete di sicurezza automatica (visibilitychange/pagehide) che
+//       forza comunque la sync se la pagina viene nascosta/chiusa
+//       prima. Usata da EventoApp._syncQuiet() (evento.js v2.28) al
+//       posto dell'await diretto. push()/pullEvent() e la rotella
+//       #syncIcon (_showBar/_hideBar) restano invariati.
 // v2.0: RIMOSSA la sincronizzazione selettiva eventi esterni (gating —
 //       era v1.5): ogni evento si sincronizza ora sempre, senza attesa di
 //       abilitazione admin. Rimossi _refreshGatedEvents(),
@@ -37,6 +48,12 @@
 const Sync = {
 
   _isSyncing: false,
+
+  // ─── SYNC DIFFERITA ("quieta") — NUOVO v2.1 ────────────────
+  // Vedi scheduleQuietSync()/flushQuietSyncNow() più sotto per i dettagli.
+  _quietSyncTimer:    null,
+  _quietSyncEventId:  null,
+  _quietSyncOnDone:   null,
 
   // ─── PUSH (locale → Supabase) ─────────────────────────────
   async push() {
@@ -135,6 +152,83 @@ const Sync = {
       Sync._isSyncing = false;
       Sync._hideBar();
     }
+  },
+
+  // ─── SYNC DIFFERITA ("quieta") — NUOVO v2.1 ────────────────
+  // Richiesta cliente: salvare un movimento non deve più bloccare
+  // l'utente in attesa della sincronizzazione di rete — si salva subito
+  // in locale, e la sync vera e propria (push + pull) parte da sola
+  // dopo un po' di inattività, mentre l'utente è già libero di fare
+  // altro. Usata da EventoApp._syncQuiet() (evento.js) al posto
+  // dell'await diretto a Sync.push()/pullEvent(); spesa.js NON chiama
+  // più Sync in alcun modo dopo il salvataggio — è proprio il
+  // ricaricamento di evento.html che segue (SpesaApp.goBack()) a far
+  // scattare EventoApp.init() → _syncQuiet() → questo debounce.
+  //
+  // DEBOUNCE vero (non throttle): ogni chiamata cancella il timer
+  // precedente e ne riparte uno nuovo — se l'utente salva più movimenti
+  // ravvicinati, la sync parte una sola volta, "delayMs" dopo l'ULTIMO
+  // salvataggio. Nessun tetto massimo di sicurezza (scelta esplicita,
+  // confermata in chat): se l'utente continua a lavorare senza pause,
+  // la sync resta rimandata finché non si ferma per almeno "delayMs".
+  //
+  // RETE DI SICUREZZA: se la pagina viene nascosta o chiusa prima che il
+  // timer scada, flushQuietSyncNow() (auto-installata più sotto su
+  // visibilitychange/pagehide) esegue subito la sync in sospeso, così
+  // non si perde nulla anche uscendo subito dopo un salvataggio.
+  //
+  // La rotella di sincronizzazione in header (#syncIcon) continua a
+  // essere gestita da _showBar()/_hideBar() dentro push() come già
+  // prima: gira quando la sync differita parte DAVVERO, non durante
+  // l'attesa — nessuna modifica necessaria lì.
+  scheduleQuietSync(eventId, delayMs = 5000, onDone = null) {
+    Sync._quietSyncEventId = eventId || Sync._quietSyncEventId;
+    if (onDone) Sync._quietSyncOnDone = onDone;
+    if (Sync._quietSyncTimer) clearTimeout(Sync._quietSyncTimer);
+    Sync._quietSyncTimer = setTimeout(() => {
+      Sync._quietSyncTimer = null;
+      Sync._runQuietSync();
+    }, delayMs);
+  },
+
+  // Annulla una sync differita in sospeso senza eseguirla (usata da
+  // syncNow() prima di fare una sync manuale immediata, per evitare un
+  // secondo giro superfluo pochi secondi dopo).
+  cancelQuietSync() {
+    if (Sync._quietSyncTimer) {
+      clearTimeout(Sync._quietSyncTimer);
+      Sync._quietSyncTimer = null;
+    }
+  },
+
+  async _runQuietSync() {
+    const eventId = Sync._quietSyncEventId;
+    const onDone  = Sync._quietSyncOnDone;
+    if (!Utils.isOnline()) return; // ritenterà al prossimo giro utile (init, torna online, ecc.)
+    try {
+      await Sync.push();
+      if (eventId) await Sync.pullEvent(eventId);
+      if (typeof onDone === 'function') await onDone();
+    } catch (e) {
+      console.warn('[Sync] Sync differita fallita:', e.message);
+    }
+  },
+
+  // Esegue SUBITO una sync differita ancora in sospeso, bypassando
+  // l'attesa — chiamata dalla rete di sicurezza qui sotto. Fire-and-
+  // forget per natura (la pagina si sta nascondendo/chiudendo, non c'è
+  // un modo affidabile per aspettare un'operazione async in quel
+  // momento) e salta il refresh dell'interfaccia (onDone): non ha senso
+  // ridisegnare una pagina che l'utente non sta più guardando.
+  flushQuietSyncNow() {
+    if (!Sync._quietSyncTimer) return; // niente in sospeso
+    clearTimeout(Sync._quietSyncTimer);
+    Sync._quietSyncTimer = null;
+    const eventId = Sync._quietSyncEventId;
+    if (!Utils.isOnline()) return;
+    Sync.push().then(() => {
+      if (eventId) return Sync.pullEvent(eventId);
+    }).catch(() => {});
   },
 
   /**
@@ -452,5 +546,21 @@ const Sync = {
     }
   }
 };
+
+// ─── RETE DI SICUREZZA PER LA SYNC DIFFERITA — NUOVO v2.1 ─────────
+// Auto-installata una sola volta al caricamento dello script (non serve
+// che ogni pagina se ne ricordi): se la pagina viene nascosta (cambio
+// tab/app, schermo spento) o chiusa mentre una sync differita è ancora
+// in attesa (vedi scheduleQuietSync), la esegue subito invece di
+// rischiare di perderla. 'visibilitychange' copre anche il passaggio in
+// background su mobile (più affidabile di 'pagehide' da solo su iOS).
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') Sync.flushQuietSyncNow();
+  });
+}
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => Sync.flushQuietSyncNow());
+}
 
 window.Sync = Sync;

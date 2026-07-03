@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v2.7
+// WeGo — spesa.js v2.8
 // Logica pagina inserimento / modifica spesa
+// v2.8: saveExpense()/deleteExpense() NON aspettano più Sync.push()/
+//       pullEvent() prima di mostrare il messaggio di successo e
+//       tornare alla pagina evento (richiesta cliente: "meno
+//       impattante") — si salva/elimina solo in locale e si torna
+//       SUBITO indietro; la sincronizzazione vera e propria parte da
+//       sola qualche secondo dopo, silenziosa, quando la pagina evento
+//       si ricarica (vedi EventoApp._syncQuiet()/Sync.scheduleQuietSync()
+//       in evento.js v2.28 / sync.js v2.1).
 // v2.7: NUOVO flag "Uso Cassa Comune" (solo tipo "Spesa") — indica che
 //       quella spesa è stata pagata con la cassa comune raccolta da un
 //       movimento "+Cassiere", invece che di tasca propria. Toggle a
@@ -909,15 +917,17 @@ const SpesaApp = {
         }
       }
 
-      // Sincronizzazione automatica (push + pull) se online
-      if (Utils.isOnline()) {
-        try {
-          await Sync.push();
-          await Sync.pullEvent(SpesaApp._eventId);
-        } catch (e) {
-          console.warn('[SpesaApp] sync dopo salvataggio:', e.message);
-        }
-      }
+      // Sincronizzazione (NUOVO v3.9): non blocca più qui — si salva
+      // solo in locale e si torna SUBITO alla pagina evento. La sync
+      // vera e propria (push + pull) parte da sola qualche secondo dopo,
+      // silenziosa, quando EventoApp.init() richiama _syncQuiet() al
+      // ricaricamento della pagina evento (vedi Sync.scheduleQuietSync()
+      // in sync.js v2.1 e EventoApp._syncQuiet() in evento.js v2.28) —
+      // così l'utente è libero di continuare a lavorare (aggiungere
+      // un'altra spesa, aprire Impostazioni, ecc.) senza restare in
+      // attesa della rete. Se il device è offline, il salvataggio resta
+      // comunque in locale (synced:false) e verrà ripreso al prossimo
+      // giro utile, come già accadeva prima.
 
       Utils.toast(
         SpesaApp._expenseId ? 'Spesa aggiornata' : 'Spesa salvata',
@@ -948,15 +958,9 @@ const SpesaApp = {
       await DB.expenses.delete(SpesaApp._expenseId);   // soft-delete (synced=false)
       await DB.photos.delete(SpesaApp._expenseId);
 
-      // Sincronizzazione automatica
-      if (Utils.isOnline()) {
-        try {
-          await Sync.push();
-          await Sync.pullEvent(SpesaApp._eventId);
-        } catch (e) {
-          console.warn('[SpesaApp] sync dopo eliminazione:', e.message);
-        }
-      }
+      // Sincronizzazione differita (v3.9) — vedi commento in saveExpense()
+      // qui sopra: non si aspetta più qui, parte da sola al ritorno
+      // sulla pagina evento.
 
       Utils.toast('Movimento eliminato', 'success', 2000);
       setTimeout(() => SpesaApp.goBack(), 400);
