@@ -7,9 +7,10 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v6.6</title>
+  <title>Evento — WeGo v6.7</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/leaflet.css" />
   <style>
     /* ─── SHELL VINCOLATA: solo .page-content scrolla internamente ───
        Lo style.css globale usa min-height:100dvh su .app-shell, il che
@@ -161,6 +162,33 @@
       font-size: 14.5px; font-weight: 700;
       color: var(--text-primary);
       flex-shrink: 0; min-width: 72px; text-align: right;
+    }
+
+    /* ─── MAPPA (Leaflet/OpenStreetMap) — NUOVO v6.7 ───
+       I tile della mappa restano quelli originali OpenStreetMap
+       (colorati, non è possibile "temizzarli" senza un tile provider
+       diverso) — qui adattiamo solo popup/controlli al tema scuro
+       dell'app per coerenza visiva. */
+    .riepilogo-mappa-count {
+      font-size: 13px; color: var(--text-muted); padding: 14px 0 8px;
+    }
+    .riepilogo-mappa-el {
+      height: 320px; border-radius: 12px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+      background: var(--bg-card); color: var(--text-primary);
+    }
+    .leaflet-popup-content { margin: 10px 12px; font-size: 13px; }
+    .leaflet-popup-content b { color: var(--text-primary); }
+    .leaflet-container a.leaflet-popup-close-button { color: var(--text-muted); }
+    .leaflet-bar a {
+      background: var(--bg-card); color: var(--text-primary);
+      border-bottom-color: var(--border);
+    }
+    .leaflet-bar a:hover { background: var(--bg-secondary); }
+    .leaflet-control-attribution {
+      background: rgba(255,255,255,0.75); font-size: 9.5px;
     }
 
     /* ─── SUMMARY ROW ─── */
@@ -564,6 +592,7 @@
         <button class="chip selected" id="riepChipPartecipante" onclick="EventoApp.setRiepilogoGroup('partecipante')">Partecipante</button>
         <button class="chip" id="riepChipData" onclick="EventoApp.setRiepilogoGroup('data')">Data</button>
         <button class="chip" id="riepChipTipo" onclick="EventoApp.setRiepilogoGroup('tipo')">Tipo spesa</button>
+        <button class="chip" id="riepChipMappa" onclick="EventoApp.setRiepilogoGroup('mappa')">Mappa</button>
       </div>
 
       <div id="riepilogoEmpty" style="display:none;text-align:center;padding:50px 20px;color:var(--text-muted);font-size:14.5px;">
@@ -580,6 +609,34 @@
         </div>
 
         <div class="riepilogo-legend" id="riepilogoLegend" style="padding:12px 0 0;"></div>
+      </div>
+
+      <!-- Mappa — NUOVO v6.7 (evento.js v2.27): posizioni GPS delle
+           spese (solo tipo 'expense', esclude Previsioni — vedi
+           _riepilogoMappaExpenses()), mostrate su una mappa incorporata
+           OpenStreetMap/Leaflet (gratuita, nessuna API key — vendorizzata
+           in locale: leaflet.js/leaflet.css/leaflet-marker-*.png,
+           precache offline vedi sw.js; i tile della mappa in sé restano
+           scaricati dalla rete al momento della visualizzazione, non
+           precacheabili) + un bottone che apre le stesse posizioni anche
+           in Google Maps (link diretto multi-tappa, nessuna API key —
+           stesso pattern già usato in spesa.html per una singola spesa).
+           Spese senza posizione GPS salvata sono escluse. -->
+      <div id="riepilogoMappaWrap" style="display:none;">
+        <div id="riepilogoMappaEmpty" style="display:none;text-align:center;padding:50px 20px;color:var(--text-muted);font-size:14.5px;">
+          Nessuna spesa con posizione GPS salvata.
+        </div>
+        <div id="riepilogoMappaContent" style="display:none;">
+          <div class="riepilogo-mappa-count" id="riepilogoMappaCount"></div>
+          <div class="riepilogo-mappa-el" id="riepilogoMappaEl"></div>
+          <a class="btn btn--ghost btn--full" id="riepilogoMappaGoogleBtn" href="#" target="_blank" rel="noopener" style="margin-top:12px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+              <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+            Apri tutte le posizioni in Google Maps
+          </a>
+        </div>
       </div>
 
       <!-- Esporta Movimenti in Excel — v6.4 (evento.js v2.25), rinominato
@@ -705,6 +762,7 @@
 <script src="/notifications.js"></script>
 <script src="/payments.js"></script>
 <script src="/exceljs.min.js"></script>
+<script src="/leaflet.js"></script>
 <script src="/evento.js"></script>
 <script>document.addEventListener('DOMContentLoaded', () => EventoApp.init());</script>
 </body>

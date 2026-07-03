@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v6.6 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
+**Versione corrente: v6.7 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
 
 ---
 
@@ -43,19 +43,21 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v6.6   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
-├── evento.html          v6.6  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
+├── index.html          v6.7   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
+├── evento.html          v6.7  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
 ├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
-├── impostazioni.html    v6.6   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
+├── impostazioni.html    v6.7   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
-├── sw.js                v6.6   Service Worker (CACHE_NAME: wego-v6.6) — esclude /api/* dalla cache, precache include /aiuto.html e /exceljs.min.js
-├── manifest.json        v6.6   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v6.7   Service Worker (CACHE_NAME: wego-v6.7) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js e /leaflet.js|css|marker-*.png
+├── manifest.json        v6.7   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── exceljs.min.js        4.4.0 Libreria ExcelJS vendorizzata in locale (build "bare", nessun CDN) — usata solo da EventoApp.exportRiepilogoExcel() (evento.js), precaricata da sw.js per funzionare offline
+├── leaflet.js/.css       1.9.4 Libreria Leaflet vendorizzata in locale (nessun CDN, nessuna API key) — usata dal criterio "Mappa" nel tab Riepilogo (evento.js), tile scaricati da OpenStreetMap al momento della visualizzazione (richiede rete)
+├── leaflet-marker-*.png  1.9.4 Icone marker di default di Leaflet (icon/icon-2x/shadow), vendorizzate in locale insieme a leaflet.js/.css
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.19 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA, evidenziazione "Help" sul logo (prime 2 visite, solo localStorage) — RIMOSSO il gating sync esterni
-├── evento.js             v2.26 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (per Partecipante/Data/Tipo spesa) + export Excel dettagliato (NUOVO) — RIMOSSO il gating sync esterni, menu "Passa a Pro"
+├── evento.js             v2.27 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (Partecipante/Data/Tipo spesa) + Mappa GPS (Leaflet/OSM, NUOVO) + export Excel dettagliato — RIMOSSO il gating sync esterni, menu "Passa a Pro"
 ├── spesa.js               v2.7 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.0 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza — RIMOSSO il gating eventi esterni
@@ -1356,6 +1358,77 @@ nascosto, `importData()`/`_handleImportFile()`), `index.html`/
 
 ---
 
+## 5sexvicies. Mappa GPS nel tab Riepilogo (v6.7)
+
+4° criterio nel selettore del tab Riepilogo, accanto a Partecipante/
+Data/Tipo spesa: **Mappa**. A differenza degli altri 3 (che ridisegnano
+la torta), "Mappa" è una vista completamente diversa — `_renderRiepilogo()`
+smista subito su un ramo separato quando `mode === 'mappa'`.
+
+### Scelta tecnica (concordata con l'utente in chat)
+Il cliente ha chiesto "tramite Google Maps" ma non ha una API key
+Google Maps attiva (necessaria per incorporare una mappa interattiva
+multi-pin — senza key l'unica opzione Google è aprire link esterni).
+Proposte 3 alternative, scelta la più completa: **entrambe**:
+1. **Mappa incorporata nella pagina**: OpenStreetMap + **Leaflet**
+   1.9.4 (libreria gratuita, open source, nessuna API key/fatturazione
+   — coerente col resto del progetto, che usa già Nominatim/OSM per il
+   reverse geocoding in spesa.js). Vendorizzata in locale
+   (`leaflet.js`/`leaflet.css`/`leaflet-marker-*.png`, ~165KB totali),
+   precaricata da `sw.js` per funzionare offline — I TILE della mappa
+   restano scaricati dalla rete al momento della visualizzazione (non
+   precacheabili, richiedono connessione: stesso limite che avrebbe
+   avuto anche una vera mappa Google).
+2. **Bottone "Apri tutte le posizioni in Google Maps"**: link diretto
+   multi-tappa `https://www.google.com/maps/dir/lat1,lng1/lat2,lng2/...`
+   — nessuna API key, stesso pattern già usato in spesa.html per una
+   singola spesa (lì con `?q=lat,lng`).
+
+### Quali spese include
+Solo tipo `'expense'` con `location.lat`/`location.lng` numerici e
+`!is_forecast` (`_riepilogoMappaExpenses()`). Trasferimenti e
+"+Cassiere" sono esclusi automaticamente: nel form (spesa.js) il
+rilevamento GPS è visibile SOLO per il tipo "Spesa" (`gpsCard.style.display
+= type === 'expense' ? '' : 'none'`), quindi per costruzione non hanno
+mai un campo `location` valorizzato — non serve un filtro esplicito sul
+tipo, basta il filtro su `location`. Le Previsioni sono escluse
+esplicitamente, come nel resto del tab Riepilogo. Se nessuna spesa ha
+una posizione salvata, mostra "Nessuna spesa con posizione GPS
+salvata" invece della mappa vuota.
+
+### Dettagli implementativi
+- Mappa creata una sola volta (`EventoApp._riepilogoLeafletMap`,
+  lazy-init al primo utilizzo del criterio "Mappa" — un secondo
+  `L.map()` sullo stesso elemento genera un errore) e poi riusata: ad
+  ogni render i marker vengono ripuliti (`layerGroup.clearLayers()`) e
+  ridisegnati, coerente col resto dell'app che ri-renderizza sempre
+  dai dati in memoria piuttosto che fare update incrementali.
+- `invalidateSize()` + `fitBounds()`/`setView()` rimandati con
+  `requestAnimationFrame()`: la mappa può essere creata mentre il
+  container è ancora `display:none` (tab non ancora visibile), Leaflet
+  calcola le dimensioni giuste solo a container visibile.
+- Popup per ogni pin: titolo, importo formattato (`Utils.formatAmount`),
+  data, indirizzo (se presente da `Utils.reverseGeocode`, salvato in
+  `location.address`).
+- CSS: popup/controlli Leaflet riadattati al tema scuro dell'app
+  (`.leaflet-popup-*`, `.leaflet-bar a`); i TILE della mappa restano
+  quelli originali OpenStreetMap (a colori), non è possibile
+  "temizzarli" senza un tile provider diverso — limite accettato.
+- Attribution "© OpenStreetMap contributors" sempre visibile
+  sulla mappa (richiesta dalla policy di utilizzo dei tile OSM).
+
+### File toccati
+`evento.html` (v6.7 — 4° chip, container mappa, CSS, script
+`leaflet.js`/link `leaflet.css`), `evento.js` (v2.27 —
+`_riepilogoMappaExpenses()`, `_renderRiepilogoMappa()`,
+`_configureLeafletIcons()`), `sw.js` (v6.7 — `leaflet.js`/`.css`/
+`marker-*.png` aggiunti a `STATIC_ASSETS`), `leaflet.js`/`leaflet.css`/
+`leaflet-marker-icon.png`/`leaflet-marker-icon-2x.png`/
+`leaflet-marker-shadow.png` (NUOVI file, vendorizzati), `index.html`/
+`impostazioni.html`/`manifest.json` (v6.7 — solo bump "famiglia").
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -1455,8 +1528,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v6.6 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
-**Service Worker cache:** `wego-v6.6`
+**Versione attuale:** v6.7 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
+**Service Worker cache:** `wego-v6.7`
 
 ---
 

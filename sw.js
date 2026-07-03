@@ -1,6 +1,18 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v6.6
+// WeGo — sw.js v6.7
 // Service Worker — cache offline + background sync
+// v6.7: AGGIUNTI 'leaflet.js'/'leaflet.css'/'leaflet-marker-*.png' a
+//       STATIC_ASSETS — libreria vendorizzata in locale (nessun CDN,
+//       nessuna API key) usata dal nuovo criterio "Mappa" nel tab
+//       Riepilogo (evento.js v2.27), così la mappa funziona anche
+//       offline dopo il primo caricamento (i TILE della mappa in sé
+//       restano dalla rete OpenStreetMap, non precacheabili — richiede
+//       connessione quando la si guarda, come sarebbe anche con Google
+//       Maps). Le richieste verso tile.openstreetmap.org NON sono
+//       intercettate da nessuna regola qui: ricadono nel ramo
+//       "Cache-First per tutto il resto" già esistente, che fa comunque
+//       fetch() dalla rete quando la cache non ha il tile (funziona
+//       senza modifiche).
 // v6.6: nessuna modifica alla lista di precache — NUOVA funzione
 //       "Importa da backup" in impostazioni.html (merge per ID, nessuna
 //       sync forzata — solo locale) — solo bump di versione per la
@@ -129,7 +141,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v6.6';
+const CACHE_NAME = 'wego-v6.7';
 
 const STATIC_ASSETS = [
   '/',
@@ -152,11 +164,16 @@ const STATIC_ASSETS = [
   '/evento.js',
   '/spesa.js',
   '/exceljs.min.js',
+  '/leaflet.js',
+  '/leaflet.css',
+  '/leaflet-marker-icon.png',
+  '/leaflet-marker-icon-2x.png',
+  '/leaflet-marker-shadow.png',
 ];
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v6.6');
+  console.log('[SW] Install v6.7');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -182,7 +199,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v6.6');
+  console.log('[SW] Activate v6.7');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

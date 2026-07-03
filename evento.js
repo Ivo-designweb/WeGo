@@ -1,6 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.26
+// WeGo — evento.js v2.27
 // Logica pagina dettaglio evento
+// v2.27: NUOVO 4° criterio "Mappa" nel tab Riepilogo (evento.html v6.7)
+//        — mappa incorporata OpenStreetMap/Leaflet (vendorizzata in
+//        locale, nessuna API key) con un pin per ogni spesa con
+//        posizione GPS salvata (_riepilogoMappaExpenses(): solo tipo
+//        'expense', esclude Previsioni — Trasf./Cassiere non hanno mai
+//        GPS) + bottone "Apri tutte le posizioni in Google Maps" (link
+//        diretto multi-tappa, nessuna API key). Nuove funzioni:
+//        _riepilogoMappaExpenses(), _renderRiepilogoMappa(),
+//        _configureLeafletIcons(). _renderRiepilogo() ora smista subito
+//        su questo ramo separato quando mode==='mappa' (non è una
+//        suddivisione della torta, è una vista diversa).
 // v2.26: FIX grafico Riepilogo — "Per Partecipante" ora include anche i
 //        Trasferimenti (non solo le spese), nuova
 //        _riepilogoPartecipanteMovements(); "Data"/"Tipo spesa" restano
@@ -418,9 +429,120 @@ const EventoApp = {
     });
   },
 
+  // "Mappa" (NUOVO v2.27): solo spese reali con posizione GPS salvata.
+  // Trasferimenti/"+Cassiere" non hanno mai 'location' (il rilevamento
+  // GPS è disponibile solo per il tipo 'expense' — vedi spesa.js
+  // _updateTypeUI(), gpsCard nascosta per gli altri tipi), quindi sono
+  // già esclusi di fatto dal filtro su e.location; le Previsioni sono
+  // escluse esplicitamente per coerenza col resto del tab Riepilogo.
+  _riepilogoMappaExpenses() {
+    return EventoApp._expenses.filter(e =>
+      (e.type || 'expense') === 'expense' &&
+      !e.is_forecast &&
+      e.location &&
+      typeof e.location.lat === 'number' &&
+      typeof e.location.lng === 'number'
+    );
+  },
+
+  // Icone Leaflet di default puntano a un CDN — le rimappiamo ai file
+  // vendorizzati in locale (leaflet-marker-*.png, precache offline —
+  // vedi sw.js). Va fatto una sola volta, PRIMA di creare il primo
+  // marker (guard su EventoApp._leafletIconsConfigured).
+  _configureLeafletIcons() {
+    if (EventoApp._leafletIconsConfigured || typeof L === 'undefined') return;
+    L.Icon.Default.mergeOptions({
+      iconUrl:       '/leaflet-marker-icon.png',
+      iconRetinaUrl: '/leaflet-marker-icon-2x.png',
+      shadowUrl:     '/leaflet-marker-shadow.png'
+    });
+    EventoApp._leafletIconsConfigured = true;
+  },
+
+  _renderRiepilogoMappa() {
+    const emptyEl   = document.getElementById('riepilogoMappaEmpty');
+    const contentEl = document.getElementById('riepilogoMappaContent');
+    const countEl   = document.getElementById('riepilogoMappaCount');
+    const mapElId   = 'riepilogoMappaEl';
+    const googleBtn = document.getElementById('riepilogoMappaGoogleBtn');
+
+    if (typeof L === 'undefined') {
+      if (emptyEl) { emptyEl.style.display = ''; emptyEl.textContent = 'Mappa non disponibile (libreria non caricata).'; }
+      if (contentEl) contentEl.style.display = 'none';
+      return;
+    }
+
+    const points = EventoApp._riepilogoMappaExpenses();
+
+    if (!points.length) {
+      if (emptyEl)   emptyEl.style.display   = '';
+      if (contentEl) contentEl.style.display = 'none';
+      return;
+    }
+    if (emptyEl)   emptyEl.style.display   = 'none';
+    if (contentEl) contentEl.style.display = '';
+    if (countEl)   countEl.textContent = points.length === 1
+      ? '1 spesa con posizione GPS'
+      : `${points.length} spese con posizione GPS`;
+
+    EventoApp._configureLeafletIcons();
+
+    // Lazy-init: la mappa Leaflet viene creata una sola volta (un
+    // secondo L.map() sullo stesso elemento genera un errore) e poi
+    // riusata/aggiornata ad ogni cambio di dati o cambio tab.
+    if (!EventoApp._riepilogoLeafletMap) {
+      const map = L.map(mapElId, { attributionControl: true, zoomControl: true });
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
+      }).addTo(map);
+      EventoApp._riepilogoLeafletMap = map;
+      EventoApp._riepilogoLeafletMarkers = L.layerGroup().addTo(map);
+    }
+
+    const map     = EventoApp._riepilogoLeafletMap;
+    const markers = EventoApp._riepilogoLeafletMarkers;
+    markers.clearLayers();
+
+    const currency = EventoApp._event?.currency || 'EUR';
+    const bounds = [];
+    points.forEach(exp => {
+      const { lat, lng, address } = exp.location;
+      bounds.push([lat, lng]);
+      const dateLabel = exp.date ? Utils.formatDate(exp.date) : '';
+      const popup =
+        `<b>${Utils.escapeHtml(exp.title || 'Spesa')}</b><br>` +
+        `${Utils.formatAmount(parseFloat(exp.amount) || 0, exp.currency || currency)}` +
+        (dateLabel ? ` — ${dateLabel}` : '') +
+        (address ? `<br><span style="opacity:.75;">${Utils.escapeHtml(address)}</span>` : '');
+      L.marker([lat, lng]).bindPopup(popup).addTo(markers);
+    });
+
+    // La mappa potrebbe essere stata creata mentre il tab era nascosto
+    // (display:none) — Leaflet calcola le dimensioni solo quando il
+    // container è visibile, quindi invalidateSize() + fitBounds() vanno
+    // rimandati al frame successivo.
+    requestAnimationFrame(() => {
+      map.invalidateSize();
+      if (bounds.length === 1) {
+        map.setView(bounds[0], 15);
+      } else {
+        map.fitBounds(bounds, { padding: [24, 24] });
+      }
+    });
+
+    // Bottone "Apri tutte le posizioni in Google Maps" — link diretto
+    // multi-tappa (Indicazioni), nessuna API key richiesta, stesso
+    // pattern già usato in spesa.html per una singola posizione.
+    if (googleBtn) {
+      const path = points.map(exp => `${exp.location.lat},${exp.location.lng}`).join('/');
+      googleBtn.href = `https://www.google.com/maps/dir/${path}`;
+    }
+  },
+
   setRiepilogoGroup(mode) {
     EventoApp._riepilogoGroupBy = mode;
-    ['Partecipante', 'Data', 'Tipo'].forEach(cap => {
+    ['Partecipante', 'Data', 'Tipo', 'Mappa'].forEach(cap => {
       const chip = document.getElementById(`riepChip${cap}`);
       if (chip) chip.classList.toggle('selected', cap.toLowerCase() === mode);
     });
@@ -428,6 +550,22 @@ const EventoApp = {
   },
 
   _renderRiepilogo() {
+    const mode = EventoApp._riepilogoGroupBy || 'partecipante';
+
+    // "Mappa" (v2.27) è una vista completamente diversa (Leaflet, non
+    // torta) — ramo separato, non tocca buckets/donut/legenda sotto.
+    const emptyElChart = document.getElementById('riepilogoEmpty');
+    const chartWrapEl  = document.getElementById('riepilogoChartWrap');
+    const mappaWrapEl  = document.getElementById('riepilogoMappaWrap');
+    if (mode === 'mappa') {
+      if (emptyElChart) emptyElChart.style.display = 'none';
+      if (chartWrapEl)  chartWrapEl.style.display  = 'none';
+      if (mappaWrapEl)  mappaWrapEl.style.display  = '';
+      EventoApp._renderRiepilogoMappa();
+      return;
+    }
+    if (mappaWrapEl) mappaWrapEl.style.display = 'none';
+
     // Stessa palette usata per gli avatar (.avatar-0…7 in style.css) —
     // coerenza visiva col resto dell'app, specialmente per "Partecipante"
     // dove ogni fetta usa lo stesso colore dell'avatar di quella persona.
@@ -437,7 +575,6 @@ const EventoApp = {
     const userMap  = {};
     users.forEach(u => { userMap[u.id] = u; });
 
-    const mode = EventoApp._riepilogoGroupBy || 'partecipante';
     // v2.26: "Partecipante" usa spese+trasferimenti, "Data"/"Tipo spesa"
     // restano solo spese reali (vedi commenti sopra) — il totale mostrato
     // al centro della torta cambia di conseguenza in base al criterio
