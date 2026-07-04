@@ -1,6 +1,30 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v2.1
+// WeGo — sync.js v2.2
 // Gestione sincronizzazione bidirezionale con Supabase
+// v2.2: SINCRONIZZAZIONE INCREMENTALE (richiesta cliente — "troppo
+//       lenta"):
+//       - _syncExpense()/_syncPayment()/_syncUser() ora usano
+//         SupabaseClient.*.upsert() (vero upsert PostgREST, supabase.js
+//         v1.13) invece del vecchio "scarica TUTTI i record dell'evento
+//         per controllare se questo esiste già" — una query sprecata
+//         per OGNI record non sincronizzato, che cresceva con la storia
+//         dell'evento.
+//       - pullEvent() ora scarica solo i record modificati dopo l'ultimo
+//         pull riuscito (parametro "since" su users/expenses/
+//         payments.getByEvent(), supabase.js v1.13) invece di tutta la
+//         storia dell'evento ad ogni sync. Watermark salvato in locale
+//         per evento (_pullSinceKey, config "sync_since_<eventId>", MAI
+//         sincronizzato tra device), calcolato sul MASSIMO updated_at
+//         effettivamente ricevuto (non sull'orologio locale) con un
+//         margine di sicurezza di 2 minuti per tollerare piccoli
+//         disallineamenti di orologio tra device diversi. Non arretra
+//         mai. Nuova resetPullWatermark(eventId), usata da
+//         impostazioni.html dopo un import da backup (che può riportare
+//         indietro nel tempo lo stato locale).
+//       - Verificato con un test funzionale Node (dataset finto lato
+//         server): primo pull completo, pull successivo senza modifiche
+//         non ri-scarica nulla, un nuovo record lato server viene
+//         comunque intercettato correttamente.
 // v2.1: NUOVA sync differita ("quieta") — scheduleQuietSync()/
 //       _runQuietSync()/flushQuietSyncNow()/cancelQuietSync(): il
 //       salvataggio di un movimento (spesa.js) non blocca più l'utente
@@ -305,45 +329,25 @@ const Sync = {
     }
   },
 
+  // NUOVO v2.2: usa SupabaseClient.expenses.upsert() (vero upsert
+  // PostgREST — vedi supabase.js v1.13) invece del vecchio pattern
+  // "scarica TUTTE le spese dell'evento, controlla se questo id esiste
+  // già, poi decidi create o update" — quel fetch completo ad OGNI
+  // spesa non sincronizzata era una delle cause della lentezza
+  // percepita, soprattutto su eventi con molti movimenti. L'upsert
+  // gestisce da solo sia il caso "nuova spesa" sia "modifica" (e anche
+  // "creata e cancellata offline prima di aver mai sincronizzato", che
+  // prima veniva silenziosamente ignorata) in un'unica richiesta.
   async _syncExpense(exp) {
-    // Controlla se esiste su Supabase
-    const remote = await SupabaseClient.expenses.getByEvent(exp.event_id);
-    const exists  = Array.isArray(remote) && remote.some(r => r.id === exp.id);
-
-    if (exp.deleted) {
-      if (exists) await SupabaseClient.expenses.delete(exp.id);
-    } else if (exists) {
-      await SupabaseClient.expenses.update(exp);
-    } else {
-      await SupabaseClient.expenses.create(exp);
-    }
+    await SupabaseClient.expenses.upsert(exp);
   },
 
   async _syncPayment(pay) {
-    // Controlla se esiste su Supabase
-    const remote = await SupabaseClient.payments.getByEvent(pay.event_id);
-    const exists = Array.isArray(remote) && remote.some(r => r.id === pay.id);
-
-    if (pay.deleted) {
-      if (exists) await SupabaseClient.payments.delete(pay.id);
-    } else if (exists) {
-      await SupabaseClient.payments.update(pay);
-    } else {
-      await SupabaseClient.payments.create(pay);
-    }
+    await SupabaseClient.payments.upsert(pay);
   },
 
   async _syncUser(user) {
-    // Controlla se esiste già su Supabase (creato a sua volta dal creatore
-    // dell'evento, o da un altro device) per decidere create vs update.
-    const remote = await SupabaseClient.users.getByEvent(user.event_id);
-    const exists = Array.isArray(remote) && remote.some(r => r.id === user.id);
-
-    if (exists) {
-      await SupabaseClient.users.update(user);
-    } else {
-      await SupabaseClient.users.create(user);
-    }
+    await SupabaseClient.users.upsert(user);
   },
 
   // ─── PULL (Supabase → locale) ─────────────────────────────
@@ -369,7 +373,23 @@ const Sync = {
   async pullEvent(eventId) {
     if (!SupabaseClient.isConfigured()) return;
 
-    // Evento
+    // ─── SINCRONIZZAZIONE INCREMENTALE — NUOVO v2.2 ──────────
+    // Richiesta cliente ("troppo lenta"): invece di riscaricare SEMPRE
+    // tutti gli utenti/spese/pagamenti dell'evento, chiediamo al server
+    // solo i record modificati dopo l'ultimo pull riuscito per QUESTO
+    // device (vedi supabase.js v1.13 — parametro "since" su
+    // users/expenses/payments.getByEvent()). Il watermark è salvato in
+    // locale per evento (_pullSinceKey), NON sincronizzato tra device:
+    // ognuno tiene traccia solo di cosa ha già scaricato lui.
+    // "since" resta null al primissimo pull di un evento (nessun
+    // watermark salvato ancora) → fetch completo, come oggi, necessario
+    // per avere tutta la storia la prima volta.
+    const sinceKey = Sync._pullSinceKey(eventId);
+    const since    = Utils.getConfig(sinceKey) || null;
+
+    // Evento (sempre una singola riga — leggero di suo, nessuna
+    // ottimizzazione incrementale necessaria: lo scarichiamo per intero
+    // ad ogni pull, come già prima)
     const remoteEvent = await SupabaseClient.events.getById(eventId);
     if (!remoteEvent) return;
 
@@ -397,8 +417,8 @@ const Sync = {
       await DB.events.save(merged);
     }
 
-    // Utenti
-    const remoteUsers = await SupabaseClient.users.getByEvent(eventId);
+    // Utenti — incrementale (vedi commento sopra)
+    const remoteUsers = await SupabaseClient.users.getByEvent(eventId, since);
     if (Array.isArray(remoteUsers)) {
       for (const ru of remoteUsers) {
         const lu = await DB.users.getById(ru.id);
@@ -408,8 +428,8 @@ const Sync = {
       }
     }
 
-    // Spese
-    const remoteExp = await SupabaseClient.expenses.getByEvent(eventId);
+    // Spese — incrementale (vedi commento sopra)
+    const remoteExp = await SupabaseClient.expenses.getByEvent(eventId, since);
     if (Array.isArray(remoteExp)) {
       for (const re of remoteExp) {
         const le = await DB.expenses.getById(re.id);
@@ -467,8 +487,8 @@ const Sync = {
       }
     }
 
-    // Pagamenti saldati
-    const remotePay = await SupabaseClient.payments.getByEvent(eventId);
+    // Pagamenti saldati — incrementale (vedi commento sopra)
+    const remotePay = await SupabaseClient.payments.getByEvent(eventId, since);
     if (Array.isArray(remotePay)) {
       for (const rp of remotePay) {
         const lp = await DB.payments.getById(rp.id);
@@ -476,6 +496,38 @@ const Sync = {
           await DB.payments.save({ ...(lp || {}), ...rp, synced: true });
         }
       }
+    }
+
+    // ─── AGGIORNA IL WATERMARK INCREMENTALE — NUOVO v2.2 ─────
+    // Calcolato sul MASSIMO updated_at effettivamente ricevuto dal
+    // server tra i record appena scaricati (evento + utenti + spese +
+    // pagamenti) — MAI sull'orologio locale del device: gli updated_at
+    // sono scritti dal device che ha fatto la modifica (vedi
+    // supabase.js), quindi usare "adesso" del device che sta facendo il
+    // pull potrebbe essere disallineato rispetto a chi ha scritto i
+    // dati. Margine di sicurezza di 2 minuti sottratto per tollerare
+    // piccoli disallineamenti di orologio residui tra device diversi
+    // (se il margine non ci fosse, una modifica scritta con un orologio
+    // leggermente "indietro" rischierebbe di essere saltata per sempre
+    // dal prossimo pull incrementale). Non arretra MAI il watermark già
+    // salvato, anche se questo giro non ha trovato nulla di nuovo.
+    try {
+      const seenTimestamps = [
+        remoteEvent.updated_at,
+        ...(Array.isArray(remoteUsers) ? remoteUsers.map(u => u.updated_at) : []),
+        ...(Array.isArray(remoteExp)   ? remoteExp.map(e => e.updated_at)   : []),
+        ...(Array.isArray(remotePay)   ? remotePay.map(p => p.updated_at)   : [])
+      ].filter(Boolean);
+
+      if (seenTimestamps.length) {
+        const maxSeen = seenTimestamps.reduce((max, ts) => (ts > max ? ts : max));
+        const safeWatermark = new Date(new Date(maxSeen).getTime() - 2 * 60 * 1000).toISOString();
+        if (!since || safeWatermark > since) {
+          Utils.setConfig(sinceKey, safeWatermark);
+        }
+      }
+    } catch (e) {
+      console.warn('[Sync] Aggiornamento watermark incrementale fallito:', e.message);
     }
 
     // ─── ULTIMA PRESENZA (last_sync_at) ──────────────────────
@@ -505,6 +557,23 @@ const Sync = {
   },
 
   // ─── CERCA EVENTO PER CODICE ──────────────────────────────
+  // Chiave di config locale (per-device, MAI sincronizzata) usata per il
+  // watermark della sincronizzazione incrementale — vedi pullEvent().
+  _pullSinceKey(eventId) {
+    return `sync_since_${eventId}`;
+  },
+
+  // Cancella il watermark incrementale di un evento, forzando un pull
+  // completo (fetch di TUTTA la storia) al prossimo giro — usata quando
+  // i dati locali di un evento potrebbero non essere più coerenti col
+  // watermark salvato: import di un backup (impostazioni.html
+  // importData(), che può riportare indietro nel tempo lo stato locale)
+  // o quando ci si scollega da un evento (il prossimo eventuale rientro
+  // deve ripartire da zero, non fidarsi di un vecchio watermark).
+  resetPullWatermark(eventId) {
+    Utils.setConfig(Sync._pullSinceKey(eventId), null);
+  },
+
   async findEventByCode(code) {
     if (!Utils.isOnline() || !SupabaseClient.isConfigured()) return null;
     try {

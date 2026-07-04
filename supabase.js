@@ -1,6 +1,22 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.12
+// WeGo — supabase.js v1.13
 // Client Supabase — lettura config da localStorage
+// v1.13: sincronizzazione incrementale (richiesta cliente — "troppo
+//        lenta"): NUOVI users.upsert()/expenses.upsert()/
+//        payments.upsert() — vero upsert PostgREST (POST +
+//        'Prefer: resolution=merge-duplicates' + 'on_conflict=id') in
+//        UNA sola richiesta, al posto del vecchio pattern in sync.js
+//        "scarica TUTTI i record dell'evento solo per controllare se
+//        questo esiste già" prima di scegliere create() o update().
+//        NUOVO parametro "since" anche su users.getByEvent()/
+//        payments.getByEvent() (expenses.getByEvent() lo aveva già, ma
+//        non veniva mai usato) — filtra lato server via
+//        "updated_at=gt.<since>", usato da sync.js v2.2 pullEvent() per
+//        scaricare solo i record nuovi/modificati dall'ultimo pull
+//        invece di rifare sempre un fetch completo. request() accetta
+//        ora un 5° parametro preferHeader (default invariato,
+//        'return=representation') per poter passare l'header Prefer
+//        richiesto dall'upsert.
 // v1.12: nuovo campo expenses.is_cassa_comune in expenses.create()/
 //        update() — flag "Uso Cassa Comune" (vedi spesa.html/spesa.js
 //        v2.7, db.js v1.9, utils.js v1.4 calculateCassaComune()).
@@ -76,7 +92,13 @@ const SupabaseClient = (() => {
   /**
    * Esegue una richiesta REST Supabase
    */
-  async function request(method, path, body = null, params = null) {
+  // NUOVO: parametro preferHeader (default invariato) — serve per gli
+  // upsert() qui sotto, che usano 'resolution=merge-duplicates' al posto
+  // del default 'return=representation' per fare un vero upsert
+  // PostgREST (INSERT ... ON CONFLICT DO UPDATE) in una sola richiesta,
+  // invece di dover prima interrogare il server per sapere se il record
+  // esiste già (vedi sync.js v2.2 _syncExpense/_syncPayment/_syncUser).
+  async function request(method, path, body = null, params = null, preferHeader = 'return=representation') {
     if (!isConfigured()) {
       throw new Error('Supabase non configurato. Vai nelle impostazioni admin.');
     }
@@ -91,7 +113,7 @@ const SupabaseClient = (() => {
       'Content-Type':  'application/json',
       'apikey':        _key,
       'Authorization': `Bearer ${_key}`,
-      'Prefer':        'return=representation'
+      'Prefer':        preferHeader
     };
 
     const options = { method, headers };
@@ -180,12 +202,38 @@ const SupabaseClient = (() => {
       });
     },
 
-    async getByEvent(eventId) {
-      return request('GET', 'sp_users', null, {
+    // NUOVO (v1.13) — vero upsert PostgREST (INSERT ... ON CONFLICT id DO
+    // UPDATE) in un'unica richiesta: sostituisce il vecchio pattern
+    // "getByEvent + controlla se esiste + create o update" in sync.js,
+    // che ri-scaricava TUTTI gli utenti dell'evento solo per decidere.
+    // Stessi campi di create(), PostgREST li usa anche come SET in caso
+    // di conflitto.
+    async upsert(user) {
+      return request('POST', 'sp_users', {
+        id:         user.id,
+        event_id:   user.event_id,
+        name:       user.name,
+        color_idx:  user.color_idx || 0,
+        created_at: user.created_at,
+        updated_at: user.updated_at,
+        active:     user.active !== false,
+        joined_at:  user.joined_at || null,
+        last_sync_at: user.last_sync_at || null
+      }, { on_conflict: 'id' }, 'resolution=merge-duplicates,return=representation');
+    },
+
+    // NUOVO parametro "since" (v1.13, stesso pattern già presente su
+    // expenses.getByEvent): se indicato, filtra lato server solo gli
+    // utenti modificati dopo quella data — sincronizzazione
+    // incrementale, vedi sync.js v2.2 pullEvent().
+    async getByEvent(eventId, since = null) {
+      const params = {
         event_id: `eq.${eventId}`,
         select:   '*',
         order:    'created_at.asc'
-      });
+      };
+      if (since) params.updated_at = `gt.${since}`;
+      return request('GET', 'sp_users', null, params);
     },
 
     async update(user) {
@@ -264,6 +312,42 @@ const SupabaseClient = (() => {
         deleted:        expense.deleted,
         updated_at:     Utils.now()
       });
+    },
+
+    // NUOVO (v1.13) — vero upsert PostgREST (INSERT ... ON CONFLICT id DO
+    // UPDATE) in un'unica richiesta: sostituisce il vecchio pattern
+    // "getByEvent + controlla se esiste + create o update" in sync.js,
+    // che ri-scaricava TUTTE le spese dell'evento solo per decidere.
+    // Stessi campi di create(), PostgREST li usa anche come SET in caso
+    // di conflitto.
+    async upsert(expense) {
+      return request('POST', 'sp_expenses', {
+        id:             expense.id,
+        event_id:       expense.event_id,
+        type:           expense.type || 'expense',
+        title:          expense.title,
+        description:    expense.description || '',
+        amount:         expense.amount,
+        currency:       expense.currency || 'EUR',
+        paid_by:        expense.paid_by,
+        paid_for:       expense.paid_for || null,
+        participants:   expense.participants || [],
+        payment_method: expense.payment_method || 'contanti',
+        category:       expense.category || null,
+        is_forecast:    !!expense.is_forecast,
+        is_cassa_comune: !!expense.is_cassa_comune,
+        date:           expense.date,
+        location_lat:   expense.location?.lat || null,
+        location_lng:   expense.location?.lng || null,
+        location_address: expense.location?.address || null,
+        has_photo:      expense.has_photo || false,
+        notes:          expense.notes || '',
+        settled:        expense.settled || false,
+        created_by:     expense.created_by || null,
+        created_at:     expense.created_at,
+        updated_at:     expense.updated_at,
+        deleted:        expense.deleted || false
+      }, { on_conflict: 'id' }, 'resolution=merge-duplicates,return=representation');
     },
 
     async getByEvent(eventId, since = null) {
@@ -367,12 +451,34 @@ const SupabaseClient = (() => {
       });
     },
 
-    async getByEvent(eventId) {
-      return request('GET', 'sp_payments', null, {
+    // NUOVO (v1.13) — vero upsert PostgREST, stesso motivo di
+    // expenses.upsert()/users.upsert() qui sopra.
+    async upsert(payment) {
+      return request('POST', 'sp_payments', {
+        id:         payment.id,
+        event_id:   payment.event_id,
+        from_user:  payment.from_user,
+        to_user:    payment.to_user,
+        amount:     payment.amount,
+        method:     payment.method || 'contanti',
+        note:       payment.note || '',
+        date:       payment.date,
+        deleted:    payment.deleted || false,
+        created_at: payment.created_at,
+        updated_at: payment.updated_at
+      }, { on_conflict: 'id' }, 'resolution=merge-duplicates,return=representation');
+    },
+
+    // NUOVO parametro "since" (v1.13) — vedi users.getByEvent()/
+    // expenses.getByEvent() qui sopra, stesso pattern.
+    async getByEvent(eventId, since = null) {
+      const params = {
         event_id: `eq.${eventId}`,
         select:   '*',
         order:    'created_at.desc'
-      });
+      };
+      if (since) params.updated_at = `gt.${since}`;
+      return request('GET', 'sp_payments', null, params);
     }
   };
 

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v6.8</title>
+  <title>Impostazioni — WeGo v6.9</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -470,7 +470,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 6.8</div>
+        <div class="about-ver">Versione 6.9</div>
 
         <div class="about-div"></div>
 
@@ -1160,6 +1160,19 @@ const SettingsApp = {
       // sessioni device→utente per evento...): merge chiave per chiave,
       // non tocca le chiavi assenti dal backup.
       Object.entries(config).forEach(([k, v]) => Utils.setConfig(k, v));
+
+      // NUOVO (sync incrementale, sync.js v2.2): un backup può riportare
+      // indietro nel tempo lo stato locale di un evento — se questo
+      // device aveva già un watermark di sincronizzazione più avanti nel
+      // tempo, un pull incrementale rischierebbe di non ri-scaricare
+      // record che il ripristino ha appena reso "vecchi" di nuovo.
+      // Azzeriamo il watermark per ogni evento importato (stessa chiave
+      // usata da Sync._pullSinceKey() in sync.js — non incluso in questa
+      // pagina, quindi la chiave è replicata qui direttamente invece di
+      // aggiungere una dipendenza di script solo per questo): il
+      // prossimo pull farà un fetch completo di sicurezza, poi tornerà
+      // incrementale.
+      events.forEach(ev => Utils.setConfig(`sync_since_${ev.id}`, null));
 
       Utils.toast(
         `Ripristino completato: ${events.length} eventi, ${expenses.length} movimenti`,

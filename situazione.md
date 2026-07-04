@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v6.8 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
+**Versione corrente: v6.9 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
 
 ---
 
@@ -43,14 +43,14 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v6.8   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
-├── evento.html          v6.8  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
+├── index.html          v6.9   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
+├── evento.html          v6.9  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
 ├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
-├── impostazioni.html    v6.8   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
+├── impostazioni.html    v6.9   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
-├── sw.js                v6.8   Service Worker (CACHE_NAME: wego-v6.8) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js e /leaflet.js|css|marker-*.png
-├── manifest.json        v6.8   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v6.9   Service Worker (CACHE_NAME: wego-v6.9) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js e /leaflet.js|css|marker-*.png
+├── manifest.json        v6.9   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── exceljs.min.js        4.4.0 Libreria ExcelJS vendorizzata in locale (build "bare", nessun CDN) — usata solo da EventoApp.exportRiepilogoExcel() (evento.js), precaricata da sw.js per funzionare offline
 ├── leaflet.js/.css       1.9.4 Libreria Leaflet vendorizzata in locale (nessun CDN, nessuna API key) — usata dal criterio "Mappa" nel tab Riepilogo (evento.js), tile scaricati da OpenStreetMap al momento della visualizzazione (richiede rete)
 ├── leaflet-marker-*.png  1.9.4 Icone marker di default di Leaflet (icon/icon-2x/shadow), vendorizzate in locale insieme a leaflet.js/.css
@@ -60,8 +60,8 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 ├── evento.js             v2.28 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (Partecipante/Data/Tipo spesa) + Mappa GPS (Leaflet/OSM, NUOVO) + export Excel dettagliato — RIMOSSO il gating sync esterni, menu "Passa a Pro"
 ├── spesa.js               v2.8 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", salvataggio/eliminazione NON aspettano più la sync (NUOVO, torna subito indietro), fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
-├── sync.js                v2.1 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza + sync differita/"quieta" (NUOVO, debounce 5s + rete di sicurezza) — RIMOSSO il gating eventi esterni
-├── supabase.js            v1.12 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune, events.photo_sync_enabled — FIX GRANT service_role
+├── sync.js                v2.2 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza + sync differita/"quieta" (debounce 5s + rete di sicurezza) + sincronizzazione INCREMENTALE (NUOVO — pull solo record nuovi/modificati, push con upsert) — RIMOSSO il gating eventi esterni
+├── supabase.js            v1.13 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune, events.photo_sync_enabled, upsert() su users/expenses/payments + parametro "since" incrementale (NUOVO) — FIX GRANT service_role
 ├── db.js                  v1.10 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast/is_cassa_comune — gated/sync_allowed sempre false/true — NUOVI users/expenses/payments.getAll() non filtrati (per il backup completo, vedi impostazioni.html)
 ├── utils.js               v1.4 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier', NUOVA calculateCassaComune())
 ├── notifications.js       v1.3 Notifiche push Web Push (VAPID) + Supabase, fix percorso icone
@@ -1493,6 +1493,93 @@ file JS aggiornati).
 
 ---
 
+## 5octovicies. Sincronizzazione incrementale (v6.9)
+
+Richiesta cliente: la sync "sembra lenta" — chiesto se scarica tutto o
+solo le ultime modifiche. Verificato nel codice: **mix delle due cose**,
+con la parte PULL come vero collo di bottiglia.
+
+### Diagnosi
+- **Push** (locale → server): già incrementale nella SELEZIONE (solo
+  `getUnsyced()`), ma per ogni singolo record da inviare faceva un
+  `getByEvent()` completo — riscaricava TUTTI i movimenti dell'evento
+  solo per sapere se quello specifico esisteva già (create vs update).
+  Query sprecata, una per record, che cresce con la storia dell'evento.
+- **Pull** (server → locale): `pullEvent()` riscaricava SEMPRE tutti gli
+  utenti/spese/pagamenti dell'intero evento, ad ogni sync — non
+  incrementale per niente. Su eventi con molti movimenti (viaggi lunghi,
+  tanti partecipanti) è la causa più probabile della lentezza percepita,
+  e peggiora nel tempo.
+- **Scoperta**: `supabase.js` aveva già un parametro `since` pronto su
+  `expenses.getByEvent(eventId, since)` per filtrare lato server — MAI
+  usato, un'ottimizzazione a metà mai collegata.
+
+### Soluzione implementata
+
+**1) Push — upsert lato server invece di "controlla poi decidi"**
+Nuovi `users.upsert()` / `expenses.upsert()` / `payments.upsert()` in
+supabase.js: un vero upsert PostgREST in un'unica richiesta (`POST` +
+header `Prefer: resolution=merge-duplicates` + `on_conflict=id` —
+INSERT... ON CONFLICT DO UPDATE). `Sync._syncExpense()`/`_syncPayment()`/
+`_syncUser()` ora chiamano solo questo, eliminando del tutto il fetch
+completo precedente. Bonus: gestisce correttamente anche il caso limite
+"creato e cancellato offline prima di aver mai sincronizzato" (prima
+veniva silenziosamente ignorato).
+
+**2) Pull — solo record nuovi/modificati dall'ultimo sync**
+- Aggiunto il parametro `since` (mancante) anche a
+  `users.getByEvent()`/`payments.getByEvent()` in supabase.js, stesso
+  pattern già presente su `expenses.getByEvent()`.
+- `Sync.pullEvent()` ora legge un **watermark locale per evento**
+  (`Utils.getConfig('sync_since_<eventId>')`, MAI sincronizzato tra
+  device — ognuno tiene traccia solo di cosa ha già scaricato lui) e lo
+  passa come `since` alle 3 query. Al primissimo pull di un evento
+  (nessun watermark) resta `null` → fetch completo, necessario per avere
+  tutta la storia la prima volta.
+- **Aggiornamento del watermark**: calcolato sul MASSIMO `updated_at`
+  effettivamente ricevuto dal server tra i record scaricati — MAI
+  sull'orologio locale del device (gli `updated_at` sono scritti dal
+  device che fa la modifica, usare "adesso" di chi fa il pull
+  rischierebbe disallineamenti). **Margine di sicurezza di 2 minuti**
+  sottratto per tollerare piccoli disallineamenti di orologio tra
+  device diversi — senza margine, una modifica scritta con un orologio
+  leggermente indietro rischierebbe di essere saltata per sempre dal
+  pull incrementale successivo. Il watermark non arretra mai.
+- L'evento stesso (`SupabaseClient.events.getById`) resta un fetch
+  completo ad ogni pull: è una singola riga, nessuna ottimizzazione
+  necessaria.
+- Nuova `Sync.resetPullWatermark(eventId)`: azzera il watermark,
+  forzando un fetch completo di sicurezza al pull successivo. Collegata
+  a `SettingsApp._handleImportFile()` (impostazioni.html) — un backup
+  importato può riportare indietro nel tempo lo stato locale di un
+  evento, un vecchio watermark rischierebbe di non far ri-scaricare
+  record resi "vecchi" di nuovo dal ripristino (sync.js non è incluso
+  in impostazioni.html, la stessa chiave di config è quindi replicata
+  lì direttamente invece di aggiungere una dipendenza di script solo per
+  questo).
+
+### Verifica
+Testato funzionalmente con un harness Node (dataset finto lato
+server, non solo controllo sintassi):
+- primo pull → fetch completo (since=null);
+- pull immediatamente successivo senza modifiche → stesso watermark,
+  nessun dato ri-scaricato inutilmente;
+- nuovo record aggiunto lato server → intercettato correttamente al
+  pull successivo, watermark avanza con il margine di sicurezza
+  applicato, mai arretra.
+
+### File toccati
+`supabase.js` (v1.13 — `upsert()` su users/expenses/payments,
+parametro `since` su users/payments `getByEvent()`, `request()` con
+nuovo parametro `preferHeader`), `sync.js` (v2.2 —
+`_syncExpense()`/`_syncPayment()`/`_syncUser()` semplificati,
+`pullEvent()` incrementale, `_pullSinceKey()`, `resetPullWatermark()`),
+`impostazioni.html` (v6.9 — reset watermark dopo import),
+`index.html`/`evento.html`/`sw.js`/`manifest.json` (v6.9 — solo bump
+"famiglia").
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -1592,8 +1679,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v6.8 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
-**Service Worker cache:** `wego-v6.8`
+**Versione attuale:** v6.9 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
+**Service Worker cache:** `wego-v6.9`
 
 ---
 
