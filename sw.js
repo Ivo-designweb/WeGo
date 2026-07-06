@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v6.9
+// WeGo — sw.js v7.0
 // Service Worker — cache offline + background sync
+// v7.0: nessuna modifica alla lista di precache — bump versione per
+//       rigenerare la cache con l'OTTIMIZZAZIONE latenza sync (sync.js
+//       v2.3): controllo licenza max 1 volta/5min, 4 letture del pull
+//       in parallelo, "ultima presenza" max 1 volta/5min e non
+//       bloccante — solo bump di versione per la "famiglia"
+//       index/evento/impostazioni.
 // v6.9: nessuna modifica alla lista di precache (già includeva
 //       supabase.js/sync.js) — bump versione per rigenerare la cache
 //       con la sincronizzazione INCREMENTALE (sync.js v2.2/
@@ -155,7 +161,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v6.9';
+const CACHE_NAME = 'wego-v7.0';
 
 const STATIC_ASSETS = [
   '/',
@@ -187,7 +193,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v6.9');
+  console.log('[SW] Install v7.0');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -213,7 +219,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v6.9');
+  console.log('[SW] Activate v7.0');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

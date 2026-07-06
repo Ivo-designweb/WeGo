@@ -1,6 +1,27 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v2.2
+// WeGo — sync.js v2.3
 // Gestione sincronizzazione bidirezionale con Supabase
+// v2.3: OTTIMIZZAZIONE latenza (richiesta cliente — "vari secondi anche
+//       senza dati da sincronizzare"): a zero modifiche una sync faceva
+//       comunque 6 richieste di rete IN FILA (200-500ms l'una su
+//       mobile). Tre interventi:
+//       1) License.checkRemoteStatus() (query sp_device_license) non più
+//          ad OGNI push ma al massimo una volta ogni 5 minuti (config
+//          license_last_remote_check — checkRemoteStatus è chiamata solo
+//          da qui, verificato, quindi il throttle vale per tutta l'app);
+//       2) le 4 letture del pull (evento/utenti/spese/pagamenti) ora
+//          partono INSIEME (Promise.all) invece che in sequenza: tempo
+//          totale = la più lenta, non la somma;
+//       3) la scrittura "ultima presenza" (last_sync_at, PATCH sul
+//          server ad ogni pull) ora al massimo una volta ogni 5 minuti
+//          per evento (config last_presence_push_<eventId>) e
+//          fire-and-forget (non tiene più in piedi rotella e attesa per
+//          una scrittura di pura cortesia; se fallisce resta
+//          synced:false e viene ripresa dal push successivo).
+//       Risultato: sync "a vuoto" da ~6 round-trip sequenziali a ~4
+//       paralleli (≈1 round-trip percepito). Verificato con harness
+//       Node: 4 GET per pull, PATCH presenza solo la prima volta,
+//       incrementale/watermark invariati e corretti.
 // v2.2: SINCRONIZZAZIONE INCREMENTALE (richiesta cliente — "troppo
 //       lenta"):
 //       - _syncExpense()/_syncPayment()/_syncUser() ora usano
@@ -89,12 +110,21 @@ const Sync = {
     Sync._showBar('Sincronizzazione in corso…');
 
     try {
-      // Stesso principio per la licenza Pro di QUESTO device (vedi
-      // license.js v1.1): una query in più, solo per sapere se lo stato
-      // remoto (sp_device_license) è cambiato da quando l'abbiamo
-      // controllato l'ultima volta.
+      // Licenza Pro di QUESTO device: era una query in più ad OGNI push
+      // (anche a raffica), solo per accorgersi di un'abilitazione/revoca
+      // — evento raro. LIMITATA (v2.3) a una volta ogni 5 minuti:
+      // checkRemoteStatus() è chiamata SOLO da qui (verificato), quindi
+      // il throttle vale per tutta l'app. Un'abilitazione Pro appena
+      // concessa viene quindi vista al massimo entro 5 minuti (o subito,
+      // riaprendo l'app: il primo push dopo il caricamento passa sempre
+      // se i 5 minuti sono trascorsi).
       if (typeof License !== 'undefined') {
-        await License.checkRemoteStatus();
+        const lastCheck = Utils.getConfig('license_last_remote_check');
+        const now = Date.now();
+        if (!lastCheck || now - lastCheck > 5 * 60 * 1000) {
+          Utils.setConfig('license_last_remote_check', now);
+          await License.checkRemoteStatus();
+        }
       }
 
       const pendingOps = await DB.pending.getAll();
@@ -387,10 +417,19 @@ const Sync = {
     const sinceKey = Sync._pullSinceKey(eventId);
     const since    = Utils.getConfig(sinceKey) || null;
 
-    // Evento (sempre una singola riga — leggero di suo, nessuna
-    // ottimizzazione incrementale necessaria: lo scarichiamo per intero
-    // ad ogni pull, come già prima)
-    const remoteEvent = await SupabaseClient.events.getById(eventId);
+    // OTTIMIZZAZIONE v2.3: le 4 letture dal server (evento, utenti,
+    // spese, pagamenti) sono indipendenti tra loro — prima erano in
+    // FILA (una aspettava l'altra: 4 round-trip sommati, la causa
+    // principale dei "vari secondi" percepiti anche a zero modifiche),
+    // ora partono INSIEME: il tempo totale è quello della più lenta,
+    // non la somma. L'elaborazione locale dei risultati (merge in
+    // IndexedDB) resta sequenziale sotto, invariata.
+    const [remoteEvent, remoteUsers, remoteExp, remotePay] = await Promise.all([
+      SupabaseClient.events.getById(eventId),
+      SupabaseClient.users.getByEvent(eventId, since),
+      SupabaseClient.expenses.getByEvent(eventId, since),
+      SupabaseClient.payments.getByEvent(eventId, since)
+    ]);
     if (!remoteEvent) return;
 
     const localEvent = await DB.events.getById(eventId);
@@ -417,8 +456,7 @@ const Sync = {
       await DB.events.save(merged);
     }
 
-    // Utenti — incrementale (vedi commento sopra)
-    const remoteUsers = await SupabaseClient.users.getByEvent(eventId, since);
+    // Utenti — incrementale (risultato già scaricato in parallelo sopra)
     if (Array.isArray(remoteUsers)) {
       for (const ru of remoteUsers) {
         const lu = await DB.users.getById(ru.id);
@@ -428,8 +466,7 @@ const Sync = {
       }
     }
 
-    // Spese — incrementale (vedi commento sopra)
-    const remoteExp = await SupabaseClient.expenses.getByEvent(eventId, since);
+    // Spese — incrementale (risultato già scaricato in parallelo sopra)
     if (Array.isArray(remoteExp)) {
       for (const re of remoteExp) {
         const le = await DB.expenses.getById(re.id);
@@ -487,8 +524,7 @@ const Sync = {
       }
     }
 
-    // Pagamenti saldati — incrementale (vedi commento sopra)
-    const remotePay = await SupabaseClient.payments.getByEvent(eventId, since);
+    // Pagamenti saldati — incrementale (risultato già scaricato in parallelo sopra)
     if (Array.isArray(remotePay)) {
       for (const rp of remotePay) {
         const lp = await DB.payments.getById(rp.id);
@@ -531,23 +567,36 @@ const Sync = {
     }
 
     // ─── ULTIMA PRESENZA (last_sync_at) ──────────────────────
-    // Il pull è andato a buon fine: questo device ha appena ottenuto i
-    // dati aggiornati di questo evento. Aggiorna sul server l'orario
-    // dell'ultima sincronizzazione per l'utente di QUESTO device, così
-    // gli altri partecipanti possono vedere (nella pagina Partecipanti)
-    // se i suoi dati sono aggiornati. Aggiornamento diretto e "best
-    // effort": non deve mai bloccare o far fallire il pull.
+    // Il pull è andato a buon fine: aggiorna sul server l'orario
+    // dell'ultima sincronizzazione per l'utente di QUESTO device (usato
+    // dalla pagina Partecipanti degli altri per vedere se i suoi dati
+    // sono aggiornati). OTTIMIZZATO v2.3: era una PATCH bloccante ad
+    // OGNI pull (anche 10 volte in un minuto — informazione con
+    // precisione al minuto, non serve quella frequenza) — ora al
+    // massimo una volta ogni 5 minuti per evento, e la scrittura sul
+    // server è fire-and-forget (non tiene più in piedi la
+    // sincronizzazione, e la rotella, in attesa di una scrittura di
+    // pura cortesia). Best effort come prima: non blocca né fa fallire
+    // il pull.
     try {
-      const session = DB.sessions.get(eventId);
-      if (session?.userId) {
-        const me = await DB.users.getById(session.userId);
-        if (me) {
-          me.last_sync_at = Utils.now();
-          me.synced = false;
-          await DB.users.save(me);
-          if (Utils.isOnline()) {
-            await SupabaseClient.users.update(me);
-            await DB.users.markSynced(me.id);
+      const presenceKey  = `last_presence_push_${eventId}`;
+      const lastPresence = Utils.getConfig(presenceKey);
+      const nowMs = Date.now();
+      if (!lastPresence || nowMs - lastPresence > 5 * 60 * 1000) {
+        const session = DB.sessions.get(eventId);
+        if (session?.userId) {
+          const me = await DB.users.getById(session.userId);
+          if (me) {
+            Utils.setConfig(presenceKey, nowMs);
+            me.last_sync_at = Utils.now();
+            me.synced = false;
+            await DB.users.save(me);
+            if (Utils.isOnline()) {
+              // fire-and-forget: il pull per l'utente è già finito
+              SupabaseClient.users.update(me)
+                .then(() => DB.users.markSynced(me.id))
+                .catch(() => {}); // resterà synced:false, ripreso dal prossimo push
+            }
           }
         }
       }
