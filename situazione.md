@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v7.0 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
+**Versione corrente: v7.1 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
 
 ---
 
@@ -43,14 +43,14 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v7.0   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
-├── evento.html          v7.0  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
+├── index.html          v7.1   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
+├── evento.html          v7.1  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
 ├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
-├── impostazioni.html    v7.0   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
+├── impostazioni.html    v7.1   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
-├── sw.js                v7.0   Service Worker (CACHE_NAME: wego-v7.0) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js e /leaflet.js|css|marker-*.png
-├── manifest.json        v7.0   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v7.1   Service Worker (CACHE_NAME: wego-v7.1) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js e /leaflet.js|css|marker-*.png
+├── manifest.json        v7.1   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── exceljs.min.js        4.4.0 Libreria ExcelJS vendorizzata in locale (build "bare", nessun CDN) — usata solo da EventoApp.exportRiepilogoExcel() (evento.js), precaricata da sw.js per funzionare offline
 ├── leaflet.js/.css       1.9.4 Libreria Leaflet vendorizzata in locale (nessun CDN, nessuna API key) — usata dal criterio "Mappa" nel tab Riepilogo (evento.js), tile scaricati da OpenStreetMap al momento della visualizzazione (richiede rete)
 ├── leaflet-marker-*.png  1.9.4 Icone marker di default di Leaflet (icon/icon-2x/shadow), vendorizzate in locale insieme a leaflet.js/.css
@@ -61,7 +61,7 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 ├── spesa.js               v2.8 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", salvataggio/eliminazione NON aspettano più la sync (NUOVO, torna subito indietro), fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.3 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza + sync differita/"quieta" (debounce 5s + rete di sicurezza) + sincronizzazione INCREMENTALE (pull solo record nuovi/modificati, push con upsert) + ottimizzazione latenza (NUOVO — pull parallelo, throttle licenza e presenza) — RIMOSSO il gating eventi esterni
-├── supabase.js            v1.13 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune, events.photo_sync_enabled, upsert() su users/expenses/payments + parametro "since" incrementale (NUOVO) — FIX GRANT service_role
+├── supabase.js            v1.14 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune, events.photo_sync_enabled, upsert() + "since" incrementale + header RLS "x-wego-codes" (NUOVO — sicurezza) — FIX GRANT service_role
 ├── db.js                  v1.10 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast/is_cassa_comune — gated/sync_allowed sempre false/true — NUOVI users/expenses/payments.getAll() non filtrati (per il backup completo, vedi impostazioni.html)
 ├── utils.js               v1.4 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier', NUOVA calculateCassaComune())
 ├── notifications.js       v1.3 Notifiche push Web Push (VAPID) + Supabase, fix percorso icone
@@ -1621,6 +1621,83 @@ watermark invariati e corretti.
 
 ---
 
+## 5trices. SICUREZZA database — RLS con codici evento (v7.1)
+
+Segnalazione di Supabase al cliente: "chi accede alla app può avere
+accesso al database completo anche in scrittura". **Fondata**: RLS era
+disattivato (presente nello schema ma commentato, "opzionale") e la
+anon key — pubblica per design, scaricabile da chiavi.json — aveva
+GRANT ampi su tutte le tabelle: chiunque, senza nemmeno aprire l'app,
+poteva leggere/modificare l'INTERO database con una richiesta HTTP.
+Uniche tabelle già protette: sp_device_license/sp_sync_status
+(scrittura solo via /api/ con service key — pattern v4.x).
+
+### Soluzione scelta (opzione C, confermata dal cliente tra 3 proposte)
+RLS con "segreto per evento": il codice evento diventa la chiave di
+accesso ai dati di quell'evento — coerente col design dell'app ("chi ha
+il codice partecipa"). Alternative scartate: (A) RLS generico = solo
+cosmetico senza un sistema di login; (B) tutto dietro API server = più
+sicuro in assoluto ma refactor grosso (riscrittura completa layer sync,
+~5-6 funzioni Vercel nuove, doppia latenza).
+
+### Come funziona
+- **Client** (supabase.js v1.14): ogni richiesta REST invia l'header
+  `x-wego-codes` con i codici di TUTTI gli eventi presenti nel DB
+  locale (`_collectEventCodes()`, lettura IndexedDB ~ms). Il flusso
+  "unisciti con codice" (findByCode) include anche il codice appena
+  digitato, non ancora in locale (`_extraCode`, azzerato nel finally).
+- **Server** (sezione RLS in SQL_SCHEMA + file `sicurezza_rls.sql`):
+  RLS abilitato su TUTTE le 8 tabelle. Due funzioni helper:
+  `wego_codes()` (estrae i codici dall'header via
+  `current_setting('request.headers')`, robusta a header
+  assente/vuoto con NULLIF) e `wego_event_ids()` (codici → id evento;
+  SECURITY DEFINER con search_path fissato, necessario per non
+  incorrere nella RLS di sp_events stessa durante la risoluzione).
+  Policy per tabella: sp_events per codice; users/expenses/payments per
+  event_id ∈ eventi consentiti; expense_photos con doppio salto
+  spesa→evento; push_subscriptions FOR ALL (serve la DELETE per la
+  disiscrizione); sync_status/device_license SELECT-only per anon
+  (scritture solo via /api/ con service key, che BYPASSA RLS — admin e
+  licenze funzionano invariati).
+- I GRANT a livello tabella restano (RLS filtra le RIGHE, i GRANT le
+  OPERAZIONI).
+
+### Modello di fiducia risultante (limite noto e accettato)
+Chi conosce un codice evento può leggere/scrivere i dati di QUEL SOLO
+evento — che è esattamente il modello attuale dell'app (col codice si
+entra e si partecipa). Sparisce invece del tutto la lettura/scrittura
+di massa del database. I codici evento (6 caratteri) diventano di fatto
+la "password" dell'evento — eventualmente allungabili in futuro.
+
+### ⚠️ PROCEDURA DI ATTIVAZIONE (ordine importante!)
+1. Pubblicare i file v7.1 (l'header in più è innocuo finché RLS è
+   spento);
+2. POI eseguire `sicurezza_rls.sql` nel Supabase SQL Editor (una
+   volta; idempotente, rieseguirlo non fa danni).
+   Da quel momento le VECCHIE versioni dell'app (senza header) smettono
+   di sincronizzare finché non si aggiornano — nessun dato perso, la
+   sync riprende al primo giro dopo l'aggiornamento del device.
+
+### Verifica (PostgreSQL 16 reale, non solo revisione del codice)
+7 test superati: senza header → 0 righe visibili; con un codice → si
+vede/scrive SOLO quell'evento; UPDATE su spesa di un evento altrui →
+0 righe toccate; INSERT su evento non conosciuto → bloccato dalla
+policy; INSERT sul proprio evento → ok; header multi-codice → visibili
+entrambi gli eventi; auto-abilitazione licenza → bloccata. Testato
+anche il client (harness Node): header con i codici locali, codice
+extra presente solo durante findByCode. Header vuoto/assente → lista
+vuota senza errori (fix NULLIF trovato proprio grazie al test).
+
+### File toccati
+`supabase.js` (v1.14 — header + SQL_SCHEMA con sezione RLS),
+`sicurezza_rls.sql` (NUOVO — script standalone da eseguire su Supabase,
+generato dalla stessa fonte dello SQL_SCHEMA), `index.html`/
+`evento.html`/`impostazioni.html`/`sw.js`/`manifest.json` (v7.1 — solo
+bump "famiglia"). `sicurezza_rls.sql` NON va nel precache del SW: è
+documentazione/setup, non un asset dell'app.
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -1720,8 +1797,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v7.0 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
-**Service Worker cache:** `wego-v7.0`
+**Versione attuale:** v7.1 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
+**Service Worker cache:** `wego-v7.1`
 
 ---
 

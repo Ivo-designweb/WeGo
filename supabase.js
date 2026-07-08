@@ -1,6 +1,22 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.13
+// WeGo — supabase.js v1.14
 // Client Supabase — lettura config da localStorage
+// v1.14: SICUREZZA (segnalazione Supabase: "accesso completo al DB con
+//        la anon key") — ogni richiesta ora invia l'header
+//        "x-wego-codes" con i codici degli eventi che il device conosce
+//        legittimamente (_collectEventCodes(): eventi nel DB locale +
+//        l'eventuale codice appena digitato nel flusso "unisciti",
+//        _extraCode in findByCode). Lato server, NUOVA sezione RLS
+//        nello SQL_SCHEMA (da rieseguire su Supabase! — vedi anche il
+//        file sicurezza_rls.sql): Row Level Security su TUTTE le
+//        tabelle, policy che permettono di leggere/scrivere SOLO le
+//        righe degli eventi i cui codici sono nell'header — chiunque
+//        altro, pur avendo la anon key (pubblica per design), non vede
+//        e non tocca nulla. La service key (/api/, Vercel) bypassa RLS:
+//        admin e licenze invariati. Verificato con PostgreSQL 16 reale:
+//        senza header 0 righe, con codice si vede/scrive solo il
+//        proprio evento, update/insert su eventi altrui bloccati,
+//        auto-abilitazione licenza bloccata.
 // v1.13: sincronizzazione incrementale (richiesta cliente — "troppo
 //        lenta"): NUOVI users.upsert()/expenses.upsert()/
 //        payments.upsert() — vero upsert PostgREST (POST +
@@ -66,6 +82,35 @@
 const SupabaseClient = (() => {
   let _url    = null;
   let _key    = null;
+
+  // ─── SICUREZZA RLS (v1.14) ─────────────────────────────────
+  // Codice evento "extra" da includere nell'header della prossima
+  // richiesta anche se l'evento non è ancora nel DB locale — serve al
+  // flusso "unisciti con codice" (findByCode), dove il codice è stato
+  // appena digitato dall'utente ma l'evento non esiste ancora sul device.
+  let _extraCode = null;
+
+  // Raccoglie tutti i codici evento che QUESTO device conosce
+  // legittimamente: quelli degli eventi già presenti in locale
+  // (creati o a cui si è collegato) + l'eventuale codice appena
+  // digitato (_extraCode). Vengono inviati al server nell'header
+  // "x-wego-codes": le policy RLS lato Supabase (vedi SQL_SCHEMA in
+  // fondo) permettono di leggere/scrivere SOLO le righe degli eventi
+  // il cui codice è in questa lista — chiunque altro, pur avendo la
+  // anon key (pubblica per design, chiavi.json), non può più leggere o
+  // toccare nulla senza conoscere un codice evento valido.
+  // Lettura da IndexedDB: locale e veloce (~ms), nessuna rete.
+  async function _collectEventCodes() {
+    const codes = new Set();
+    if (_extraCode) codes.add(_extraCode);
+    try {
+      if (typeof DB !== 'undefined' && DB.events && DB.events.getAll) {
+        const evs = await DB.events.getAll();
+        evs.forEach(ev => { if (ev && ev.code) codes.add(ev.code); });
+      }
+    } catch (e) { /* DB non ancora aperto: header vuoto, richiesta comunque inviata */ }
+    return [...codes];
+  }
   let _client = null;
 
   /**
@@ -115,6 +160,13 @@ const SupabaseClient = (() => {
       'Authorization': `Bearer ${_key}`,
       'Prefer':        preferHeader
     };
+
+    // Header per le policy RLS lato server (v1.14) — vedi
+    // _collectEventCodes() sopra. Se vuoto (es. primissimo avvio senza
+    // eventi), l'header non viene inviato: le policy negheranno l'accesso
+    // alle righe, che è il comportamento corretto (niente da leggere).
+    const eventCodes = await _collectEventCodes();
+    if (eventCodes.length) headers['x-wego-codes'] = eventCodes.join(',');
 
     const options = { method, headers };
     if (body) options.body = JSON.stringify(body);
@@ -170,11 +222,20 @@ const SupabaseClient = (() => {
     },
 
     async findByCode(code) {
-      const results = await request('GET', 'sp_events', null, {
-        code:   `eq.${code}`,
-        select: '*'
-      });
-      return Array.isArray(results) ? results[0] || null : null;
+      // Il codice è appena stato digitato dall'utente: l'evento non è
+      // ancora nel DB locale, quindi va incluso esplicitamente
+      // nell'header RLS di QUESTA richiesta (vedi _extraCode sopra),
+      // altrimenti la policy lato server la respingerebbe.
+      _extraCode = code;
+      try {
+        const results = await request('GET', 'sp_events', null, {
+          code:   `eq.${code}`,
+          select: '*'
+        });
+        return Array.isArray(results) ? results[0] || null : null;
+      } finally {
+        _extraCode = null;
+      }
     },
 
     async getById(id) {
@@ -751,13 +812,122 @@ CREATE TABLE IF NOT EXISTS sp_device_license (
   enabled_by   VARCHAR(50)
 );
 
--- ROW LEVEL SECURITY (opzionale, abilita se vuoi sicurezza extra)
--- ALTER TABLE sp_events   ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE sp_users    ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE sp_expenses ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE sp_payments ENABLE ROW LEVEL SECURITY;
+-- ═══════════════════════════════════════════════════════════════
+-- SICUREZZA — ROW LEVEL SECURITY basata sui codici evento (v7.1)
+-- ═══════════════════════════════════════════════════════════════
+-- PRIMA (fino a v7.0): RLS disattivato + GRANT ampi alla anon key —
+-- la anon key è PUBBLICA per design (chiavi.json), quindi chiunque
+-- poteva leggere/scrivere l'INTERO database con una richiesta HTTP.
+-- ORA: l'app invia in ogni richiesta l'header "x-wego-codes" con i
+-- codici degli eventi che quel device conosce legittimamente (creati o
+-- a cui si è collegato — vedi supabase.js _collectEventCodes()); le
+-- policy qui sotto permettono di toccare SOLO le righe di quegli
+-- eventi. Il codice evento diventa di fatto la "chiave" dell'evento —
+-- coerente col design dell'app ("chi ha il codice partecipa").
+-- La service key (SUPABASE_SERVICE_KEY, solo su Vercel) bypassa RLS:
+-- le funzioni /api/ continuano a funzionare invariate.
 
--- Policy: accesso pubblico per anon key (senza RLS)
+-- Funzione helper: codici evento dichiarati nell'header della richiesta.
+-- NULLIF: se request.headers non è impostato o è vuoto (mai il caso con
+-- PostgREST/Supabase, ma difendiamoci comunque), il cast ::json su
+-- stringa vuota esploderebbe — così invece torna una lista vuota.
+CREATE OR REPLACE FUNCTION wego_codes() RETURNS text[]
+LANGUAGE sql STABLE AS $$
+  SELECT COALESCE(
+    string_to_array(NULLIF(current_setting('request.headers', true), '')::json->>'x-wego-codes', ','),
+    ARRAY[]::text[]
+  );
+$$;
+
+-- Funzione helper: id degli eventi corrispondenti a quei codici.
+-- SECURITY DEFINER: la risoluzione codice→id deve leggere sp_events
+-- BYPASSANDO la RLS di sp_events stessa (altrimenti riferimento
+-- circolare); search_path fissato come richiesto dalle best practice
+-- Supabase per le funzioni SECURITY DEFINER.
+CREATE OR REPLACE FUNCTION wego_event_ids() RETURNS SETOF uuid
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT id FROM sp_events WHERE code = ANY(wego_codes());
+$$;
+
+-- Abilita RLS su tutte le tabelle esposte
+ALTER TABLE sp_events             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sp_users              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sp_expenses           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sp_payments           ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sp_expense_photos     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sp_push_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sp_sync_status        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sp_device_license     ENABLE ROW LEVEL SECURITY;
+
+-- sp_events: accesso solo alle righe il cui codice è nell'header
+DROP POLICY IF EXISTS wego_events_select ON sp_events;
+DROP POLICY IF EXISTS wego_events_insert ON sp_events;
+DROP POLICY IF EXISTS wego_events_update ON sp_events;
+CREATE POLICY wego_events_select ON sp_events FOR SELECT TO anon
+  USING (code = ANY(wego_codes()));
+CREATE POLICY wego_events_insert ON sp_events FOR INSERT TO anon
+  WITH CHECK (code = ANY(wego_codes()));
+CREATE POLICY wego_events_update ON sp_events FOR UPDATE TO anon
+  USING (code = ANY(wego_codes())) WITH CHECK (code = ANY(wego_codes()));
+
+-- sp_users / sp_expenses / sp_payments: accesso solo alle righe dei
+-- propri eventi (event_id risolto tramite i codici dell'header)
+DROP POLICY IF EXISTS wego_users_select ON sp_users;
+DROP POLICY IF EXISTS wego_users_insert ON sp_users;
+DROP POLICY IF EXISTS wego_users_update ON sp_users;
+CREATE POLICY wego_users_select ON sp_users FOR SELECT TO anon
+  USING (event_id IN (SELECT wego_event_ids()));
+CREATE POLICY wego_users_insert ON sp_users FOR INSERT TO anon
+  WITH CHECK (event_id IN (SELECT wego_event_ids()));
+CREATE POLICY wego_users_update ON sp_users FOR UPDATE TO anon
+  USING (event_id IN (SELECT wego_event_ids()))
+  WITH CHECK (event_id IN (SELECT wego_event_ids()));
+
+DROP POLICY IF EXISTS wego_expenses_select ON sp_expenses;
+DROP POLICY IF EXISTS wego_expenses_insert ON sp_expenses;
+DROP POLICY IF EXISTS wego_expenses_update ON sp_expenses;
+CREATE POLICY wego_expenses_select ON sp_expenses FOR SELECT TO anon
+  USING (event_id IN (SELECT wego_event_ids()));
+CREATE POLICY wego_expenses_insert ON sp_expenses FOR INSERT TO anon
+  WITH CHECK (event_id IN (SELECT wego_event_ids()));
+CREATE POLICY wego_expenses_update ON sp_expenses FOR UPDATE TO anon
+  USING (event_id IN (SELECT wego_event_ids()))
+  WITH CHECK (event_id IN (SELECT wego_event_ids()));
+
+DROP POLICY IF EXISTS wego_payments_select ON sp_payments;
+DROP POLICY IF EXISTS wego_payments_insert ON sp_payments;
+DROP POLICY IF EXISTS wego_payments_update ON sp_payments;
+CREATE POLICY wego_payments_select ON sp_payments FOR SELECT TO anon
+  USING (event_id IN (SELECT wego_event_ids()));
+CREATE POLICY wego_payments_insert ON sp_payments FOR INSERT TO anon
+  WITH CHECK (event_id IN (SELECT wego_event_ids()));
+CREATE POLICY wego_payments_update ON sp_payments FOR UPDATE TO anon
+  USING (event_id IN (SELECT wego_event_ids()))
+  WITH CHECK (event_id IN (SELECT wego_event_ids()));
+
+-- sp_expense_photos: legata alla spesa → all'evento (doppio salto)
+DROP POLICY IF EXISTS wego_photos_all ON sp_expense_photos;
+CREATE POLICY wego_photos_all ON sp_expense_photos FOR ALL TO anon
+  USING (expense_id IN (SELECT id FROM sp_expenses WHERE event_id IN (SELECT wego_event_ids())))
+  WITH CHECK (expense_id IN (SELECT id FROM sp_expenses WHERE event_id IN (SELECT wego_event_ids())));
+
+-- sp_push_subscriptions: per evento (serve anche DELETE per la disiscrizione)
+DROP POLICY IF EXISTS wego_push_all ON sp_push_subscriptions;
+CREATE POLICY wego_push_all ON sp_push_subscriptions FOR ALL TO anon
+  USING (event_id IN (SELECT wego_event_ids()))
+  WITH CHECK (event_id IN (SELECT wego_event_ids()));
+
+-- sp_sync_status / sp_device_license: sola lettura per anon (il client
+-- deve poter leggere il PROPRIO stato); scritture SOLO via /api/ con la
+-- service key (che bypassa RLS). Invariato rispetto a prima nel
+-- comportamento, ma ora con RLS attivo.
+DROP POLICY IF EXISTS wego_syncstatus_select ON sp_sync_status;
+CREATE POLICY wego_syncstatus_select ON sp_sync_status FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS wego_license_select ON sp_device_license;
+CREATE POLICY wego_license_select ON sp_device_license FOR SELECT TO anon USING (true);
+
+-- GRANT: i permessi a livello tabella restano necessari (RLS filtra le
+-- RIGHE, i GRANT decidono le OPERAZIONI)
 GRANT SELECT, INSERT, UPDATE ON sp_events      TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_users       TO anon;
 GRANT SELECT, INSERT, UPDATE ON sp_expenses    TO anon;
@@ -765,17 +935,10 @@ GRANT SELECT, INSERT, UPDATE ON sp_payments    TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sp_push_subscriptions TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON sp_expense_photos TO anon;
 
--- sp_sync_status e sp_device_license sono un caso diverso: governano
--- "chi è abilitato a cosa" (sincronizzazione esterna, versione Pro), e
--- sono gestite SOLO dalle funzioni server /api/sync-status.js e
--- /api/device-license.js con una chiave separata (SUPABASE_SERVICE_KEY,
--- SOLO su Vercel, mai nel browser). La anon key pubblica può leggerle
--- (serve al client per sapere il proprio stato) ma NON può scriverle:
--- se potesse, chiunque trovasse la anon key (è scaricabile da
--- chiavi.json, è normale che lo sia) potrebbe auto-abilitarsi senza
--- passare da admin.html. Le REVOKE sono indispensabili se hai già
--- eseguito una versione precedente di questo schema: GRANT da solo non
--- toglie permessi già concessi in precedenza.
+-- sp_sync_status e sp_device_license: governano "chi è abilitato a
+-- cosa" — scritture SOLO dalle funzioni server /api/ con la
+-- SUPABASE_SERVICE_KEY. Le REVOKE sono indispensabili se hai già
+-- eseguito una versione precedente di questo schema.
 REVOKE INSERT, UPDATE, DELETE ON sp_sync_status    FROM anon;
 REVOKE INSERT, UPDATE, DELETE ON sp_device_license FROM anon;
 GRANT SELECT ON sp_sync_status    TO anon;
