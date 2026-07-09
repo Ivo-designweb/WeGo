@@ -1,6 +1,22 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v2.8
+// WeGo — spesa.js v2.9
 // Logica pagina inserimento / modifica spesa
+// v2.9: campo posizione ora EDITABILE liberamente (richiesta cliente) —
+//       prima era un <span> di sola visualizzazione, si riempiva SOLO
+//       via GPS e l'intera barra rilevava una nuova posizione al tocco.
+//       Ora è un vero <input> (spesa.html v3.9): si riempie da solo col
+//       GPS come prima (_tryAutoGps invariata), ma toccandolo si può
+//       scrivere/modificare un indirizzo libero in qualsiasi momento —
+//       nuovo movimento o modifica, GPS attivo o spento. Il
+//       rilevamento GPS è ora un'azione esplicita su un bottoncino 📍
+//       dedicato (prima l'intera barra). NUOVO onLocationTextInput():
+//       ad ogni modifica manuale del testo, le coordinate lat/lng
+//       vengono azzerate (esplicitamente richiesto: l'indirizzo scritto
+//       a mano è indipendente dalla posizione reale) — quel movimento
+//       non genera più un pin nella Mappa del tab Riepilogo (richiede
+//       coordinate reali) e il link "Apri su Maps" passa da coordinate
+//       a ricerca testuale (_updateMapsLink(), nuova, fattorizzata da
+//       _setLocationUI()).
 // v2.8: saveExpense()/deleteExpense() NON aspettano più Sync.push()/
 //       pullEvent() prima di mostrare il messaggio di successo e
 //       tornare alla pagina evento (richiesta cliente: "meno
@@ -522,28 +538,61 @@ const SpesaApp = {
     }
   },
 
-  // Helper condiviso: aggiorna l'UI della sezione posizione (testo + link Maps + bottone X)
+  // Helper condiviso: aggiorna l'UI della sezione posizione (input + link Maps + bottone X)
   _setLocationUI(location) {
-    const text      = document.getElementById('locationText');
-    const clearBtn  = document.getElementById('locationClear');
-    const mapsLink  = document.getElementById('locationMapsLink');
+    const text     = document.getElementById('locationText');
+    const clearBtn = document.getElementById('locationClear');
 
-    if (location) {
+    if (location && (location.address || typeof location.lat === 'number')) {
       const label = location.address || `${location.lat.toFixed(5)}, ${location.lng.toFixed(5)}`;
-      text.textContent = label;
-      text.classList.remove('placeholder', 'ph');
+      text.value = label;
       if (clearBtn) clearBtn.style.display = '';
-      // Aggiorna link Google Maps
-      if (mapsLink) {
-        mapsLink.href = `https://www.google.com/maps?q=${location.lat},${location.lng}`;
-        mapsLink.style.display = '';
-      }
     } else {
-      text.textContent = 'Tocca per rilevare posizione';
-      text.classList.add('placeholder', 'ph');
+      text.value = '';
       if (clearBtn) clearBtn.style.display = 'none';
-      if (mapsLink) mapsLink.style.display = 'none';
     }
+    SpesaApp._updateMapsLink(location);
+  },
+
+  // Link "Apri su Google Maps" — NUOVO v2.9: se abbiamo coordinate reali
+  // usa quelle (come sempre), altrimenti (indirizzo scritto a mano,
+  // senza GPS) fa una ricerca testuale — funziona comunque, anche se
+  // meno preciso di una coordinata esatta.
+  _updateMapsLink(location) {
+    const mapsLink = document.getElementById('locationMapsLink');
+    if (!mapsLink) return;
+    if (location && typeof location.lat === 'number' && typeof location.lng === 'number') {
+      mapsLink.href = `https://www.google.com/maps?q=${location.lat},${location.lng}`;
+      mapsLink.style.display = '';
+    } else if (location && location.address) {
+      mapsLink.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location.address)}`;
+      mapsLink.style.display = '';
+    } else {
+      mapsLink.style.display = 'none';
+    }
+  },
+
+  // NUOVO v2.9 — l'utente sta scrivendo/modificando il campo a mano
+  // (sia su un nuovo movimento sia in modifica, con GPS attivo o
+  // spento): l'indirizzo diventa testo libero, ESPLICITAMENTE
+  // indipendente dalla posizione GPS reale (richiesta cliente) — le
+  // coordinate vengono azzerate. Conseguenze accettate: il link "Apri
+  // su Maps" passa a una ricerca testuale (sopra), e questo movimento
+  // non genera più un pin nella Mappa del tab Riepilogo (evento.js),
+  // che richiede coordinate reali.
+  onLocationTextInput() {
+    const text  = document.getElementById('locationText');
+    const value = text.value.trim();
+    if (value) {
+      SpesaApp._location = { lat: null, lng: null, address: value };
+      const clearBtn = document.getElementById('locationClear');
+      if (clearBtn) clearBtn.style.display = '';
+    } else {
+      SpesaApp._location = null;
+      const clearBtn = document.getElementById('locationClear');
+      if (clearBtn) clearBtn.style.display = 'none';
+    }
+    SpesaApp._updateMapsLink(SpesaApp._location);
   },
 
   async getLocation() {
@@ -551,14 +600,15 @@ const SpesaApp = {
     SpesaApp._gettingGps = true;
 
     const text = document.getElementById('locationText');
-    text.textContent = 'Rilevamento in corso…';
-    text.classList.remove('placeholder', 'ph');
+    text.disabled = true;
+    text.value = '';
+    text.placeholder = 'Rilevamento in corso…';
 
     try {
       const pos = await Utils.getCurrentPosition();
       SpesaApp._location = { lat: pos.lat, lng: pos.lng, address: '' };
 
-      text.textContent = 'Indirizzo in caricamento…';
+      text.placeholder = 'Indirizzo in caricamento…';
 
       const address = await Utils.reverseGeocode(pos.lat, pos.lng);
       SpesaApp._location.address = address;
@@ -566,11 +616,9 @@ const SpesaApp = {
       SpesaApp._setLocationUI(SpesaApp._location);
     } catch (err) {
       SpesaApp._location = null;
-      text.textContent = 'Impossibile rilevare posizione';
-      text.classList.add('placeholder', 'ph');
+      text.placeholder = 'Impossibile rilevare posizione';
       document.getElementById('locationClear').style.display = 'none';
-      const mapsLink = document.getElementById('locationMapsLink');
-      if (mapsLink) mapsLink.style.display = 'none';
+      SpesaApp._updateMapsLink(null);
 
       if (err.code === 1) {
         Utils.toast('Permesso posizione negato. Abilitalo nelle impostazioni.', 'error', 4000);
@@ -578,6 +626,8 @@ const SpesaApp = {
         Utils.toast('Posizione non disponibile', 'error');
       }
     } finally {
+      text.disabled = false;
+      if (!SpesaApp._location) text.placeholder = 'Tocca per rilevare, o scrivi un indirizzo';
       SpesaApp._gettingGps = false;
     }
   },
@@ -586,6 +636,7 @@ const SpesaApp = {
     e.stopPropagation();
     SpesaApp._location = null;
     SpesaApp._setLocationUI(null);
+    document.getElementById('locationText').placeholder = 'Tocca per rilevare, o scrivi un indirizzo';
   },
 
   // ─── FOTO ─────────────────────────────────────────────────

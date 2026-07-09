@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Spesa — WeGo v3.8</title>
+  <title>Spesa — WeGo v3.9</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -165,6 +165,21 @@
     .loc-bar:hover { border-color: var(--accent); }
     .loc-bar__text { flex: 1; font-size: 14px; color: var(--text-primary); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .loc-bar__text.ph { color: var(--text-muted); }
+    /* NUOVO — campo indirizzo ora editabile liberamente (v2.9): reset
+       stile input nativo per farlo sembrare identico al vecchio <span>,
+       + bottone GPS dedicato (prima l'intera barra rilevava la
+       posizione al tocco; ora il tocco sul testo serve per scriverci,
+       il rilevamento è un'azione esplicita separata). */
+    .loc-bar__input {
+      border: none; background: transparent; outline: none; padding: 0;
+      font-family: inherit; width: 100%; min-width: 0;
+    }
+    .loc-bar__input::placeholder { color: var(--text-muted); }
+    .loc-bar__gps-btn {
+      background: none; border: none; color: var(--text-muted); cursor: pointer;
+      padding: 2px; line-height: 1; flex-shrink: 0; display: flex;
+    }
+    .loc-bar__gps-btn:hover { color: var(--accent); }
 
     /* ─── PHOTO ROW compatta ─── */
     .photo-row {
@@ -376,11 +391,28 @@
     </div>
 
     <!-- POSIZIONE compatta: GPS [campo] [mappa] [×] -->
+    <!-- NUOVO v2.9: il campo indirizzo è ora un vero <input> editabile —
+         si riempie da solo col GPS (se disponibile/attivo), ma toccandolo
+         si può scrivere un indirizzo libero, in qualsiasi momento, anche
+         a GPS spento (vedi SpesaApp.onLocationTextInput()). Il
+         rilevamento GPS è ora un'azione esplicita sul bottoncino 📍
+         dedicato, non più l'intera barra. -->
     <div class="form-card" style="padding:8px 12px;">
       <div class="gps-row">
         <span class="gps-label">GPS</span>
-        <div class="loc-bar" id="locationBar" onclick="SpesaApp.getLocation()">
-          <span class="loc-bar__text ph" id="locationText">Tocca per rilevare</span>
+        <div class="loc-bar" id="locationBar" onclick="document.getElementById('locationText').focus()">
+          <input type="text" class="loc-bar__text loc-bar__input" id="locationText"
+            placeholder="Tocca per rilevare, o scrivi un indirizzo"
+            autocomplete="off" autocorrect="off"
+            oninput="SpesaApp.onLocationTextInput()"
+            onclick="event.stopPropagation()">
+          <button type="button" class="loc-bar__gps-btn" title="Rileva posizione GPS"
+            onclick="event.stopPropagation();SpesaApp.getLocation()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+            </svg>
+          </button>
           <a id="locationMapsLink" href="#" target="_blank" rel="noopener"
             style="display:none;color:var(--accent);flex-shrink:0;line-height:1;"
             onclick="event.stopPropagation()" title="Apri su Google Maps">
@@ -391,7 +423,7 @@
             </svg>
           </a>
           <button id="locationClear" style="display:none;background:none;border:none;color:var(--text-muted);cursor:pointer;padding:1px;line-height:1;"
-            onclick="SpesaApp.clearLocation(event)">
+            onclick="event.stopPropagation();SpesaApp.clearLocation(event)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>

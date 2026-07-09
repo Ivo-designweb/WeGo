@@ -1,6 +1,18 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.28
+// WeGo — evento.js v2.29
 // Logica pagina dettaglio evento
+// v2.29: Mappa del tab Riepilogo — sostituita l'icona Leaflet di
+//        default (segnaposto blu generico, "sembrava incompleta") con
+//        un'icona "moneta" custom (_riepilogoCoinIcon(), L.divIcon —
+//        riusa l'IDENTICA moneta SVG già usata per "Uso Cassa Comune"
+//        in _renderSpese(), coerenza visiva). Click su un pin ora porta
+//        DIRETTAMENTE alla spesa nella LISTA del tab Movimenti
+//        (_goToExpenseInList(): switchTab('spese') + scrollIntoView +
+//        evidenziazione breve), non più alla pagina di modifica — tolto
+//        il popup intermedio che c'era prima, un passaggio in meno.
+//        Nuovo attributo data-expense-id su ogni riga .exp_item in
+//        _renderSpese() (prima il click era gestito solo via onclick
+//        inline, niente per selezionare una riga specifica da fuori).
 // v2.28: _syncQuiet() ora usa Sync.scheduleQuietSync() (sync.js v2.1)
 //        invece di await diretto a Sync.push()/pullEvent() — la sync
 //        silenziosa (al caricamento pagina, al ritorno online, e di
@@ -454,18 +466,46 @@ const EventoApp = {
     );
   },
 
-  // Icone Leaflet di default puntano a un CDN — le rimappiamo ai file
-  // vendorizzati in locale (leaflet-marker-*.png, precache offline —
-  // vedi sw.js). Va fatto una sola volta, PRIMA di creare il primo
-  // marker (guard su EventoApp._leafletIconsConfigured).
-  _configureLeafletIcons() {
-    if (EventoApp._leafletIconsConfigured || typeof L === 'undefined') return;
-    L.Icon.Default.mergeOptions({
-      iconUrl:       '/leaflet-marker-icon.png',
-      iconRetinaUrl: '/leaflet-marker-icon-2x.png',
-      shadowUrl:     '/leaflet-marker-shadow.png'
+  // Icona "moneta" per i pin spesa — NUOVO v7.2: prima usava l'icona
+  // Leaflet di default (il classico segnaposto blu), che per il
+  // cliente "sembrava incompleta". Sostituita con un L.divIcon che
+  // riusa l'IDENTICA moneta SVG già usata altrove nell'app per "Uso
+  // Cassa Comune" (vedi _renderSpese() più sopra: cerchio oro #FBBF24,
+  // bordo #92400E, simbolo €) — qui ha senso su OGNI pin, dato che la
+  // Mappa mostra solo spese (mai trasferimenti/cassiere, che non hanno
+  // mai GPS — vedi _riepilogoMappaExpenses()). Creata una sola volta e
+  // riusata (cache su EventoApp._riepilogoMoneyIcon).
+  _riepilogoCoinIcon() {
+    if (EventoApp._riepilogoMoneyIcon) return EventoApp._riepilogoMoneyIcon;
+    EventoApp._riepilogoMoneyIcon = L.divIcon({
+      className: 'riepilogo-mappa-coin-icon',
+      html: `
+        <svg width="30" height="38" viewBox="0 0 30 38" xmlns="http://www.w3.org/2000/svg">
+          <path d="M15 37C15 37 28 22.5 28 14C28 6.8 22.2 1 15 1C7.8 1 2 6.8 2 14C2 22.5 15 37 15 37Z"
+                fill="#FBBF24" stroke="#92400E" stroke-width="1.6"/>
+          <circle cx="15" cy="14" r="8.2" fill="none" stroke="#92400E" stroke-width="1" opacity="0.55"/>
+          <text x="15" y="18.6" text-anchor="middle" font-size="12.5" font-weight="800" fill="#92400E" font-family="Arial,sans-serif">&#8364;</text>
+        </svg>`,
+      iconSize:    [30, 38],
+      iconAnchor:  [15, 37],
+      popupAnchor: [0, -34]
     });
-    EventoApp._leafletIconsConfigured = true;
+    return EventoApp._riepilogoMoneyIcon;
+  },
+
+  // Click su un pin — NUOVO v7.2 (richiesta cliente): porta alla spesa
+  // cliccata nella LISTA del tab Movimenti (non alla pagina di
+  // modifica), evidenziandola brevemente. Lo scroll è immediato: al
+  // rientro nel tab 'spese', switchTab() → _renderTab() → _renderSpese()
+  // sono tutte chiamate sincrone, la riga esiste già nel DOM quando
+  // arriviamo qui sotto.
+  _goToExpenseInList(expenseId) {
+    EventoApp.switchTab('spese');
+    const row = document.querySelector(`.exp-item[data-expense-id="${expenseId}"]`);
+    if (!row) return;
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.classList.add('exp-item--highlight');
+    setTimeout(() => row.classList.remove('exp-item--highlight'), 2200);
   },
 
   _renderRiepilogoMappa() {
@@ -494,7 +534,7 @@ const EventoApp = {
       ? '1 spesa con posizione GPS'
       : `${points.length} spese con posizione GPS`;
 
-    EventoApp._configureLeafletIcons();
+    // (icona moneta creata pigramente da _riepilogoCoinIcon() sotto)
 
     // Lazy-init: la mappa Leaflet viene creata una sola volta (un
     // secondo L.map() sullo stesso elemento genera un errore) e poi
@@ -513,18 +553,20 @@ const EventoApp = {
     const markers = EventoApp._riepilogoLeafletMarkers;
     markers.clearLayers();
 
-    const currency = EventoApp._event?.currency || 'EUR';
     const bounds = [];
     points.forEach(exp => {
-      const { lat, lng, address } = exp.location;
+      const { lat, lng } = exp.location;
       bounds.push([lat, lng]);
-      const dateLabel = exp.date ? Utils.formatDate(exp.date) : '';
-      const popup =
-        `<b>${Utils.escapeHtml(exp.title || 'Spesa')}</b><br>` +
-        `${Utils.formatAmount(parseFloat(exp.amount) || 0, exp.currency || currency)}` +
-        (dateLabel ? ` — ${dateLabel}` : '') +
-        (address ? `<br><span style="opacity:.75;">${Utils.escapeHtml(address)}</span>` : '');
-      L.marker([lat, lng]).bindPopup(popup).addTo(markers);
+      // Click sul pin → porta DIRETTO alla spesa nella lista Movimenti
+      // (richiesta cliente, vedi _goToExpenseInList() sopra) — niente
+      // più popup intermedio: il titolo/importo si vedono subito
+      // arrivando sulla riga evidenziata, un passaggio in meno.
+      L.marker([lat, lng], {
+        icon:  EventoApp._riepilogoCoinIcon(),
+        title: exp.title || 'Spesa' // tooltip nativo al passaggio (desktop)
+      })
+        .on('click', () => EventoApp._goToExpenseInList(exp.id))
+        .addTo(markers);
     });
 
     // La mappa potrebbe essere stata creata mentre il tab era nascosto
@@ -1103,7 +1145,7 @@ const EventoApp = {
       const idx = from ? Utils.avatarColorIndex(from.name) : 0;
       const syncBadge = m.data.synced === false ? `<span class="exp-badge exp-badge--sync">sync</span>` : '';
       return `
-        <div class="exp-item" onclick="EventoApp.editExpense('${m.id}')">
+        <div class="exp-item" data-expense-id="${m.id}" onclick="EventoApp.editExpense('${m.id}')">
           <div class="exp-avatar">
             <div class="avatar avatar-${idx} avatar--sm">${from ? Utils.initials(from.name) : '?'}</div>
           </div>
@@ -1134,7 +1176,7 @@ const EventoApp = {
       const syncBadge = cashierExp.synced === false ? `<span class="exp-badge exp-badge--sync">sync</span>` : '';
       const cashierBadge = `<span class="exp-badge" style="color:var(--green);background:rgba(16,185,129,0.12);">cassiere</span>`;
       return `
-        <div class="exp-item" onclick="EventoApp.editExpense('${cashierExp.id}')">
+        <div class="exp-item" data-expense-id="${cashierExp.id}" onclick="EventoApp.editExpense('${cashierExp.id}')">
           <div class="exp-avatar">
             <div class="avatar avatar-${cashierIdx} avatar--sm" title="${cashier ? Utils.escapeHtml(cashier.name) : '?'}">${cashierInit}</div>
           </div>
@@ -1187,7 +1229,7 @@ const EventoApp = {
       ? `<span class="exp-badge" style="color:var(--amber);background:rgba(245,158,11,0.12);">previsione</span>`
       : '';
     return `
-      <div class="exp-item" onclick="EventoApp.editExpense('${exp.id}')">
+      <div class="exp-item" data-expense-id="${exp.id}" onclick="EventoApp.editExpense('${exp.id}')">
         <div class="exp-avatar">
           <div class="avatar avatar-${payerIdx} avatar--sm" title="${payer ? Utils.escapeHtml(payer.name) : '?'}">${payerInit}</div>
         </div>

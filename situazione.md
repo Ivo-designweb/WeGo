@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v7.1 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
+**Versione corrente: v7.2 (v3.9 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
 
 ---
 
@@ -43,22 +43,22 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v7.1   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
-├── evento.html          v7.1  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
-├── spesa.html            v3.8 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
-├── impostazioni.html    v7.1   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
+├── index.html          v7.2   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
+├── evento.html          v7.2  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
+├── spesa.html            v3.9 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
+├── impostazioni.html    v7.2   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
-├── sw.js                v7.1   Service Worker (CACHE_NAME: wego-v7.1) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js e /leaflet.js|css|marker-*.png
-├── manifest.json        v7.1   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v7.2   Service Worker (CACHE_NAME: wego-v7.2) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js e /leaflet.js|css|marker-*.png
+├── manifest.json        v7.2   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── exceljs.min.js        4.4.0 Libreria ExcelJS vendorizzata in locale (build "bare", nessun CDN) — usata solo da EventoApp.exportRiepilogoExcel() (evento.js), precaricata da sw.js per funzionare offline
 ├── leaflet.js/.css       1.9.4 Libreria Leaflet vendorizzata in locale (nessun CDN, nessuna API key) — usata dal criterio "Mappa" nel tab Riepilogo (evento.js), tile scaricati da OpenStreetMap al momento della visualizzazione (richiede rete)
 ├── leaflet-marker-*.png  1.9.4 Icone marker di default di Leaflet (icon/icon-2x/shadow), vendorizzate in locale insieme a leaflet.js/.css
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.19 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA, evidenziazione "Help" sul logo (prime 2 visite, solo localStorage) — RIMOSSO il gating sync esterni
-├── evento.js             v2.28 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (Partecipante/Data/Tipo spesa) + Mappa GPS (Leaflet/OSM, NUOVO) + export Excel dettagliato — RIMOSSO il gating sync esterni, menu "Passa a Pro"
-├── spesa.js               v2.8 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", salvataggio/eliminazione NON aspettano più la sync (NUOVO, torna subito indietro), fix layout flex in modifica, fix licenza foto per-evento
+├── evento.js             v2.29 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (Partecipante/Data/Tipo spesa) + Mappa GPS (Leaflet/OSM, NUOVO) + export Excel dettagliato — RIMOSSO il gating sync esterni, menu "Passa a Pro"
+├── spesa.js               v2.9 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", salvataggio/eliminazione NON aspettano più la sync (NUOVO, torna subito indietro), fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.3 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza + sync differita/"quieta" (debounce 5s + rete di sicurezza) + sincronizzazione INCREMENTALE (pull solo record nuovi/modificati, push con upsert) + ottimizzazione latenza (NUOVO — pull parallelo, throttle licenza e presenza) — RIMOSSO il gating eventi esterni
 ├── supabase.js            v1.14 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune, events.photo_sync_enabled, upsert() + "since" incrementale + header RLS "x-wego-codes" (NUOVO — sicurezza) — FIX GRANT service_role
@@ -1698,6 +1698,73 @@ documentazione/setup, non un asset dell'app.
 
 ---
 
+## 6zeroicies. Campo indirizzo editabile + icona/click sui pin Mappa (v7.2)
+
+Due modifiche mirate, richieste esplicitamente come le UNICHE due da
+toccare.
+
+### 1) Campo posizione ora editabile liberamente (spesa.js v2.9)
+Prima: campo di sola visualizzazione (`<span>`), si riempiva SOLO via
+GPS, l'intera barra rilevava una NUOVA posizione al tocco (sovrascriveva
+sempre). Nessun modo di scrivere un indirizzo a mano.
+
+Ora: vero `<input>` (spesa.html v3.9). Si riempie da solo col GPS come
+prima (`_tryAutoGps()` invariata), ma toccandolo si può scrivere/
+modificare un indirizzo libero in QUALSIASI momento — nuovo movimento o
+modifica, GPS attivo o spento (richiesta esplicita del cliente). Il
+rilevamento GPS è ora un'azione a parte su un bottoncino 📍 dedicato
+(prima era l'intera barra).
+
+**Scelta dichiarata al cliente prima di sviluppare** (nessuna vera
+ambiguità, ma con conseguenze su una feature già costruita): ad ogni
+modifica manuale del testo (`onLocationTextInput()`), le coordinate
+lat/lng vengono azzerate — il cliente ha scritto esplicitamente
+"indipendentemente dalla effettiva posizione", quindi l'indirizzo
+scritto a mano è testo libero, non più legato a coordinate reali.
+Conseguenze accettate: (a) quel movimento non genera più un pin nella
+Mappa del tab Riepilogo, che richiede coordinate numeriche vere; (b) il
+link "Apri su Google Maps" passa da coordinate esatte a una ricerca
+testuale (`_updateMapsLink()`, nuova, fattorizzata da `_setLocationUI()`)
+— funziona comunque, solo meno preciso di una coordinata esatta. Un
+nuovo rilevamento GPS (bottone dedicato) sovrascrive di nuovo tutto con
+coordinate reali.
+
+### 2) Mappa Riepilogo: icona moneta + click porta alla lista (evento.js v2.29)
+Segnalato dal cliente: l'icona dei pin "sembrava incompleta" (il
+segnaposto blu generico di Leaflet). Sostituita con un `L.divIcon` che
+riusa l'IDENTICA moneta SVG già usata per il badge "Uso Cassa Comune"
+in `_renderSpese()` (cerchio oro `#FBBF24`, bordo `#92400E`, simbolo €)
+— coerenza visiva con il resto dell'app, e ha senso su ogni pin dato
+che la Mappa mostra solo spese (mai trasferimenti/cassiere, che non
+hanno mai GPS).
+
+Click su un pin: **porta direttamente alla spesa nella LISTA del tab
+Movimenti** (non alla pagina di modifica — il cliente ha scritto
+esplicitamente "nella lista dei movimenti di spesa") — nuova
+`_goToExpenseInList()`: `switchTab('spese')` + `scrollIntoView` +
+evidenziazione temporanea della riga (CSS `.exp-item--highlight`, si
+attenua da sola). Tolto il popup intermedio che c'era prima (mostrava
+titolo/importo/data/indirizzo): con la navigazione diretta non serviva
+più, un passaggio in meno. Nuovo attributo `data-expense-id` su ogni
+riga `.exp-item` in `_renderSpese()` (le 3 varianti: spesa, cassiere,
+trasferimento) per poterla selezionare dall'esterno in modo robusto,
+al posto di un selettore basato sull'attributo `onclick`.
+
+Le icone Leaflet di default (`leaflet-marker-icon*.png`) restano
+vendorizzate/precache ma non più usate da nessun marker — lasciate
+per eventuali usi futuri, nessun danno a tenerle.
+
+### File toccati
+`spesa.html` (v3.9 — campo input + bottone GPS), `spesa.js` (v2.9 —
+`onLocationTextInput()`, `_updateMapsLink()`, `getLocation()`/
+`clearLocation()` adattati), `evento.html` (v7.2 — CSS icona moneta +
+evidenziazione riga), `evento.js` (v2.29 — `_riepilogoCoinIcon()`,
+`_goToExpenseInList()`, `data-expense-id`), `index.html`/
+`impostazioni.html`/`sw.js`/`manifest.json` (v7.2 — solo bump
+"famiglia").
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -1797,8 +1864,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v7.1 (v3.8 per spesa.html/spesa.js, v1.0 per aiuto.html)
-**Service Worker cache:** `wego-v7.1`
+**Versione attuale:** v7.2 (v3.9 per spesa.html/spesa.js, v1.0 per aiuto.html)
+**Service Worker cache:** `wego-v7.2`
 
 ---
 

@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v7.1
+// WeGo — sw.js v7.2
 // Service Worker — cache offline + background sync
+// v7.2: nessuna modifica alla lista di precache — campo posizione ora
+//       editabile liberamente (spesa.js v2.9/spesa.html v3.9), icona
+//       moneta + click-per-navigare sui pin della Mappa (evento.js
+//       v2.29) — solo bump di versione per la "famiglia"
+//       index/evento/impostazioni.
 // v7.1: nessuna modifica alla lista di precache — bump versione per la
 //       SICUREZZA database (supabase.js v1.14): header "x-wego-codes" +
 //       RLS lato Supabase (VA ESEGUITO sicurezza_rls.sql nel SQL Editor
@@ -166,7 +171,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v7.1';
+const CACHE_NAME = 'wego-v7.2';
 
 const STATIC_ASSETS = [
   '/',
@@ -198,7 +203,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v7.1');
+  console.log('[SW] Install v7.2');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -224,7 +229,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v7.1');
+  console.log('[SW] Activate v7.2');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

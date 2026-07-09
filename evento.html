@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v7.1</title>
+  <title>Evento — WeGo v7.2</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/leaflet.css" />
@@ -190,6 +190,14 @@
     .leaflet-control-attribution {
       background: rgba(255,255,255,0.75); font-size: 9.5px;
     }
+    /* Icona "moneta" dei pin spesa — NUOVO v7.2: L.divIcon di default ha
+       uno sfondo bianco + bordo quadrato (pensato per contenuto testuale
+       generico), da azzerare perché qui c'è già l'SVG della moneta. */
+    .riepilogo-mappa-coin-icon {
+      background: none !important; border: none !important;
+      cursor: pointer;
+      filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35));
+    }
 
     /* ─── SUMMARY ROW ─── */
     .summary-row {
@@ -257,6 +265,14 @@
     }
     .exp-item:last-child { border-bottom: none; }
     .exp-item:active { opacity: 0.7; }
+    /* NUOVO v7.2 — evidenziazione temporanea di una riga quando si
+       arriva da un pin della Mappa (tab Riepilogo): stesso accento
+       colore dell'app, sfuma da sola dopo la transizione. */
+    .exp-item--highlight {
+      background: rgba(59,130,246,0.14);
+      border-radius: var(--r-md);
+      transition: background 1.8s var(--ease);
+    }
     .exp-avatar { flex-shrink: 0; }
     .exp-info { flex: 1; min-width: 0; }
     .exp-title {
