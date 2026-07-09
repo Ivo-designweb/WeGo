@@ -5,14 +5,14 @@
 //        default (segnaposto blu generico, "sembrava incompleta") con
 //        un'icona "moneta" custom (_riepilogoCoinIcon(), L.divIcon —
 //        riusa l'IDENTICA moneta SVG già usata per "Uso Cassa Comune"
-//        in _renderSpese(), coerenza visiva). Click su un pin ora porta
-//        DIRETTAMENTE alla spesa nella LISTA del tab Movimenti
-//        (_goToExpenseInList(): switchTab('spese') + scrollIntoView +
-//        evidenziazione breve), non più alla pagina di modifica — tolto
-//        il popup intermedio che c'era prima, un passaggio in meno.
-//        Nuovo attributo data-expense-id su ogni riga .exp_item in
-//        _renderSpese() (prima il click era gestito solo via onclick
-//        inline, niente per selezionare una riga specifica da fuori).
+//        in _renderSpese(), coerenza visiva). Click sull'icona → popup
+//        con descrizione+importo; click DENTRO il popup → porta alla
+//        spesa nella LISTA del tab Movimenti (_goToExpenseInList():
+//        switchTab('spese') + scrollIntoView + evidenziazione breve),
+//        non alla pagina di modifica. Nuovo attributo data-expense-id
+//        su ogni riga .exp-item in _renderSpese() (prima il click era
+//        gestito solo via onclick inline, niente per selezionare una
+//        riga specifica da fuori).
 // v2.28: _syncQuiet() ora usa Sync.scheduleQuietSync() (sync.js v2.1)
 //        invece di await diretto a Sync.push()/pullEvent() — la sync
 //        silenziosa (al caricamento pagina, al ritorno online, e di
@@ -553,19 +553,27 @@ const EventoApp = {
     const markers = EventoApp._riepilogoLeafletMarkers;
     markers.clearLayers();
 
+    // Ultima modifica: click sull'icona → popup con descrizione+importo;
+    // click DENTRO il popup → porta alla spesa nella lista Movimenti
+    // (_goToExpenseInList(), invariata). L'onclick del popup è inline
+    // nell'HTML: bindPopup inserisce il contenuto nel DOM reale, quindi
+    // un onclick su EventoApp (globale, window.EventoApp) funziona come
+    // ovunque altro nell'app.
+    const currency = EventoApp._event?.currency || 'EUR';
     const bounds = [];
     points.forEach(exp => {
       const { lat, lng } = exp.location;
       bounds.push([lat, lng]);
-      // Click sul pin → porta DIRETTO alla spesa nella lista Movimenti
-      // (richiesta cliente, vedi _goToExpenseInList() sopra) — niente
-      // più popup intermedio: il titolo/importo si vedono subito
-      // arrivando sulla riga evidenziata, un passaggio in meno.
+      const popupHtml = `
+        <div style="cursor:pointer;" onclick="EventoApp._goToExpenseInList('${exp.id}')">
+          <b>${Utils.escapeHtml(exp.title || 'Spesa')}</b><br>
+          ${Utils.formatAmount(parseFloat(exp.amount) || 0, exp.currency || currency)}
+        </div>`;
       L.marker([lat, lng], {
         icon:  EventoApp._riepilogoCoinIcon(),
         title: exp.title || 'Spesa' // tooltip nativo al passaggio (desktop)
       })
-        .on('click', () => EventoApp._goToExpenseInList(exp.id))
+        .bindPopup(popupHtml)
         .addTo(markers);
     });
 
