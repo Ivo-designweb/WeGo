@@ -572,21 +572,53 @@ const SpesaApp = {
     }
   },
 
-  // NUOVO v2.9 — l'utente sta scrivendo/modificando il campo a mano
-  // (sia su un nuovo movimento sia in modifica, con GPS attivo o
-  // spento): l'indirizzo diventa testo libero, ESPLICITAMENTE
-  // indipendente dalla posizione GPS reale (richiesta cliente) — le
-  // coordinate vengono azzerate. Conseguenze accettate: il link "Apri
-  // su Maps" passa a una ricerca testuale (sopra), e questo movimento
-  // non genera più un pin nella Mappa del tab Riepilogo (evento.js),
-  // che richiede coordinate reali.
+  // v2.9: l'utente sta scrivendo/modificando il campo a mano (sia su un
+  // nuovo movimento sia in modifica, con GPS attivo o spento): il testo
+  // resta subito quello scritto, indipendente dalla posizione GPS reale
+  // (richiesta cliente) — le coordinate si azzerano SUBITO (fallback:
+  // link "Apri su Maps" a ricerca testuale, nessun pin sulla Mappa).
+  //
+  // AGGIUNTA: prova poi a RISOLVERE quell'indirizzo in coordinate vere
+  // tramite Nominatim/OpenStreetMap (stesso servizio già usato per la
+  // geocodifica inversa, Utils.geocodeAddress() in utils.js — nessuna
+  // API key). Se trova una corrispondenza, il movimento torna ad avere
+  // coordinate reali (compare di nuovo come pin sulla Mappa, link Maps
+  // preciso) SENZA toccare il testo scritto dall'utente, che resta
+  // quello. Se non trova nulla (indirizzo vago/incompleto/inventato),
+  // resta testo libero senza coordinate — comportamento identico a
+  // prima, nessuna regressione.
+  //
+  // Debounce di 900ms (rispetto della policy d'uso di Nominatim, max
+  // ~1 richiesta/secondo — non ha senso geocodificare ad ogni tasto
+  // comunque, l'indirizzo è incompleto mentre si scrive) + un numero di
+  // sequenza (_geocodeSeq) per scartare risposte "vecchie" se l'utente
+  // continua a scrivere: solo l'ultimo tentativo in ordine di tempo può
+  // aggiornare le coordinate.
   onLocationTextInput() {
     const text  = document.getElementById('locationText');
     const value = text.value.trim();
+
+    if (SpesaApp._geocodeTimer) clearTimeout(SpesaApp._geocodeTimer);
+    SpesaApp._geocodeSeq = (SpesaApp._geocodeSeq || 0) + 1;
+
     if (value) {
       SpesaApp._location = { lat: null, lng: null, address: value };
       const clearBtn = document.getElementById('locationClear');
       if (clearBtn) clearBtn.style.display = '';
+
+      const mySeq = SpesaApp._geocodeSeq;
+      SpesaApp._geocodeTimer = setTimeout(async () => {
+        const coords = await Utils.geocodeAddress(value);
+        // Scartata se nel frattempo l'utente ha scritto altro (sequenza
+        // superata) o ha cancellato/cambiato del tutto il campo.
+        if (mySeq !== SpesaApp._geocodeSeq) return;
+        if (!coords) return;
+        if (!SpesaApp._location || SpesaApp._location.address !== value) return;
+
+        SpesaApp._location.lat = coords.lat;
+        SpesaApp._location.lng = coords.lng;
+        SpesaApp._updateMapsLink(SpesaApp._location);
+      }, 900);
     } else {
       SpesaApp._location = null;
       const clearBtn = document.getElementById('locationClear');

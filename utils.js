@@ -378,6 +378,33 @@ const Utils = {
   },
 
   /**
+   * Geocodifica DIRETTA (testo → coordinate), opposta a reverseGeocode()
+   * qui sopra — stesso servizio (Nominatim/OpenStreetMap, nessuna API
+   * key). Usata da spesa.js quando l'utente scrive un indirizzo a mano
+   * nel campo posizione: prova a risolverlo in coordinate reali, così
+   * quel movimento può comunque comparire come pin nella Mappa del tab
+   * Riepilogo e avere un link "Apri su Maps" preciso. Se Nominatim non
+   * trova corrispondenze (indirizzo troppo vago, inventato, o solo in
+   * parte scritto) torna null: il chiamante mantiene il testo così
+   * com'è, senza coordinate — comportamento già esistente, invariato.
+   * limit=1: ci basta il risultato migliore, non un elenco.
+   */
+  async geocodeAddress(text) {
+    if (!text || !text.trim()) return null;
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text.trim())}&format=json&limit=1&accept-language=it`;
+      const res = await fetch(url, { headers: { 'Accept-Language': 'it' } });
+      const data = await res.json();
+      if (Array.isArray(data) && data.length && data[0].lat && data[0].lon) {
+        return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
    * Crea link a Google Maps / Apple Maps
    */
   mapsUrl(lat, lng, label = '') {
