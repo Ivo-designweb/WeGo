@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v7.2</title>
+  <title>Impostazioni — WeGo v7.3</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -72,6 +72,43 @@
     }
     .method-item:last-child { border-bottom: none; }
     .method-item__label { flex: 1; font-size: 15px; color: var(--text-primary); }
+
+    /* Icona categoria spesa (v7.3) — stesso ingombro dell'icona nella
+       lista Movimenti di evento.html (.exp-cat-icon), qui però anche
+       cliccabile (bottone "matita" di modifica). */
+    .category-icon {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: rgba(59,130,246,0.14); color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .category-icon svg { width: 14px; height: 14px; }
+    .category-edit-btn {
+      width: 26px; height: 26px; border-radius: var(--r-sm);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--text-muted); background: none; border: none;
+      -webkit-tap-highlight-color: transparent; cursor: pointer;
+    }
+    .category-edit-btn svg { width: 15px; height: 15px; }
+    .category-edit-btn:active { color: var(--accent); }
+
+    /* Griglia icone nel modal "Modifica categoria" (v7.3) */
+    .icon-picker-grid {
+      display: grid; grid-template-columns: repeat(6, 1fr);
+      gap: 8px; max-height: 220px; overflow-y: auto;
+      padding: 10px 2px; margin-bottom: 4px;
+    }
+    .icon-picker-item {
+      width: 100%; aspect-ratio: 1; border-radius: var(--r-md);
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg-input); color: var(--text-secondary);
+      border: 2px solid transparent; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .icon-picker-item svg { width: 18px; height: 18px; }
+    .icon-picker-item.selected {
+      border-color: var(--accent); background: rgba(59,130,246,0.14); color: var(--accent);
+    }
 
     /* About box */
     .about-box {
@@ -564,6 +601,26 @@
   </div>
 </div>
 
+<!-- MODAL: MODIFICA CATEGORIA SPESA (nome + icona) — NUOVO v7.3 -->
+<div class="modal-backdrop" id="modalEditCategory" onclick="SettingsApp.closeModal('modalEditCategory')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="bottom-sheet__handle"></div>
+    <h2 class="bottom-sheet__title">Modifica categoria</h2>
+    <input type="hidden" id="editCategoryId" />
+    <div class="form-group">
+      <label class="form-label">Nome categoria *</label>
+      <input type="text" class="form-input" id="editCategoryName"
+        placeholder="es. Cibo" maxlength="30"
+        onkeydown="if(event.key==='Enter') SettingsApp.saveEditCategory()" />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Icona</label>
+      <div class="icon-picker-grid" id="editCategoryIconGrid"><!-- Generato da JS --></div>
+    </div>
+    <button class="btn btn--primary btn--full btn--xl" onclick="SettingsApp.saveEditCategory()">Salva</button>
+  </div>
+</div>
+
 <!-- MODAL: RICHIEDI SOLUZIONE COMPLETA -->
 <div class="modal-backdrop" id="modalRequestPro" onclick="SettingsApp.closeModal('modalRequestPro')">
   <div class="bottom-sheet" onclick="event.stopPropagation()">
@@ -957,13 +1014,24 @@ const SettingsApp = {
   },
 
   // ─── CATEGORIE SPESA (campo "Tipo") ─────────────────────
+  // v7.3: ogni riga mostra ora l'icona della categoria + una matita
+  // per modificarne descrizione e icona — disponibile anche sulle
+  // categorie di DEFAULT (prima solo abilita/disabilita o rimozione
+  // per le personalizzate). Vedi payments.js v1.2 (ExpenseCategoryIcons,
+  // ExpenseCategories.rename()/setIcon()).
   _renderExpenseCategories() {
     const container = document.getElementById('expenseCategoriesList');
     if (!container || typeof ExpenseCategories === 'undefined') return;
     const cats = ExpenseCategories.getAll();
     container.innerHTML = cats.map(c => `
       <div class="method-item">
+        <div class="category-icon">${ExpenseCategories.iconSvg(c, 14)}</div>
         <span class="method-item__label">${Utils.escapeHtml(c.label)}</span>
+        <button class="category-edit-btn" onclick="SettingsApp.editExpenseCategory('${c.id}')" aria-label="Modifica categoria">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+        </button>
         ${c.custom ? `<button class="btn btn--ghost btn--sm" style="color:var(--red);border-color:transparent;"
           onclick="SettingsApp.removeCategory('${c.id}')">Rimuovi</button>` : ''}
         <label class="toggle" style="margin-left:${c.custom ? '0' : 'auto'};">
@@ -973,6 +1041,44 @@ const SettingsApp = {
         </label>
       </div>`
     ).join('');
+  },
+
+  // ─── MODIFICA CATEGORIA (descrizione + icona) — v7.3 ────
+  _editCategoryIcon: 'dots', // icona selezionata nel modal, mentre l'utente sfoglia la griglia
+
+  editExpenseCategory(id) {
+    const cat = ExpenseCategories.getById(id);
+    document.getElementById('editCategoryId').value   = id;
+    document.getElementById('editCategoryName').value = cat.label;
+    SettingsApp._editCategoryIcon = cat.icon || 'dots';
+    SettingsApp._renderIconPicker();
+    SettingsApp.openModal('modalEditCategory');
+    setTimeout(() => document.getElementById('editCategoryName').focus(), 300);
+  },
+
+  _renderIconPicker() {
+    const grid = document.getElementById('editCategoryIconGrid');
+    if (!grid || typeof ExpenseCategoryIcons === 'undefined') return;
+    grid.innerHTML = ExpenseCategoryIcons.LIST.map(iconId => `
+      <div class="icon-picker-item ${iconId === SettingsApp._editCategoryIcon ? 'selected' : ''}"
+        onclick="SettingsApp.selectEditIcon('${iconId}')">${ExpenseCategoryIcons.svg(iconId, 18)}</div>`
+    ).join('');
+  },
+
+  selectEditIcon(iconId) {
+    SettingsApp._editCategoryIcon = iconId;
+    SettingsApp._renderIconPicker();
+  },
+
+  saveEditCategory() {
+    const id    = document.getElementById('editCategoryId').value;
+    const name  = document.getElementById('editCategoryName').value.trim();
+    if (!name) { Utils.toast('Inserisci un nome', 'error'); return; }
+    ExpenseCategories.rename(id, name);
+    ExpenseCategories.setIcon(id, SettingsApp._editCategoryIcon);
+    SettingsApp.closeModal('modalEditCategory');
+    SettingsApp._renderExpenseCategories();
+    Utils.toast('Categoria aggiornata', 'success', 1500);
   },
 
   toggleCategory(id, enabled) {
@@ -995,7 +1101,10 @@ const SettingsApp = {
     if (result) {
       SettingsApp.closeModal('modalAddCategory');
       SettingsApp._renderExpenseCategories();
-      Utils.toast(`"${name}" aggiunta`, 'success');
+      Utils.toast(`"${name}" aggiunta`, 'success', 1200);
+      // v7.3: apre subito il modal di modifica per scegliere l'icona
+      // (la nuova categoria parte con l'icona generica "dots").
+      setTimeout(() => SettingsApp.editExpenseCategory(result.id), 350);
     }
   },
 

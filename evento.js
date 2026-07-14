@@ -1,6 +1,25 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.29
+// WeGo — evento.js v2.30
 // Logica pagina dettaglio evento
+// v2.30: 1) Nella lista Movimenti, le Spese normali mostrano l'icona
+//        della categoria (Tipo, ExpenseCategories/ExpenseCategoryIcons
+//        — vedi payments.js v1.2) al posto dell'iniziale utente
+//        colorata — vedi _renderMovementItem(). Se la spesa non ha
+//        categoria (campo facoltativo, spese vecchie) si mostra
+//        comunque l'icona "Cibo" come default visivo, SENZA scrivere
+//        nulla sul record salvato (richiesta cliente: "lasciale così
+//        com'è"). Trasferimenti e "+Cassiere" NON cambiano, restano
+//        con l'iniziale utente colorata (non hanno categoria).
+//        2) Tab Riepilogo → criterio "Partecipante": il totale per
+//        persona ora è lo stesso calcolo "Versato/Incassato" già
+//        usato nel tab Partecipanti (_calcUserContribution() — spese
+//        reali pagate per intero + trasferimenti/"+Cassiere" inviati
+//        MENO quelli incassati), non più la somma grezza che contava
+//        i trasferimenti solo su chi li invia senza sottrarli a chi
+//        li riceve (causava un totale disallineato sia da Saldi sia
+//        dagli altri due criteri Data/Tipo spesa — vedi situazione.md
+//        per l'esempio numerico). Chi ha un netto ≤0 (es. un
+//        cassiere che ha solo incassato) non compare come fetta.
 // v2.29: Mappa del tab Riepilogo — sostituita l'icona Leaflet di
 //        default (segnaposto blu generico, "sembrava incompleta") con
 //        un'icona "moneta" custom (_riepilogoCoinIcon(), L.divIcon —
@@ -437,18 +456,11 @@ const EventoApp = {
     return EventoApp._expenses.filter(e => (e.type || 'expense') === 'expense' && !e.is_forecast);
   },
 
-  // "Per Partecipante" (v2.26): a differenza di sopra, include ANCHE i
-  // Trasferimenti — richiesta cliente: chi ha inviato un trasferimento
-  // (paid_by) deve comparire nel grafico esattamente come chi ha pagato
-  // una spesa, con l'intero importo attribuito a lui. "+Cassiere" resta
-  // escluso (non richiesto, e nel modello dati il "pagatore" è il
-  // cassiere che INCASSA — includerlo confonderebbe "chi ha versato").
-  _riepilogoPartecipanteMovements() {
-    return EventoApp._expenses.filter(e => {
-      const t = e.type || 'expense';
-      return (t === 'expense' || t === 'transfer') && !e.is_forecast;
-    });
-  },
+  // "Per Partecipante" (v2.26, SOSTITUITA in v2.30): la vecchia versione
+  // sommava spese + trasferimenti attribuendo l'intero importo di un
+  // trasferimento solo a chi lo invia, senza sottrarlo a chi lo riceve
+  // — vedi _renderRiepilogo() per il calcolo attuale (netto per utente,
+  // stessa formula di _calcUserContribution()).
 
   // "Mappa" (NUOVO v2.27): solo spese reali con posizione GPS salvata.
   // Trasferimenti/"+Cassiere" non hanno mai 'location' (il rilevamento
@@ -634,14 +646,45 @@ const EventoApp = {
     const userMap  = {};
     users.forEach(u => { userMap[u.id] = u; });
 
-    // v2.26: "Partecipante" usa spese+trasferimenti, "Data"/"Tipo spesa"
-    // restano solo spese reali (vedi commenti sopra) — il totale mostrato
-    // al centro della torta cambia di conseguenza in base al criterio
-    // selezionato, sempre coerente con le fette che lo compongono.
-    const movements = mode === 'partecipante'
-      ? EventoApp._riepilogoPartecipanteMovements()
-      : EventoApp._riepilogoRealExpenses();
-    const total = movements.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+    // "Data"/"Tipo spesa" restano solo spese reali. "Partecipante"
+    // (v2.30) usa invece il NETTO per utente — stessa identica formula
+    // di _calcUserContribution() (spese reali pagate per intero +
+    // trasferimenti/"+Cassiere" inviati MENO quelli incassati): la
+    // somma di tutte le fette torna così sempre uguale al totale delle
+    // sole spese reali, coerente con gli altri due criteri e con la
+    // logica di Saldi (prima un trasferimento veniva sommato per
+    // intero solo su chi lo invia, mai sottratto a chi lo riceve).
+    let groups, total;
+    if (mode === 'partecipante') {
+      groups = users
+        .map(u => {
+          const c   = EventoApp._calcUserContribution(u.id);
+          const net = c.isNetReceiver ? -c.amount : c.amount;
+          return { key: u.id, label: u.name, amount: net };
+        })
+        // Chi ha un netto ≤0 (es. un cassiere che ha solo incassato,
+        // senza spendere nulla di suo) non compare come fetta.
+        .filter(g => g.amount > 0.004);
+      total = groups.reduce((s, g) => s + g.amount, 0);
+    } else {
+      const movements = EventoApp._riepilogoRealExpenses();
+      total = movements.reduce((s, e) => s + parseFloat(e.amount || 0), 0);
+      const buckets = {}; // key -> { key, label, amount }
+      for (const exp of movements) {
+        const amount = parseFloat(exp.amount || 0);
+        let key, label;
+        if (mode === 'data') {
+          key   = exp.date || Utils.formatDate(exp.created_at);
+          label = Utils.formatDateLabel(key);
+        } else { // 'tipo'
+          key   = exp.category || '__none__';
+          label = exp.category ? ExpenseCategories.getById(exp.category).label : 'Senza categoria';
+        }
+        if (!buckets[key]) buckets[key] = { key, label, amount: 0 };
+        buckets[key].amount += amount;
+      }
+      groups = Object.values(buckets);
+    }
 
     const totalEl   = document.getElementById('riepilogoTotal');
     const emptyEl   = document.getElementById('riepilogoEmpty');
@@ -649,7 +692,7 @@ const EventoApp = {
 
     if (totalEl) totalEl.textContent = Utils.formatAmount(total, currency);
 
-    if (!movements.length || total <= 0) {
+    if (!groups.length || total <= 0) {
       if (emptyEl)   emptyEl.style.display   = '';
       if (chartWrap) chartWrap.style.display = 'none';
       return;
@@ -657,30 +700,8 @@ const EventoApp = {
     if (emptyEl)   emptyEl.style.display   = 'none';
     if (chartWrap) chartWrap.style.display = '';
 
-    // Raggruppamento per bucket in base al criterio selezionato
-    const buckets = {}; // key -> { key, label, amount }
-    for (const exp of movements) {
-      const amount = parseFloat(exp.amount || 0);
-      let key, label;
-
-      if (mode === 'data') {
-        key   = exp.date || Utils.formatDate(exp.created_at);
-        label = Utils.formatDateLabel(key);
-      } else if (mode === 'tipo') {
-        key   = exp.category || '__none__';
-        label = exp.category ? ExpenseCategories.getById(exp.category).label : 'Senza categoria';
-      } else { // 'partecipante' — chi ha pagato la spesa O inviato il
-               // trasferimento (paid_by in entrambi i casi)
-        key   = exp.paid_by || '__none__';
-        label = userMap[exp.paid_by] ? userMap[exp.paid_by].name : 'Sconosciuto';
-      }
-
-      if (!buckets[key]) buckets[key] = { key, label, amount: 0 };
-      buckets[key].amount += amount;
-    }
-
     // Fette ordinate per importo decrescente (più leggibile in legenda)
-    let groups = Object.values(buckets).sort((a, b) => b.amount - a.amount);
+    groups = groups.sort((a, b) => b.amount - a.amount);
     groups = groups.map((g, i) => {
       let color;
       if (mode === 'partecipante') {
@@ -1206,8 +1227,6 @@ const EventoApp = {
     // ── SPESA NORMALE ──
     const exp = m.data;
     const payer    = userMap[exp.paid_by];
-    const payerIdx = payer ? Utils.avatarColorIndex(payer.name) : 0;
-    const payerInit = payer ? Utils.initials(payer.name) : '?';
     const isMyExp  = exp.paid_by === EventoApp._currentUserId;
     // Permesso di modificare/eliminare la foto: solo chi ha CREATO il
     // movimento (non chi l'ha pagato — possono essere persone diverse).
@@ -1236,10 +1255,20 @@ const EventoApp = {
     const forecastBadge = exp.is_forecast
       ? `<span class="exp-badge" style="color:var(--amber);background:rgba(245,158,11,0.12);">previsione</span>`
       : '';
+    // Icona categoria (Tipo) al posto dell'iniziale utente (v2.30) —
+    // se la spesa non ha categoria (campo facoltativo, o spesa
+    // registrata prima di questa versione) si usa "Cibo" come default
+    // SOLO visivo, il record salvato resta invariato (categoria vuota).
+    const catObj  = ExpenseCategories.getById(exp.category || 'cibo');
+    const catIcon = ExpenseCategories.iconSvg(catObj, 13);
+    const catTitle = payer
+      ? `${Utils.escapeHtml(catObj.label)} — pagato da ${Utils.escapeHtml(payer.name)}`
+      : Utils.escapeHtml(catObj.label);
+
     return `
       <div class="exp-item" data-expense-id="${exp.id}" onclick="EventoApp.editExpense('${exp.id}')">
         <div class="exp-avatar">
-          <div class="avatar avatar-${payerIdx} avatar--sm" title="${payer ? Utils.escapeHtml(payer.name) : '?'}">${payerInit}</div>
+          <div class="exp-cat-icon" title="${catTitle}">${catIcon}</div>
         </div>
         <div class="exp-info">
           <div class="exp-title">${Utils.escapeHtml(exp.title)}</div>

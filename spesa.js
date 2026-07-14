@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v2.9
+// WeGo — spesa.js v3.0
 // Logica pagina inserimento / modifica spesa
+// v3.0: select "Tipo" (categoria spesa) — per una spesa NUOVA ora parte
+//       preselezionata su "Cibo" invece che vuota (richiesta cliente,
+//       vedi payments.js v1.2/impostazioni.html v7.3 per le icone
+//       categoria). In modifica di una spesa già esistente non cambia
+//       nulla: _loadExistingExpense() imposta subito dopo il valore
+//       reale salvato (anche se vuoto) — vedi _buildCategorySelect().
 // v2.9: campo posizione ora EDITABILE liberamente (richiesta cliente) —
 //       prima era un <span> di sola visualizzazione, si riempiva SOLO
 //       via GPS e l'intera barra rilevava una nuova posizione al tocco.
@@ -292,8 +298,14 @@ const SpesaApp = {
     const sel = document.getElementById('expenseCategory');
     if (!sel || typeof ExpenseCategories === 'undefined') return;
     const cats = ExpenseCategories.getEnabled();
-    sel.innerHTML = '<option value="">—</option>' + cats.map(c =>
-      `<option value="${Utils.escapeHtml(c.id)}">${Utils.escapeHtml(c.label)}</option>`
+    // v3.0: per una spesa NUOVA il default è "Cibo" (se ancora abilitata,
+    // altrimenti resta vuoto) — in modifica di una spesa esistente questo
+    // valore iniziale viene subito sovrascritto da _loadExistingExpense()
+    // col valore reale salvato, incluso vuoto se non aveva categoria.
+    const isNew = !SpesaApp._expenseId;
+    const defaultId = (isNew && cats.some(c => c.id === 'cibo')) ? 'cibo' : '';
+    sel.innerHTML = '<option value="" ' + (defaultId === '' ? 'selected' : '') + '>—</option>' + cats.map(c =>
+      `<option value="${Utils.escapeHtml(c.id)}" ${c.id === defaultId ? 'selected' : ''}>${Utils.escapeHtml(c.label)}</option>`
     ).join('');
   },
 

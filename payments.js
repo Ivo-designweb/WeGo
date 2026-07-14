@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — payments.js v1.1
+// WeGo — payments.js v1.2
 // Gestione metodi di pagamento configurabili + categorie di spesa
+// v1.2: NUOVA ExpenseCategoryIcons (~50 icone SVG scelte tra cui
+//       assegnare una tipologia di spesa) + campo "icon" su ogni
+//       categoria (default e personalizzate) + nuovi metodi
+//       ExpenseCategories.setIcon()/rename() — ora anche le categorie
+//       di default (Cibo, Trasporti, ecc.) sono rinominabili e
+//       possono cambiare icona da Impostazioni (prima solo
+//       abilita/disabilita). Vedi impostazioni.html v7.3.
 // v1.1: aggiunto ExpenseCategories — stesso identico pattern di
 //       PaymentMethods, per il campo "Tipo" nel form spesa (vedi
 //       spesa.html/spesa.js) e la gestione in Impostazioni
@@ -161,15 +168,99 @@ window.PaymentMethods = PaymentMethods;
 // di pagamento, una spesa può non avere nessuna categoria.
 // ═══════════════════════════════════════════════════════════════
 
+// ─── ICONE CATEGORIE SPESA (v1.2) ────────────────────────────
+// ~50 icone SVG stroke (stesso stile di PaymentMethods.iconSvg sopra)
+// tra cui scegliere per ogni categoria — vedi Impostazioni →
+// Categorie spesa → matita di modifica (impostazioni.html).
+const ExpenseCategoryIcons = {
+
+  // Elenco ordinato mostrato nel selettore icone (raggruppato per
+  // affinità: cibo/bevande, trasporti, alloggio/luoghi, tempo
+  // libero/sport, shopping/varie, casa/famiglia, lavoro/soldi)
+  LIST: [
+    'food','burger','pizza','coffee','drink','beer','icecream',
+    'car','bus','train','plane','ship','taxi','fuel','parking','bike','walk',
+    'home','bed','tent','key','building','museum',
+    'ticket','theatre','movie','music','camera','map-pin','mountain',
+    'umbrella-beach','swim','ski','ball','gym',
+    'shopping-bag','gift','book','medicine','hospital','phone','wifi','laundry',
+    'pet','baby','toy','briefcase','tools','wallet','bank','insurance','party','dots'
+  ],
+
+  PATHS: {
+    food:        '<path d="M6 2v7a2 2 0 002 2 2 2 0 002-2V2M6 2v20M10 2v6M18 2c-1.5 0-3 2-3 5s1 5 1 5v10"/>',
+    burger:      '<path d="M3 10c0-3.5 4-6 9-6s9 2.5 9 6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="4" y1="14" x2="20" y2="14"/><path d="M3 17a2 2 0 002 2h14a2 2 0 002-2"/>',
+    pizza:       '<path d="M12 2L2 20h20L12 2z"/><circle cx="12" cy="12" r="1"/><circle cx="9" cy="16" r="1"/><circle cx="15" cy="16" r="1"/>',
+    coffee:      '<path d="M4 8h13v6a5 5 0 01-5 5H9a5 5 0 01-5-5V8z"/><path d="M17 9h2a2 2 0 010 4h-2"/><path d="M8 2c0 1-1 1-1 2s1 1 1 2M12 2c0 1-1 1-1 2s1 1 1 2"/>',
+    drink:       '<path d="M4 4h16l-8 9v7"/><line x1="8" y1="20" x2="16" y2="20"/><line x1="12" y1="13" x2="12" y2="20"/>',
+    beer:        '<path d="M5 8h11v11a2 2 0 01-2 2H7a2 2 0 01-2-2V8z"/><path d="M16 10h2a2 2 0 012 2v3a2 2 0 01-2 2h-2"/><line x1="5" y1="12" x2="16" y2="12"/>',
+    icecream:    '<path d="M12 21L7 10h10L12 21z"/><path d="M7 10a5 5 0 0110 0"/>',
+    car:         '<path d="M3 13l2-6a2 2 0 012-2h10a2 2 0 012 2l2 6"/><path d="M3 13v4a1 1 0 001 1h1a1 1 0 001-1v-1h12v1a1 1 0 001 1h1a1 1 0 001-1v-4H3z"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/>',
+    bus:         '<rect x="3" y="4" width="18" height="13" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="7" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/>',
+    train:       '<rect x="5" y="3" width="14" height="13" rx="3"/><line x1="5" y1="10" x2="19" y2="10"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M8 16l-3 5M16 16l3 5"/>',
+    plane:       '<path d="M21 16v-2l-8-5V4a2 2 0 00-4 0v5l-8 5v2l8-2.5V19l-3 2v2l5-1.5 5 1.5v-2l-3-2v-5.5l8 2.5z"/>',
+    ship:        '<path d="M3 15h18l-2 5H5l-2-5z"/><path d="M6 15V6h5l4 4v5"/><line x1="12" y1="2" x2="12" y2="6"/>',
+    taxi:        '<rect x="9" y="4" width="6" height="3" rx="1"/><path d="M3 13l2-6a2 2 0 012-2h10a2 2 0 012 2l2 6"/><path d="M3 13v4a1 1 0 001 1h1a1 1 0 001-1v-1h12v1a1 1 0 001 1h1a1 1 0 001-1v-4H3z"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/>',
+    fuel:        '<path d="M4 21V7a2 2 0 012-2h6a2 2 0 012 2v14"/><line x1="3" y1="21" x2="15" y2="21"/><path d="M14 10h2a2 2 0 012 2v5a1.5 1.5 0 003 0V9l-3-3"/><line x1="6" y1="9" x2="12" y2="9"/>',
+    parking:     '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 16V7h4a3 3 0 010 6H9"/>',
+    bike:        '<circle cx="6" cy="17" r="3.5"/><circle cx="18" cy="17" r="3.5"/><path d="M6 17l4-8h5l3 8"/><path d="M10 9h4M10 9L8 5h3"/>',
+    walk:        '<circle cx="13" cy="4" r="1.5"/><path d="M9 21l2-6 2 2 2 6"/><path d="M11 15l-2-4 3-3 3 2 3-1"/>',
+    home:        '<path d="M4 11l8-7 8 7"/><path d="M6 9.5V20a1 1 0 001 1h4v-6h2v6h4a1 1 0 001-1V9.5"/>',
+    bed:         '<path d="M3 18v-7a2 2 0 012-2h14a2 2 0 012 2v7"/><path d="M3 18v3M21 18v3"/><path d="M3 13V9a2 2 0 012-2h4a2 2 0 012 2v4"/><line x1="11" y1="13" x2="21" y2="13"/>',
+    tent:        '<path d="M12 3l9 18H3L12 3z"/><path d="M8 21l4-11 4 11"/>',
+    key:         '<circle cx="7" cy="15" r="4"/><path d="M10 12l10-10"/><path d="M17 5l2 2M20 2l2 2"/>',
+    building:    '<rect x="5" y="3" width="14" height="18" rx="1"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="14" x2="19" y2="14"/><line x1="10" y1="3" x2="10" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>',
+    museum:      '<path d="M3 9l9-6 9 6"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="21" x2="20" y2="21"/><line x1="6" y1="9" x2="6" y2="19"/><line x1="10" y1="9" x2="10" y2="19"/><line x1="14" y1="9" x2="14" y2="19"/><line x1="18" y1="9" x2="18" y2="19"/>',
+    ticket:      '<path d="M3 8a2 2 0 012-2h14a2 2 0 012 2v2a2 2 0 000 4v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2a2 2 0 000-4V8z"/><line x1="10" y1="6" x2="10" y2="18" stroke-dasharray="2 2"/>',
+    theatre:     '<path d="M4 4c4 0 4 4 8 4s4-4 8-4"/><path d="M4 4v6a8 8 0 0016 0V4"/><circle cx="9" cy="10" r="1"/><circle cx="15" cy="10" r="1"/>',
+    movie:       '<rect x="3" y="7" width="18" height="14" rx="2"/><path d="M3 7l3-4h4l-3 4M11 7l3-4h4l-3 4"/>',
+    music:       '<circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><path d="M9 18V4l12-2v14"/>',
+    camera:      '<rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13.5" r="4"/><path d="M8 7l1.5-3h5L16 7"/>',
+    'map-pin':   '<path d="M12 21s7-7.5 7-12a7 7 0 10-14 0c0 4.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.3"/>',
+    mountain:    '<path d="M3 20l6-11 4 6 2-3 6 8H3z"/><circle cx="18" cy="6" r="2"/>',
+    'umbrella-beach': '<path d="M12 3a9 9 0 019 9H3a9 9 0 019-9z"/><line x1="12" y1="3" x2="12" y2="21"/><path d="M12 21c-2 0-3-1-3-2"/>',
+    swim:        '<path d="M3 17c1.5 1.5 3 1.5 4.5 0s3-1.5 4.5 0 3 1.5 4.5 0 3-1.5 4.5 0"/><path d="M3 21c1.5 1.5 3 1.5 4.5 0s3-1.5 4.5 0 3 1.5 4.5 0 3-1.5 4.5 0"/><circle cx="16" cy="6" r="2"/><path d="M4 14l6-3 3 2 4-4"/>',
+    ski:         '<path d="M4 20l14-16M2 21l4-4M18 5l4-4"/><path d="M8 16l3 3M13 11l3 3"/>',
+    ball:        '<circle cx="12" cy="12" r="9"/><path d="M12 8l3.5 2.5-1.3 4H9.8l-1.3-4L12 8z"/><path d="M12 3v5M4.5 9l4.3 1.5M6 19l3.8-4.5M18 19l-3.8-4.5M19.5 9l-4.3 1.5"/>',
+    gym:         '<rect x="2" y="9" width="3" height="6" rx="1"/><rect x="19" y="9" width="3" height="6" rx="1"/><rect x="5" y="7" width="2.5" height="10" rx="1"/><rect x="16.5" y="7" width="2.5" height="10" rx="1"/><line x1="7.5" y1="12" x2="16.5" y2="12"/>',
+    'shopping-bag': '<path d="M6 8h12l1 12a2 2 0 01-2 2H7a2 2 0 01-2-2L6 8z"/><path d="M9 8V6a3 3 0 016 0v2"/>',
+    gift:        '<rect x="3" y="9" width="18" height="12" rx="1"/><line x1="3" y1="13" x2="21" y2="13"/><line x1="12" y1="9" x2="12" y2="21"/><path d="M12 9C10 9 8 7.5 8 5.5A2.5 2.5 0 0112.5 4C12.5 6.5 12 9 12 9zM12 9c2 0 4-1.5 4-3.5A2.5 2.5 0 0011.5 4c0 2.5.5 5 .5 5z"/>',
+    book:        '<path d="M4 4.5A2.5 2.5 0 016.5 2H20v17H6.5A2.5 2.5 0 004 21.5v-17z"/><path d="M20 19H6.5a2.5 2.5 0 00-2.5 2.5"/>',
+    medicine:    '<path d="M8.5 15.5l7-7a3.5 3.5 0 10-5-5l-7 7a3.5 3.5 0 005 5z"/><line x1="9" y1="9" x2="15" y2="15"/>',
+    hospital:    '<rect x="3" y="3" width="18" height="18" rx="3"/><line x1="12" y1="7" x2="12" y2="17"/><line x1="7" y1="12" x2="17" y2="12"/>',
+    phone:       '<rect x="6" y="2" width="12" height="20" rx="2"/><line x1="11" y1="18" x2="13" y2="18"/>',
+    wifi:        '<path d="M2 8.5a16 16 0 0120 0"/><path d="M5 12a11 11 0 0114 0"/><path d="M8.5 15.5a6 6 0 017 0"/><circle cx="12" cy="19" r="1"/>',
+    laundry:     '<rect x="3" y="2" width="18" height="20" rx="2"/><circle cx="12" cy="13" r="6"/><circle cx="12" cy="13" r="3"/><circle cx="7" cy="5" r="0.8"/><circle cx="10" cy="5" r="0.8"/>',
+    pet:         '<circle cx="7" cy="8" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="17" cy="8" r="2"/><path d="M8 15c0-2.5 2-4 4-4s4 1.5 4 4-2 4-4 4-4-1.5-4-4z"/>',
+    baby:        '<circle cx="12" cy="10" r="6"/><circle cx="12" cy="10" r="2.3"/><path d="M12 16v3a2 2 0 002 2"/>',
+    toy:         '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="8.5" cy="8.5" r="1.2"/><circle cx="15.5" cy="8.5" r="1.2"/><circle cx="8.5" cy="15.5" r="1.2"/><circle cx="15.5" cy="15.5" r="1.2"/><circle cx="12" cy="12" r="1.2"/>',
+    briefcase:   '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2"/><line x1="3" y1="13" x2="21" y2="13"/>',
+    tools:       '<path d="M14.5 3.5a4.5 4.5 0 00-6 5.8L3 15v3h3l5.7-5.7a4.5 4.5 0 005.8-6l-3 3-2-2z"/>',
+    wallet:      '<path d="M3 7a2 2 0 012-2h13a1 1 0 011 1v2"/><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="16" cy="14" r="1.5"/>',
+    bank:        '<path d="M3 10l9-6 9 6"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="5" y1="20" x2="19" y2="20"/><line x1="6" y1="10" x2="6" y2="18"/><line x1="10" y1="10" x2="10" y2="18"/><line x1="14" y1="10" x2="14" y2="18"/><line x1="18" y1="10" x2="18" y2="18"/>',
+    insurance:   '<path d="M12 3l7 3v6c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/>',
+    party:       '<path d="M4 21l6-14 10 10-14 6-2-2z"/><circle cx="17" cy="4" r="1"/><circle cx="20" cy="8" r="1"/><circle cx="14" cy="3" r="1"/>',
+    dots:        '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
+  },
+
+  /** Markup SVG completo di un'icona (currentColor, per ereditare il colore dal contenitore). */
+  svg(iconId, size = 16) {
+    const d = ExpenseCategoryIcons.PATHS[iconId] || ExpenseCategoryIcons.PATHS.dots;
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+  }
+};
+
+window.ExpenseCategoryIcons = ExpenseCategoryIcons;
+
 const ExpenseCategories = {
 
   DEFAULTS: [
-    { id: 'cibo',       label: 'Cibo',       enabled: true },
-    { id: 'trasporti',  label: 'Trasporti',  enabled: true },
-    { id: 'alloggio',   label: 'Alloggio',   enabled: true },
-    { id: 'ingressi',   label: 'Ingressi',   enabled: true },
-    { id: 'souvenir',   label: 'Souvenir',   enabled: true },
-    { id: 'altro',      label: 'Altro',      enabled: true }
+    { id: 'cibo',       label: 'Cibo',       enabled: true, icon: 'food'   },
+    { id: 'trasporti',  label: 'Trasporti',  enabled: true, icon: 'car'    },
+    { id: 'alloggio',   label: 'Alloggio',   enabled: true, icon: 'bed'    },
+    { id: 'ingressi',   label: 'Ingressi',   enabled: true, icon: 'ticket' },
+    { id: 'souvenir',   label: 'Souvenir',   enabled: true, icon: 'gift'   },
+    { id: 'altro',      label: 'Altro',      enabled: true, icon: 'dots'   }
   ],
 
   getEnabled() {
@@ -208,7 +299,27 @@ const ExpenseCategories = {
     return cat;
   },
 
-  addCustom(label) {
+  // ─── RINOMINA / CAMBIA ICONA (v1.2) ──────────────────────
+  // A differenza di toggle()/removeCustom(), questi due funzionano
+  // anche sulle categorie di DEFAULT (non solo custom): la label/icona
+  // scelta viene salvata come override nella lista utente (stesso
+  // meccanismo di merge già usato da getAll()/getEnabled()).
+  rename(id, label) {
+    if (!label || label.trim() === '') return null;
+    const all = ExpenseCategories.getAll();
+    const cat = all.find(c => c.id === id);
+    if (cat) { cat.label = label.trim(); ExpenseCategories.save(all); }
+    return cat;
+  },
+
+  setIcon(id, iconId) {
+    const all = ExpenseCategories.getAll();
+    const cat = all.find(c => c.id === id);
+    if (cat) { cat.icon = iconId; ExpenseCategories.save(all); }
+    return cat;
+  },
+
+  addCustom(label, icon = 'dots') {
     if (!label || label.trim() === '') return null;
     const all = ExpenseCategories.getAll();
     const id  = label.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
@@ -216,7 +327,7 @@ const ExpenseCategories = {
       Utils.toast('Categoria già esistente', 'error');
       return null;
     }
-    const cat = { id, label: label.trim(), enabled: true, custom: true };
+    const cat = { id, label: label.trim(), enabled: true, icon, custom: true };
     all.push(cat);
     ExpenseCategories.save(all);
     return cat;
@@ -229,7 +340,13 @@ const ExpenseCategories = {
 
   getById(id) {
     return ExpenseCategories.getAll().find(c => c.id === id) ||
-      { id, label: id, enabled: true };
+      { id, label: id, enabled: true, icon: 'dots' };
+  },
+
+  /** Markup SVG dell'icona di una categoria (per id o oggetto categoria già risolto). */
+  iconSvg(catOrId, size = 16) {
+    const cat = typeof catOrId === 'string' ? ExpenseCategories.getById(catOrId) : catOrId;
+    return ExpenseCategoryIcons.svg((cat && cat.icon) || 'dots', size);
   },
 
   /** <select> con le categorie abilitate, con opzione vuota iniziale (facoltativo). */
