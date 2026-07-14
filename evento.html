@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v7.3</title>
+  <title>Evento — WeGo v7.4</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/leaflet.css" />
@@ -276,16 +276,20 @@
     .exp-avatar { flex-shrink: 0; }
     /* v7.3: icona tipologia di spesa al posto dell'iniziale utente nelle
        Spese normali (vedi evento.js _renderMovementItem()) — stesso
-       ingombro di .avatar--sm (22px) ma sfondo neutro tinta accento,
-       non più colorato per utente (quel colore identificava chi paga,
-       ora sostituito dall'icona categoria). */
+       ingombro di .avatar--sm (22px). v7.4: sfondo diventato neutro
+       (invece della tinta accento) per non stonare con le nuove icone
+       a colori (payments.js v1.3, set Icons8) — le poche icone a
+       contorno rimaste (Alloggio/Altro) restano leggibili lo stesso
+       tramite color:var(--accent) ereditato dallo stroke="currentColor".
+       Aggiunta anche la dimensione per le icone <img> (prima solo svg). */
     .exp-cat-icon {
       width: 22px; height: 22px; border-radius: 50%;
-      background: rgba(59,130,246,0.14); color: var(--accent);
+      background: var(--bg-input); color: var(--accent);
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
+      flex-shrink: 0; overflow: hidden;
     }
     .exp-cat-icon svg { width: 13px; height: 13px; }
+    .exp-cat-icon img { width: 16px; height: 16px; }
     .exp-info { flex: 1; min-width: 0; }
     .exp-title {
       font-size: 17.5px; font-weight: 600; color: var(--text-primary);

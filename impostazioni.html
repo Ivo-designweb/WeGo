@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v7.3</title>
+  <title>Impostazioni — WeGo v7.4</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -75,14 +75,16 @@
 
     /* Icona categoria spesa (v7.3) — stesso ingombro dell'icona nella
        lista Movimenti di evento.html (.exp-cat-icon), qui però anche
-       cliccabile (bottone "matita" di modifica). */
+       cliccabile (bottone "matita" di modifica). v7.4: sfondo neutro
+       (non più tinta accento) per le nuove icone a colori. */
     .category-icon {
       width: 26px; height: 26px; border-radius: 50%;
-      background: rgba(59,130,246,0.14); color: var(--accent);
+      background: var(--bg-input); color: var(--accent);
       display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
+      flex-shrink: 0; overflow: hidden;
     }
     .category-icon svg { width: 14px; height: 14px; }
+    .category-icon img { width: 18px; height: 18px; }
     .category-edit-btn {
       width: 26px; height: 26px; border-radius: var(--r-sm);
       display: flex; align-items: center; justify-content: center;
@@ -92,7 +94,8 @@
     .category-edit-btn svg { width: 15px; height: 15px; }
     .category-edit-btn:active { color: var(--accent); }
 
-    /* Griglia icone nel modal "Modifica categoria" (v7.3) */
+    /* Griglia icone nel modal "Modifica categoria" (v7.3, sfondo
+       neutro rivisto in v7.4 per le icone a colori) */
     .icon-picker-grid {
       display: grid; grid-template-columns: repeat(6, 1fr);
       gap: 8px; max-height: 220px; overflow-y: auto;
@@ -103,9 +106,10 @@
       display: flex; align-items: center; justify-content: center;
       background: var(--bg-input); color: var(--text-secondary);
       border: 2px solid transparent; cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
+      -webkit-tap-highlight-color: transparent; overflow: hidden;
     }
     .icon-picker-item svg { width: 18px; height: 18px; }
+    .icon-picker-item img { width: 24px; height: 24px; }
     .icon-picker-item.selected {
       border-color: var(--accent); background: rgba(59,130,246,0.14); color: var(--accent);
     }
@@ -507,7 +511,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 7.2</div>
+        <div class="about-ver">Versione 7.4</div>
 
         <div class="about-div"></div>
 
@@ -520,6 +524,19 @@
           </svg>
           ivotaffarel@gmail.com
         </a>
+
+        <div class="about-div"></div>
+
+        <!-- CREDITI ICONE — NUOVO v7.4: le icone a colori delle
+             categorie di spesa (Impostazioni → Categorie spesa) sono
+             del set gratuito Icons8, la cui licenza free richiede un
+             link visibile e cliccabile al sito — vedi
+             https://icons8.com/license. -->
+        <div class="about-dev">Crediti</div>
+        <div style="font-size:13px;color:var(--text-secondary);">
+          Alcune icone delle categorie di spesa sono di
+          <a href="https://icons8.com/" target="_blank" rel="noopener" style="color:var(--accent);">Icons8</a>
+        </div>
       </div>
     </div>
 

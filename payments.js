@@ -1,6 +1,18 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — payments.js v1.2
+// WeGo — payments.js v1.3
 // Gestione metodi di pagamento configurabili + categorie di spesa
+// v1.3: NUOVE 42 icone a colori (PNG, set Icons8 free — vedi Crediti
+//       in impostazioni.html v7.4) selezionate dal cliente, gestite da
+//       ExpenseCategoryIcons.IMAGES. svg() ora distingue automaticamente
+//       un'icona-immagine (IMAGES) da un'icona-contorno (PATHS, il
+//       vecchio set v1.2) e restituisce <img> o <svg> di conseguenza —
+//       nessuna rottura per categorie che avessero già un'icona del
+//       vecchio set. Il selettore icone (LIST) ora mostra le 42 nuove
+//       a colori + le sole 2 icone a contorno rimaste in uso di
+//       default (bed/dots, per Alloggio e Altro: nessuna icona a
+//       colori disponibile per questi due concetti). Nuovi default:
+//       Cibo→ciotola-di-riso, Trasporti→trasporti, Ingressi→biglietto,
+//       Souvenir→regalo (Alloggio e Altro invariati).
 // v1.2: NUOVA ExpenseCategoryIcons (~50 icone SVG scelte tra cui
 //       assegnare una tipologia di spesa) + campo "icon" su ogni
 //       categoria (default e personalizzate) + nuovi metodi
@@ -174,18 +186,69 @@ window.PaymentMethods = PaymentMethods;
 // Categorie spesa → matita di modifica (impostazioni.html).
 const ExpenseCategoryIcons = {
 
-  // Elenco ordinato mostrato nel selettore icone (raggruppato per
-  // affinità: cibo/bevande, trasporti, alloggio/luoghi, tempo
-  // libero/sport, shopping/varie, casa/famiglia, lavoro/soldi)
+  // Elenco mostrato nel selettore icone (v1.3): le 42 icone a colori
+  // scelte dal cliente (set Icons8 free, vedi Crediti in
+  // impostazioni.html), seguite dalle uniche 2 icone a contorno del
+  // vecchio set ancora usate di default — 'bed' (Alloggio) e 'dots'
+  // (Altro) — per cui non era disponibile un'icona a colori adatta.
   LIST: [
-    'food','burger','pizza','coffee','drink','beer','icecream',
-    'car','bus','train','plane','ship','taxi','fuel','parking','bike','walk',
-    'home','bed','tent','key','building','museum',
-    'ticket','theatre','movie','music','camera','map-pin','mountain',
-    'umbrella-beach','swim','ski','ball','gym',
-    'shopping-bag','gift','book','medicine','hospital','phone','wifi','laundry',
-    'pet','baby','toy','briefcase','tools','wallet','bank','insurance','party','dots'
+    'trasporti','auto','camion','navetta','aeroporto','benzinaio','parchimetro',
+    'ciotola-di-riso','cono-gelato','cupcake','caffe-espresso','bar','birra','vino-e-bicchiere','cocktail','champagne',
+    'biglietto','museo','monastero','arena','palloncini-da-party',
+    'regalo','cartellino-del-prezzo','scarpe-da-ginnastica','maglione','occhiali','anello-di-diamanti',
+    'apri-libro','cappello-di-laurea','chitarra','stereo-portatile','tv',
+    'farmaceutico','pillole','ombrello',
+    'manutenzione','consegna','banconote','pagato','batteria-carica','ricerca','cassetta-postale-chiusa-bandiera-giu',
+    'bed','dots'
   ],
+
+  // Icone A COLORI (PNG, set Icons8 free — https://icons8.com, vedi
+  // Crediti in impostazioni.html) — file in root del progetto,
+  // struttura piatta come tutto il resto dell'app.
+  IMAGES: {
+    trasporti: 'caticon-trasporti.png',
+    auto: 'caticon-auto.png',
+    camion: 'caticon-camion.png',
+    navetta: 'caticon-navetta.png',
+    aeroporto: 'caticon-aeroporto.png',
+    benzinaio: 'caticon-benzinaio.png',
+    parchimetro: 'caticon-parchimetro.png',
+    'ciotola-di-riso': 'caticon-ciotola-di-riso.png',
+    'cono-gelato': 'caticon-cono-gelato.png',
+    cupcake: 'caticon-cupcake.png',
+    'caffe-espresso': 'caticon-caffe-espresso.png',
+    bar: 'caticon-bar.png',
+    birra: 'caticon-birra.png',
+    'vino-e-bicchiere': 'caticon-vino-e-bicchiere.png',
+    cocktail: 'caticon-cocktail.png',
+    champagne: 'caticon-champagne.png',
+    biglietto: 'caticon-biglietto.png',
+    museo: 'caticon-museo.png',
+    monastero: 'caticon-monastero.png',
+    arena: 'caticon-arena.png',
+    'palloncini-da-party': 'caticon-palloncini-da-party.png',
+    regalo: 'caticon-regalo.png',
+    'cartellino-del-prezzo': 'caticon-cartellino-del-prezzo.png',
+    'scarpe-da-ginnastica': 'caticon-scarpe-da-ginnastica.png',
+    maglione: 'caticon-maglione.png',
+    occhiali: 'caticon-occhiali.png',
+    'anello-di-diamanti': 'caticon-anello-di-diamanti.png',
+    'apri-libro': 'caticon-apri-libro.png',
+    'cappello-di-laurea': 'caticon-cappello-di-laurea.png',
+    chitarra: 'caticon-chitarra.png',
+    'stereo-portatile': 'caticon-stereo-portatile.png',
+    tv: 'caticon-tv.png',
+    farmaceutico: 'caticon-farmaceutico.png',
+    pillole: 'caticon-pillole.png',
+    ombrello: 'caticon-ombrello.png',
+    manutenzione: 'caticon-manutenzione.png',
+    consegna: 'caticon-consegna.png',
+    banconote: 'caticon-banconote.png',
+    pagato: 'caticon-pagato.png',
+    'batteria-carica': 'caticon-batteria-carica.png',
+    ricerca: 'caticon-ricerca.png',
+    'cassetta-postale-chiusa-bandiera-giu': 'caticon-cassetta-postale-chiusa-bandiera-giu.png'
+  },
 
   PATHS: {
     food:        '<path d="M6 2v7a2 2 0 002 2 2 2 0 002-2V2M6 2v20M10 2v6M18 2c-1.5 0-3 2-3 5s1 5 1 5v10"/>',
@@ -243,8 +306,13 @@ const ExpenseCategoryIcons = {
     dots:        '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
   },
 
-  /** Markup SVG completo di un'icona (currentColor, per ereditare il colore dal contenitore). */
+  /** Markup di un'icona (currentColor per lo stroke, per ereditare il
+   * colore dal contenitore) — <img> se è un'icona a colori (IMAGES),
+   * altrimenti <svg> a contorno (PATHS, vecchio set v1.2). */
   svg(iconId, size = 16) {
+    if (ExpenseCategoryIcons.IMAGES[iconId]) {
+      return `<img src="/${ExpenseCategoryIcons.IMAGES[iconId]}" width="${size}" height="${size}" alt="" style="object-fit:contain;" />`;
+    }
     const d = ExpenseCategoryIcons.PATHS[iconId] || ExpenseCategoryIcons.PATHS.dots;
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
   }
@@ -255,12 +323,12 @@ window.ExpenseCategoryIcons = ExpenseCategoryIcons;
 const ExpenseCategories = {
 
   DEFAULTS: [
-    { id: 'cibo',       label: 'Cibo',       enabled: true, icon: 'food'   },
-    { id: 'trasporti',  label: 'Trasporti',  enabled: true, icon: 'car'    },
-    { id: 'alloggio',   label: 'Alloggio',   enabled: true, icon: 'bed'    },
-    { id: 'ingressi',   label: 'Ingressi',   enabled: true, icon: 'ticket' },
-    { id: 'souvenir',   label: 'Souvenir',   enabled: true, icon: 'gift'   },
-    { id: 'altro',      label: 'Altro',      enabled: true, icon: 'dots'   }
+    { id: 'cibo',       label: 'Cibo',       enabled: true, icon: 'ciotola-di-riso' },
+    { id: 'trasporti',  label: 'Trasporti',  enabled: true, icon: 'trasporti'       },
+    { id: 'alloggio',   label: 'Alloggio',   enabled: true, icon: 'bed'             },
+    { id: 'ingressi',   label: 'Ingressi',   enabled: true, icon: 'biglietto'       },
+    { id: 'souvenir',   label: 'Souvenir',   enabled: true, icon: 'regalo'          },
+    { id: 'altro',      label: 'Altro',      enabled: true, icon: 'dots'            }
   ],
 
   getEnabled() {
