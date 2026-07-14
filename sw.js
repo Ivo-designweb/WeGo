@@ -1,6 +1,27 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v7.2
+// WeGo — sw.js v7.5
 // Service Worker — cache offline + background sync
+// v7.5: aggiunte le 8 nuove icone PNG a colori (letto, dormire-nel-
+//       letto, cane, gatto, guida-turistica, strada, dogana,
+//       autostrada — payments.js v1.4) alla lista di precache, +
+//       ingrandimento icone categoria nella lista Movimenti e nuova
+//       icona nella legenda del Riepilogo per "Tipo spesa" (evento.html/
+//       evento.js v2.31, nessun file da precache aggiuntivo per queste
+//       due). Bump necessario per la lista di precache cambiata.
+// v7.4: aggiunte 42 nuove icone PNG a colori delle categorie di spesa
+//       alla lista di precache (payments.js v1.3, set Icons8 free —
+//       vedi Crediti in impostazioni.html) — bump di versione
+//       necessario proprio perché la lista di precache è cambiata
+//       (a differenza dei bump "di famiglia" delle versioni
+//       precedenti, qui servono davvero i nuovi file in cache per
+//       l'uso offline).
+// v7.3: nessuna modifica alla lista di precache — icone categorie di
+//       spesa nella lista Movimenti, editor icona/descrizione categorie
+//       in Impostazioni, fix totale "Per Partecipante" nel tab
+//       Riepilogo, font seconda riga movimenti più leggibile (evento.js
+//       v2.30, evento.html/impostazioni.html v7.3, payments.js v1.2,
+//       spesa.js v3.0) — solo bump di versione per la "famiglia"
+//       index/evento/impostazioni.
 // v7.2: nessuna modifica alla lista di precache — campo posizione ora
 //       editabile liberamente (spesa.js v2.9/spesa.html v3.9), icona
 //       moneta + click-per-navigare sui pin della Mappa (evento.js
@@ -171,7 +192,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v7.2';
+const CACHE_NAME = 'wego-v7.5';
 
 const STATIC_ASSETS = [
   '/',
@@ -199,11 +220,61 @@ const STATIC_ASSETS = [
   '/leaflet-marker-icon.png',
   '/leaflet-marker-icon-2x.png',
   '/leaflet-marker-shadow.png',
+  '/caticon-aeroporto.png',
+  '/caticon-anello-di-diamanti.png',
+  '/caticon-apri-libro.png',
+  '/caticon-arena.png',
+  '/caticon-auto.png',
+  '/caticon-banconote.png',
+  '/caticon-bar.png',
+  '/caticon-batteria-carica.png',
+  '/caticon-benzinaio.png',
+  '/caticon-biglietto.png',
+  '/caticon-birra.png',
+  '/caticon-caffe-espresso.png',
+  '/caticon-camion.png',
+  '/caticon-cappello-di-laurea.png',
+  '/caticon-cartellino-del-prezzo.png',
+  '/caticon-cassetta-postale-chiusa-bandiera-giu.png',
+  '/caticon-champagne.png',
+  '/caticon-chitarra.png',
+  '/caticon-ciotola-di-riso.png',
+  '/caticon-cocktail.png',
+  '/caticon-cono-gelato.png',
+  '/caticon-consegna.png',
+  '/caticon-cupcake.png',
+  '/caticon-farmaceutico.png',
+  '/caticon-maglione.png',
+  '/caticon-manutenzione.png',
+  '/caticon-monastero.png',
+  '/caticon-museo.png',
+  '/caticon-navetta.png',
+  '/caticon-occhiali.png',
+  '/caticon-ombrello.png',
+  '/caticon-pagato.png',
+  '/caticon-palloncini-da-party.png',
+  '/caticon-parchimetro.png',
+  '/caticon-pillole.png',
+  '/caticon-regalo.png',
+  '/caticon-ricerca.png',
+  '/caticon-scarpe-da-ginnastica.png',
+  '/caticon-stereo-portatile.png',
+  '/caticon-trasporti.png',
+  '/caticon-tv.png',
+  '/caticon-vino-e-bicchiere.png',
+  '/caticon-autostrada.png',
+  '/caticon-cane.png',
+  '/caticon-dogana.png',
+  '/caticon-dormire-nel-letto.png',
+  '/caticon-gatto.png',
+  '/caticon-guida-turistica.png',
+  '/caticon-letto.png',
+  '/caticon-strada.png',
 ];
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v7.2');
+  console.log('[SW] Install v7.5');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -229,7 +300,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v7.2');
+  console.log('[SW] Activate v7.5');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

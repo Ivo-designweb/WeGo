@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.30
+// WeGo — evento.js v2.31
 // Logica pagina dettaglio evento
+// v2.31: legenda del tab Riepilogo → criterio "Tipo spesa": ogni riga
+//        mostra ora anche l'icona della categoria a sinistra dello
+//        swatch colore (richiesta cliente) — vedi _renderRiepilogo(),
+//        stessa ExpenseCategories.iconSvg() già usata nella lista
+//        Movimenti. Solo per questo criterio (Data/Partecipante non
+//        hanno un'icona di riferimento).
 // v2.30: 1) Nella lista Movimenti, le Spese normali mostrano l'icona
 //        della categoria (Tipo, ExpenseCategories/ExpenseCategoryIcons
 //        — vedi payments.js v1.2) al posto dell'iniziale utente
@@ -730,13 +736,21 @@ const EventoApp = {
       }
     }
 
-    // Legenda
+    // Legenda — v2.31: nel criterio "Tipo spesa" ogni riga mostra anche
+    // l'icona della categoria (stessa ExpenseCategories.iconSvg() già
+    // usata nella lista Movimenti), a sinistra dello swatch colore.
+    // "Senza categoria" (g.key === '__none__') usa il fallback generico
+    // di getById() (icona "dots").
     const legend = document.getElementById('riepilogoLegend');
     if (legend) {
       legend.innerHTML = groups.map(g => {
         const pct = ((g.amount / total) * 100).toFixed(1);
+        const iconHtml = mode === 'tipo'
+          ? `<span class="riepilogo-legend__icon">${g.key === '__none__' ? ExpenseCategoryIcons.svg('dots', 17) : ExpenseCategories.iconSvg(g.key, 17)}</span>`
+          : '';
         return `
           <div class="riepilogo-legend__row">
+            ${iconHtml}
             <span class="riepilogo-legend__swatch" style="background:${g.color};"></span>
             <span class="riepilogo-legend__label">${Utils.escapeHtml(g.label)}</span>
             <span class="riepilogo-legend__pct">${pct}%</span>

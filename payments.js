@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — payments.js v1.3
+// WeGo — payments.js v1.4
 // Gestione metodi di pagamento configurabili + categorie di spesa
+// v1.4: +8 nuove icone a colori (set Icons8 free): letto,
+//       dormire-nel-letto, cane, gatto, guida-turistica, strada,
+//       dogana, autostrada — 50 icone a colori in totale. Il default
+//       di Alloggio passa da 'bed' (contorno) a 'letto' (a colori):
+//       era l'unica delle 6 categorie di default rimasta col vecchio
+//       stile per mancanza di un'icona adatta, ora risolta.
 // v1.3: NUOVE 42 icone a colori (PNG, set Icons8 free — vedi Crediti
 //       in impostazioni.html v7.4) selezionate dal cliente, gestite da
 //       ExpenseCategoryIcons.IMAGES. svg() ora distingue automaticamente
@@ -192,14 +198,16 @@ const ExpenseCategoryIcons = {
   // vecchio set ancora usate di default — 'bed' (Alloggio) e 'dots'
   // (Altro) — per cui non era disponibile un'icona a colori adatta.
   LIST: [
-    'trasporti','auto','camion','navetta','aeroporto','benzinaio','parchimetro',
+    'trasporti','auto','camion','navetta','aeroporto','benzinaio','parchimetro','strada','autostrada','dogana','guida-turistica',
     'ciotola-di-riso','cono-gelato','cupcake','caffe-espresso','bar','birra','vino-e-bicchiere','cocktail','champagne',
     'biglietto','museo','monastero','arena','palloncini-da-party',
+    'letto','dormire-nel-letto',
+    'cane','gatto',
     'regalo','cartellino-del-prezzo','scarpe-da-ginnastica','maglione','occhiali','anello-di-diamanti',
     'apri-libro','cappello-di-laurea','chitarra','stereo-portatile','tv',
     'farmaceutico','pillole','ombrello',
     'manutenzione','consegna','banconote','pagato','batteria-carica','ricerca','cassetta-postale-chiusa-bandiera-giu',
-    'bed','dots'
+    'dots'
   ],
 
   // Icone A COLORI (PNG, set Icons8 free — https://icons8.com, vedi
@@ -247,7 +255,15 @@ const ExpenseCategoryIcons = {
     pagato: 'caticon-pagato.png',
     'batteria-carica': 'caticon-batteria-carica.png',
     ricerca: 'caticon-ricerca.png',
-    'cassetta-postale-chiusa-bandiera-giu': 'caticon-cassetta-postale-chiusa-bandiera-giu.png'
+    'cassetta-postale-chiusa-bandiera-giu': 'caticon-cassetta-postale-chiusa-bandiera-giu.png',
+    strada: 'caticon-strada.png',
+    autostrada: 'caticon-autostrada.png',
+    dogana: 'caticon-dogana.png',
+    'guida-turistica': 'caticon-guida-turistica.png',
+    letto: 'caticon-letto.png',
+    'dormire-nel-letto': 'caticon-dormire-nel-letto.png',
+    cane: 'caticon-cane.png',
+    gatto: 'caticon-gatto.png'
   },
 
   PATHS: {
@@ -325,7 +341,7 @@ const ExpenseCategories = {
   DEFAULTS: [
     { id: 'cibo',       label: 'Cibo',       enabled: true, icon: 'ciotola-di-riso' },
     { id: 'trasporti',  label: 'Trasporti',  enabled: true, icon: 'trasporti'       },
-    { id: 'alloggio',   label: 'Alloggio',   enabled: true, icon: 'bed'             },
+    { id: 'alloggio',   label: 'Alloggio',   enabled: true, icon: 'letto'           },
     { id: 'ingressi',   label: 'Ingressi',   enabled: true, icon: 'biglietto'       },
     { id: 'souvenir',   label: 'Souvenir',   enabled: true, icon: 'regalo'          },
     { id: 'altro',      label: 'Altro',      enabled: true, icon: 'dots'            }
