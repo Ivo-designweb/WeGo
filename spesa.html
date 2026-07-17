@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Spesa — WeGo v3.9</title>
+  <title>Spesa — WeGo v4.0</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -201,6 +201,57 @@
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; line-height: 1;
     }
+
+    /* ─── SELETTORE "TIPO" (categoria spesa) — NUOVO v4.0 ──────
+       Prima era un <select> nativo: i browser non permettono di
+       mostrare icone dentro le <option>, quindi ora è un bottone
+       "trigger" che apre un modal a schermo intero con l'elenco
+       (icona 60px + descrizione per ogni voce, richiesta cliente).
+       Il valore selezionato resta in un <input type="hidden"> con lo
+       stesso id "expenseCategory" di prima: nessuna modifica
+       necessaria al salvataggio della spesa. */
+    .category-picker-trigger {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--r-md); padding: 5px 9px 5px 5px;
+      font-size: 15px; color: var(--text-primary); font-family: inherit;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      min-width: 116px; max-width: 200px;
+    }
+    .category-picker-trigger__icon {
+      width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--accent); overflow: hidden;
+    }
+    .category-picker-trigger__icon svg { width: 17px; height: 17px; }
+    .category-picker-trigger__icon img { width: 21px; height: 21px; }
+    .category-picker-trigger__label {
+      flex: 1; text-align: left;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .category-picker-trigger__chevron { width: 14px; height: 14px; flex-shrink: 0; color: var(--text-muted); }
+
+    .category-picker-list { max-height: 62vh; overflow-y: auto; }
+    .category-picker-item {
+      display: flex; align-items: center; gap: 14px;
+      padding: 9px 4px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    .category-picker-item:last-child { border-bottom: none; }
+    .category-picker-item:active { opacity: 0.7; }
+    .category-picker-item.selected { background: rgba(59,130,246,0.08); border-radius: var(--r-md); }
+    .category-picker-item__icon {
+      width: 68px; height: 68px; border-radius: 50%;
+      background: var(--bg-input); color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; overflow: hidden;
+    }
+    .category-picker-item__icon svg { width: 60px; height: 60px; }
+    .category-picker-item__icon img { width: 60px; height: 60px; }
+    .category-picker-item__label { flex: 1; font-size: 16px; font-weight: 600; color: var(--text-primary); }
+    .category-picker-item__check { color: var(--accent); flex-shrink: 0; display: none; width: 20px; height: 20px; }
+    .category-picker-item.selected .category-picker-item__check { display: flex; }
   </style>
 </head>
 <body>
@@ -346,8 +397,12 @@
            le serve, subito a destra dell'etichetta, tutto su una riga. -->
       <div id="categoryRow" style="display:flex;align-items:center;gap:6px;margin-top:10px;">
         <label class="form-label" style="flex-shrink:0;margin:0;white-space:nowrap;">Tipo</label>
-        <select class="form-select" id="expenseCategory"
-          style="width:auto;min-width:90px;max-width:150px;padding:6px 22px 6px 8px;font-size:15px;"></select>
+        <button type="button" class="category-picker-trigger" id="expenseCategoryTrigger" onclick="SpesaApp.openCategoryPicker()">
+          <span class="category-picker-trigger__icon" id="expenseCategoryTriggerIcon"></span>
+          <span class="category-picker-trigger__label" id="expenseCategoryTriggerLabel">—</span>
+          <svg class="category-picker-trigger__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <input type="hidden" id="expenseCategory" value="" />
       </div>
     </div>
 
@@ -501,6 +556,17 @@
       </svg>
       Elimina foto
     </button>
+  </div>
+</div>
+
+<!-- MODAL: SCELTA TIPO (categoria spesa) — NUOVO v4.0, sostituisce il
+     vecchio <select> nativo per poter mostrare l'icona (60px) a
+     sinistra di ogni voce — vedi SpesaApp.openCategoryPicker(). -->
+<div class="modal-backdrop" id="modalCategoryPicker" onclick="SpesaApp.closeModal('modalCategoryPicker')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="bottom-sheet__handle"></div>
+    <h2 class="bottom-sheet__title">Tipo di spesa</h2>
+    <div class="category-picker-list" id="categoryPickerList"><!-- Generato da JS --></div>
   </div>
 </div>
 

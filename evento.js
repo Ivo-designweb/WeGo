@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.31
+// WeGo — evento.js v2.32
 // Logica pagina dettaglio evento
+// v2.32: icone categoria ingrandite a 50px fissi (richiesta cliente,
+//        "sempre più visibili") sia nella lista Movimenti
+//        (_renderMovementItem()) sia nella legenda del tab Riepilogo
+//        per "Tipo spesa" (_renderRiepilogo()) — vedi anche
+//        evento.html v7.6 per le classi .exp-cat-icon/
+//        .riepilogo-legend__icon corrispondenti.
 // v2.31: legenda del tab Riepilogo → criterio "Tipo spesa": ogni riga
 //        mostra ora anche l'icona della categoria a sinistra dello
 //        swatch colore (richiesta cliente) — vedi _renderRiepilogo(),
@@ -746,7 +752,7 @@ const EventoApp = {
       legend.innerHTML = groups.map(g => {
         const pct = ((g.amount / total) * 100).toFixed(1);
         const iconHtml = mode === 'tipo'
-          ? `<span class="riepilogo-legend__icon">${g.key === '__none__' ? ExpenseCategoryIcons.svg('dots', 17) : ExpenseCategories.iconSvg(g.key, 17)}</span>`
+          ? `<span class="riepilogo-legend__icon">${g.key === '__none__' ? ExpenseCategoryIcons.svg('dots', 50) : ExpenseCategories.iconSvg(g.key, 50)}</span>`
           : '';
         return `
           <div class="riepilogo-legend__row">
@@ -1274,7 +1280,7 @@ const EventoApp = {
     // registrata prima di questa versione) si usa "Cibo" come default
     // SOLO visivo, il record salvato resta invariato (categoria vuota).
     const catObj  = ExpenseCategories.getById(exp.category || 'cibo');
-    const catIcon = ExpenseCategories.iconSvg(catObj, 13);
+    const catIcon = ExpenseCategories.iconSvg(catObj, 50);
     const catTitle = payer
       ? `${Utils.escapeHtml(catObj.label)} — pagato da ${Utils.escapeHtml(payer.name)}`
       : Utils.escapeHtml(catObj.label);

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v7.5</title>
+  <title>Evento — WeGo v7.6</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/leaflet.css" />
@@ -149,17 +149,19 @@
     .riepilogo-legend__swatch {
       width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0;
     }
-    /* Icona categoria nella legenda — NUOVO v7.5, mostrata solo nel
-       criterio "Tipo spesa" (vedi evento.js _renderRiepilogo()), a
-       sinistra di ogni riga insieme allo swatch colore. */
+    /* Icona categoria nella legenda — v7.5, mostrata solo nel criterio
+       "Tipo spesa" (vedi evento.js _renderRiepilogo()), a sinistra di
+       ogni riga insieme allo swatch colore. v7.6: icona ingrandita a
+       50px (richiesta cliente, "sempre più visibili") — contenitore
+       58px per un po' di margine intorno. */
     .riepilogo-legend__icon {
-      width: 24px; height: 24px; border-radius: 50%;
+      width: 58px; height: 58px; border-radius: 50%;
       background: var(--bg-input); color: var(--accent);
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; overflow: hidden;
     }
-    .riepilogo-legend__icon svg { width: 14px; height: 14px; }
-    .riepilogo-legend__icon img { width: 17px; height: 17px; }
+    .riepilogo-legend__icon svg { width: 50px; height: 50px; }
+    .riepilogo-legend__icon img { width: 50px; height: 50px; }
     .riepilogo-legend__label {
       flex: 1; font-size: 14.5px; font-weight: 600;
       color: var(--text-primary);
@@ -293,16 +295,18 @@
        contorno rimaste (Alloggio/Altro) restano leggibili lo stesso
        tramite color:var(--accent) ereditato dallo stroke="currentColor".
        v7.5: ingrandita del 45% (richiesta cliente, "almeno il 40%") —
-       22px→32px, l'icona interna scala di conseguenza mantenendo le
-       stesse proporzioni di prima. */
+       22px→32px. v7.6: ingrandita ulteriormente a 50px fissi (icona
+       interna), contenitore 58px — richiesta cliente "sempre più
+       visibili". Le righe di Trasferimenti/+Cassiere restano invece
+       con l'iniziale utente a 22px (nessuna icona categoria lì). */
     .exp-cat-icon {
-      width: 32px; height: 32px; border-radius: 50%;
+      width: 58px; height: 58px; border-radius: 50%;
       background: var(--bg-input); color: var(--accent);
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; overflow: hidden;
     }
-    .exp-cat-icon svg { width: 19px; height: 19px; }
-    .exp-cat-icon img { width: 23px; height: 23px; }
+    .exp-cat-icon svg { width: 50px; height: 50px; }
+    .exp-cat-icon img { width: 50px; height: 50px; }
     .exp-info { flex: 1; min-width: 0; }
     .exp-title {
       font-size: 17.5px; font-weight: 600; color: var(--text-primary);

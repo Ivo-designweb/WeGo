@@ -1,6 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v3.0
+// WeGo — spesa.js v3.1
 // Logica pagina inserimento / modifica spesa
+// v3.1: campo "Tipo" (categoria spesa) — sostituito il vecchio <select>
+//       nativo con un bottone che apre un modal a schermo intero
+//       (richiesta cliente: le <option> HTML non possono contenere
+//       icone). Il modal mostra ogni categoria con la sua icona a 60px
+//       (spesa.html v4.0, stesse ExpenseCategories/ExpenseCategoryIcons
+//       di payments.js v1.4). Il valore selezionato resta in un
+//       <input type="hidden" id="expenseCategory">, stesso id di
+//       prima: save() e _loadExistingExpense() non cambiano nella
+//       sostanza. Vedi _initCategoryPicker() (ex _buildCategorySelect()),
+//       openCategoryPicker(), selectCategory(), _refreshCategoryTrigger().
 // v3.0: select "Tipo" (categoria spesa) — per una spesa NUOVA ora parte
 //       preselezionata su "Cibo" invece che vuota (richiesta cliente,
 //       vedi payments.js v1.2/impostazioni.html v7.3 per le icone
@@ -145,7 +155,7 @@ const SpesaApp = {
     SpesaApp._buildMethodSelect();
 
     // Popola categorie di spesa (Tipo)
-    SpesaApp._buildCategorySelect();
+    SpesaApp._initCategoryPicker();
 
     // Imposta data odierna
     document.getElementById('expenseDate').value = Utils.today();
@@ -294,20 +304,76 @@ const SpesaApp = {
   // Facoltativo: la prima opzione è sempre vuota ("—"). Lista gestita da
   // Impostazioni → Categorie spesa (vedi payments.js → ExpenseCategories,
   // stesso pattern dei metodi di pagamento).
-  _buildCategorySelect() {
-    const sel = document.getElementById('expenseCategory');
-    if (!sel || typeof ExpenseCategories === 'undefined') return;
-    const cats = ExpenseCategories.getEnabled();
+  // Impostazioni → Categorie spesa (vedi payments.js → ExpenseCategories,
+  // stesso pattern dei metodi di pagamento).
+  // v3.1: rinominata da _buildCategorySelect() — non popola più un
+  // <select>, ma imposta il valore iniziale nel campo nascosto e
+  // aggiorna il bottone "trigger" — vedi openCategoryPicker() per il
+  // modal con l'elenco a icone grandi.
+  _initCategoryPicker() {
+    const hidden = document.getElementById('expenseCategory');
+    if (!hidden || typeof ExpenseCategories === 'undefined') return;
     // v3.0: per una spesa NUOVA il default è "Cibo" (se ancora abilitata,
     // altrimenti resta vuoto) — in modifica di una spesa esistente questo
     // valore iniziale viene subito sovrascritto da _loadExistingExpense()
     // col valore reale salvato, incluso vuoto se non aveva categoria.
     const isNew = !SpesaApp._expenseId;
+    const cats  = ExpenseCategories.getEnabled();
     const defaultId = (isNew && cats.some(c => c.id === 'cibo')) ? 'cibo' : '';
-    sel.innerHTML = '<option value="" ' + (defaultId === '' ? 'selected' : '') + '>—</option>' + cats.map(c =>
-      `<option value="${Utils.escapeHtml(c.id)}" ${c.id === defaultId ? 'selected' : ''}>${Utils.escapeHtml(c.label)}</option>`
-    ).join('');
+    hidden.value = defaultId;
+    SpesaApp._refreshCategoryTrigger();
   },
+
+  // Aggiorna l'icona/etichetta mostrate sul bottone "Tipo" in base al
+  // valore corrente del campo nascosto #expenseCategory.
+  _refreshCategoryTrigger() {
+    const id    = document.getElementById('expenseCategory')?.value || '';
+    const icon  = document.getElementById('expenseCategoryTriggerIcon');
+    const label = document.getElementById('expenseCategoryTriggerLabel');
+    if (!icon || !label) return;
+    if (!id) {
+      icon.innerHTML = '';
+      label.textContent = '—';
+      return;
+    }
+    const cat = ExpenseCategories.getById(id);
+    icon.innerHTML = ExpenseCategories.iconSvg(cat, 21);
+    label.textContent = cat.label;
+  },
+
+  // Apre il modal con l'elenco delle categorie abilitate, icona 60px +
+  // descrizione per ogni voce (richiesta cliente) — tocco su una voce
+  // = selezione immediata e chiusura.
+  openCategoryPicker() {
+    const list = document.getElementById('categoryPickerList');
+    if (!list || typeof ExpenseCategories === 'undefined') return;
+    const currentId = document.getElementById('expenseCategory')?.value || '';
+    const cats = ExpenseCategories.getEnabled();
+    const noneRow = `
+      <div class="category-picker-item ${currentId === '' ? 'selected' : ''}" onclick="SpesaApp.selectCategory('')">
+        <span class="category-picker-item__icon">${ExpenseCategoryIcons.svg('dots', 60)}</span>
+        <span class="category-picker-item__label">Nessuna categoria</span>
+        <svg class="category-picker-item__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>`;
+    const rows = cats.map(c => `
+      <div class="category-picker-item ${currentId === c.id ? 'selected' : ''}" onclick="SpesaApp.selectCategory('${c.id}')">
+        <span class="category-picker-item__icon">${ExpenseCategories.iconSvg(c, 60)}</span>
+        <span class="category-picker-item__label">${Utils.escapeHtml(c.label)}</span>
+        <svg class="category-picker-item__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>`).join('');
+    list.innerHTML = noneRow + rows;
+    SpesaApp.openModal('modalCategoryPicker');
+  },
+
+  selectCategory(id) {
+    const hidden = document.getElementById('expenseCategory');
+    if (hidden) hidden.value = id;
+    SpesaApp._refreshCategoryTrigger();
+    SpesaApp.closeModal('modalCategoryPicker');
+  },
+
+  openModal(id)  { document.getElementById(id)?.classList.add('open'); },
+  closeModal(id) { document.getElementById(id)?.classList.remove('open'); },
 
   // ─── POPOLA SELECT UTENTI ─────────────────────────────────
   _buildUserSelects() {
@@ -806,9 +872,10 @@ const SpesaApp = {
     // Metodo pagamento
     document.getElementById('expenseMethod').value = expense.payment_method || 'contanti';
 
-    // Categoria (Tipo)
-    const catSel = document.getElementById('expenseCategory');
-    if (catSel) catSel.value = expense.category || '';
+    // Categoria (Tipo) — v3.1: campo nascosto + refresh del bottone trigger
+    const catHidden = document.getElementById('expenseCategory');
+    if (catHidden) catHidden.value = expense.category || '';
+    SpesaApp._refreshCategoryTrigger();
 
     // Previsione
     if (expense.is_forecast) {
