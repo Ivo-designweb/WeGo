@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v7.5
+// WeGo — sw.js v7.6
 // Service Worker — cache offline + background sync
+// v7.6: nessuna modifica alla lista di precache — icone categoria
+//       ingrandite a 50px in lista Movimenti e legenda Riepilogo
+//       (evento.html/evento.js v7.6/v2.32), nuovo selettore "Tipo" a
+//       icone grandi (60px) nel form spesa al posto del vecchio
+//       <select> nativo (spesa.html v4.0/spesa.js v3.1) — solo bump
+//       di versione per la "famiglia" index/evento/impostazioni
+//       (spesa.html/js hanno un proprio numero di versione separato,
+//       ma condividono comunque questo CACHE_NAME).
 // v7.5: aggiunte le 8 nuove icone PNG a colori (letto, dormire-nel-
 //       letto, cane, gatto, guida-turistica, strada, dogana,
 //       autostrada — payments.js v1.4) alla lista di precache, +
@@ -192,7 +200,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v7.5';
+const CACHE_NAME = 'wego-v7.6';
 
 const STATIC_ASSETS = [
   '/',
@@ -274,7 +282,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v7.5');
+  console.log('[SW] Install v7.6');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -300,7 +308,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v7.5');
+  console.log('[SW] Activate v7.6');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(
