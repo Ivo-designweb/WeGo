@@ -168,5 +168,11 @@
       "source": "/impostazioni",
       "destination": "/impostazioni.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/keep-alive",
+      "schedule": "0 6 * * *"
+    }
   ]
 }
