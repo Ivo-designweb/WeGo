@@ -96,6 +96,16 @@
 //       modificava per ultimo)
 // ═══════════════════════════════════════════════════════════════
 
+// v3.2: modifica ed eliminazione di un movimento aperte a QUALUNQUE
+//       operatore, non solo proprietario/creatore evento (richiesta
+//       cliente) — se il movimento non è dell'utente corrente, un
+//       confirm() lo avvisa prima di procedere (_confirmNotOwner()),
+//       ma non blocca mai. NUOVO campo expenses.updated_by (db.js v1.11/
+//       supabase.js v1.15): sempre l'utente che ha salvato per ultimo,
+//       distinto da created_by che resta il proprietario originale —
+//       popolato in save() e in deleteExpense(). Il permesso sulla FOTO
+//       resta invariato (solo il creatore, limite tecnico: la foto in
+//       alta qualità vive solo sul suo device, non è sincronizzata).
 const SpesaApp = {
 
   // ─── STATO ────────────────────────────────────────────────
@@ -113,6 +123,8 @@ const SpesaApp = {
   _photoChanged: false,       // true se la foto è stata scattata/rimossa in questa sessione
   _isPhotoOwner: true,        // false = movimento creato da un altro: foto solo visualizzabile
   _originalCreatedBy: null,   // creatore originale del movimento (preservato in fase di modifica)
+  _isExpenseOwner: true,      // NUOVO — false = il movimento è di un altro (mostra avviso, non blocca)
+  _ownerName:    null,        // NUOVO — nome del proprietario, per il testo dell'avviso
   _gettingGps:   false,
   _selectedPart: new Set(),   // userId selezionati come partecipanti
 
@@ -249,36 +261,34 @@ const SpesaApp = {
     if (saveSpeaBtn) saveSpeaBtn.style.display = 'none';
     if (deleteBtn)   deleteBtn.style.display   = 'none';
 
-    // Determina se l'utente corrente può modificare/eliminare
-    const session     = DB.sessions.get(SpesaApp._eventId);
-    const currentId   = session?.userId;
-    const expense     = await DB.expenses.getById(SpesaApp._expenseId);
-    const eventRec    = SpesaApp._event;
-    const creatorName = eventRec?.created_by || '';
-
-    const isExpenseOwner = expense?.created_by === currentId;
-    const currentName    = session?.userName || '';
-    const isEventCreator = creatorName && currentName &&
-      creatorName.toLowerCase() === currentName.toLowerCase();
-    const canEdit = isExpenseOwner || isEventCreator;
-
-    // Mostra bottoni Modifica ed Elimina nell'header
+    // Mostra bottoni Modifica ed Elimina nell'header — SEMPRE abilitati
+    // (NUOVO, richiesta cliente): qualunque operatore può ora modificare
+    // o eliminare qualsiasi movimento, non solo il proprietario o il
+    // creatore dell'evento. Se il movimento non è suo, viene avvisato con
+    // una conferma esplicita al tap (vedi _confirmNotOwner(),
+    // enterEditMode(), deleteExpense()) — SpesaApp._isExpenseOwner/
+    // _ownerName sono già stati calcolati in _loadExistingExpense().
     const editBtn = document.getElementById('headerEditBtn');
     const delBtn  = document.getElementById('headerDeleteBtn');
-    if (editBtn) {
-      editBtn.style.display = '';
-      editBtn.disabled      = !canEdit;
-      if (!canEdit) editBtn.style.opacity = '0.4';
-    }
-    if (delBtn) {
-      delBtn.style.display = '';
-      delBtn.disabled      = !canEdit;
-      if (!canEdit) delBtn.style.opacity = '0.4';
-    }
+    if (editBtn) editBtn.style.display = '';
+    if (delBtn)  delBtn.style.display  = '';
+  },
+
+  // ─── AVVISO "NON È TUO" ───────────────────────────────────
+  // Se il movimento non è dell'utente corrente, chiede conferma prima di
+  // procedere con modifica o eliminazione — non blocca mai, è solo una
+  // segnalazione (richiesta cliente: aprire i permessi a tutti gli
+  // operatori, ma avvisando quando si tocca una registrazione altrui).
+  // true = si può procedere (proprio movimento, oppure confermato).
+  _confirmNotOwner(verb) {
+    if (SpesaApp._isExpenseOwner) return true;
+    const owner = SpesaApp._ownerName || 'un altro partecipante';
+    return confirm(`Questo movimento è stato registrato da ${owner}, non da te.\n\nVuoi ${verb} comunque?`);
   },
 
   // Entra in modalità modifica dalla vista sola lettura
   enterEditMode() {
+    if (!SpesaApp._confirmNotOwner('modificarlo')) return;
     window.location.href =
       `/spesa.html?event=${SpesaApp._eventId}&id=${SpesaApp._expenseId}`;
   },
@@ -932,6 +942,18 @@ const SpesaApp = {
     // il movimento può aggiungerne una.
     const session = DB.sessions.get(SpesaApp._eventId);
     SpesaApp._originalCreatedBy = expense.created_by || null;
+
+    // Proprietario del movimento (NUOVO) — calcolato QUI, non più solo in
+    // _activateViewMode(), così è disponibile anche entrando in modifica
+    // direttamente. Modifica ed eliminazione sono ora aperte a QUALUNQUE
+    // operatore (richiesta cliente): questo blocco serve solo a sapere se
+    // avvisare l'utente che sta per toccare un movimento non suo (vedi
+    // _confirmNotOwner(), enterEditMode(), deleteExpense()) — non blocca
+    // più nulla.
+    SpesaApp._isExpenseOwner = !expense.created_by || expense.created_by === (session?.userId || null);
+    const ownerUser = SpesaApp._users.find(u => u.id === expense.created_by);
+    SpesaApp._ownerName = ownerUser ? ownerUser.name : null;
+
     SpesaApp._isPhotoOwner = !SpesaApp._photo || expense.created_by === (session?.userId || null);
     if (SpesaApp._photo && !SpesaApp._isPhotoOwner) {
       SpesaApp._lockPhotoControls();
@@ -1053,6 +1075,11 @@ const SpesaApp = {
         created_by:     SpesaApp._expenseId
           ? (SpesaApp._originalCreatedBy ?? session?.userId ?? null)
           : (session?.userId || null),
+        // Chi sta salvando ADESSO (NUOVO) — a differenza di created_by,
+        // sempre l'utente corrente, anche in modifica di un movimento
+        // altrui (ora consentito): usato per l'indicazione "(nome)" in
+        // lista Movimenti e per il testo delle notifiche push.
+        updated_by:     session?.userId || null,
         synced:         false
       };
 
@@ -1111,13 +1138,17 @@ const SpesaApp = {
   // ─── ELIMINA MOVIMENTO ────────────────────────────────────
   async deleteExpense() {
     if (!SpesaApp._expenseId) return;
+    if (!SpesaApp._confirmNotOwner('eliminarlo')) return;
     if (!confirm('Eliminare questo movimento?')) return;
 
     const delBtn = document.getElementById('deleteBtn');
     if (delBtn) { delBtn.disabled = true; }
 
     try {
-      await DB.expenses.delete(SpesaApp._expenseId);   // soft-delete (synced=false)
+      const session = DB.sessions.get(SpesaApp._eventId);
+      // actorId (NUOVO): chi sta eliminando, per popolare updated_by —
+      // può essere diverso dal proprietario originale, vedi db.js v1.11.
+      await DB.expenses.delete(SpesaApp._expenseId, session?.userId || null);   // soft-delete (synced=false)
       await DB.photos.delete(SpesaApp._expenseId);
 
       // Sincronizzazione differita (v3.9) — vedi commento in saveExpense()

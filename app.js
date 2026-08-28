@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — app.js v2.19
+// WeGo — app.js v2.20
 // Logica principale pagina Home (index.html)
+// v2.20: _syncQuiet() ora usa Sync.syncNowThrottled() (sync.js v2.4) —
+//        sync immediata con soglia minima di 15s invece di push+pull
+//        diretti senza limiti, più NUOVO listener 'visibilitychange':
+//        al ritorno dell'app in foreground riprova subito una sync
+//        (richiesta cliente — "più velocità" nella sincronizzazione).
 // v2.19: NUOVA evidenziazione "Help" sul logo grande "WeGo"
 //        (_renderHelpHint(), richiamata da _render()) — bordo tratteggiato
 //        ambra pulsante + freccetta animata con etichetta "Help", solo
@@ -182,6 +187,15 @@ const App = {
     window.addEventListener('online',  update);
     window.addEventListener('offline', update);
     update();
+
+    // NUOVO — quando l'app torna in foreground (l'utente riapre il tab/
+    // torna dall'app switcher) prova subito una sync, soggetta comunque
+    // alla soglia minima di _syncQuiet()/syncNowThrottled() (15s): così
+    // la lista eventi in home è aggiornata senza dover ricaricare a mano
+    // (richiesta cliente — "più velocità").
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') App._syncQuiet();
+    });
   },
 
   // ─── INSTALLAZIONE PWA ────────────────────────────────────
@@ -1160,14 +1174,15 @@ const App = {
     }
   },
 
+  // NUOVO — usa syncNowThrottled() (sync.js v2.4) invece di push+pull
+  // diretti: stesso risultato ma con una soglia minima di 15s tra un giro
+  // e l'altro, così i vari punti che richiamano _syncQuiet() (avvio app,
+  // ritorno online, ritorno in foreground — vedi sotto) non rischiano di
+  // sincronizzare a raffica se scattano vicini nel tempo.
   async _syncQuiet() {
-    try {
-      await Sync.push();
-      await Sync.pull();
+    await Sync.syncNowThrottled(null, 15000, async () => {
       await App.loadEvents();
-    } catch (e) {
-      console.warn('[App] Quiet sync failed:', e);
-    }
+    });
   }
 };
 

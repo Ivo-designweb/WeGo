@@ -1,6 +1,19 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sync.js v2.3
+// WeGo — sync.js v2.4
 // Gestione sincronizzazione bidirezionale con Supabase
+// v2.4: NUOVO syncNowThrottled() — sync immediata (non più il debounce di
+//       5s di scheduleQuietSync) con una soglia minima tra un giro e
+//       l'altro, usata da app.js/evento.js per: apertura pagina, ritorno
+//       online, ritorno dell'app in foreground (richiesta cliente — "più
+//       velocità", vedi anche il pull-to-refresh in evento.js/evento.html
+//       che chiama invece syncNow() senza soglia). ELIMINAZIONI più
+//       robuste: push() e pullEvent() ora eliminano FISICAMENTE in
+//       locale (DB.expenses.hardDelete()) un movimento appena il device
+//       sa che è stato cancellato sul server (dopo un push riuscito, o
+//       ricevendolo nel pull) — prima restava marcato deleted per sempre
+//       in locale. Il soft-delete lato server resta invece permanente
+//       (tombstone), indispensabile perché anche un device rimasto
+//       offline a lungo lo riceva col pull incrementale.
 // v2.3: OTTIMIZZAZIONE latenza (richiesta cliente — "vari secondi anche
 //       senza dati da sincronizzare"): a zero modifiche una sync faceva
 //       comunque 6 richieste di rete IN FILA (200-500ms l'una su
@@ -100,6 +113,10 @@ const Sync = {
   _quietSyncEventId:  null,
   _quietSyncOnDone:   null,
 
+  // ─── SYNC IMMEDIATA CON SOGLIA MINIMA — NUOVO v2.4 ─────────
+  // Vedi syncNowThrottled() più sotto.
+  _lastImmediateSyncAt: 0,
+
   // ─── PUSH (locale → Supabase) ─────────────────────────────
   async push() {
     if (Sync._isSyncing) return;
@@ -145,8 +162,20 @@ const Sync = {
       for (const exp of unsyncedExp) {
         try {
           await Sync._syncExpense(exp);
-          exp.synced = true;
-          await DB.expenses.save(exp);
+          if (exp.deleted) {
+            // NUOVO — il server ora conosce la cancellazione (resta lì
+            // come "tombstone" soft-delete, PERMANENTE: è l'unico modo
+            // per far sapere anche a un device rimasto offline a lungo
+            // che quel record non c'è più, vedi pullEvent() sotto). La
+            // copia locale invece può essere rimossa FISICAMENTE: non
+            // serve più tenerla marcata deleted per sempre su QUESTO
+            // device, che già sa che è stata eliminata.
+            await DB.expenses.hardDelete(exp.id);
+            await DB.photos.delete(exp.id);
+          } else {
+            exp.synced = true;
+            await DB.expenses.save(exp);
+          }
         } catch (e) {
           console.warn('[Sync] Expense sync failed:', exp.id, e.message);
         }
@@ -283,6 +312,34 @@ const Sync = {
     Sync.push().then(() => {
       if (eventId) return Sync.pullEvent(eventId);
     }).catch(() => {});
+  },
+
+  // ─── SYNC IMMEDIATA CON SOGLIA MINIMA — NUOVO v2.4 ─────────
+  // Richiesta cliente ("più velocità"): a differenza di scheduleQuietSync
+  // (debounce di 5s, pensato per collassare più salvataggi ravvicinati in
+  // un solo giro), questa PARTE SUBITO, ma non più spesso di
+  // "minIntervalMs" — pensata per momenti in cui non c'è nulla di
+  // "appena scritto" da aspettare: apertura pagina, ritorno dell'app in
+  // foreground (visibilitychange), riconnessione alla rete. La soglia
+  // minima evita di martellare il server se l'utente cambia app o pagina
+  // di continuo. eventId=null sincronizza TUTTI gli eventi noti (uso
+  // home, vedi app.js), altrimenti solo quello indicato (uso pagina
+  // evento, vedi evento.js). Il pull-to-refresh manuale (trascina per
+  // aggiornare) NON passa da qui: chiama syncNow() direttamente, senza
+  // soglia, perché è un'azione esplicita dell'utente.
+  async syncNowThrottled(eventId = null, minIntervalMs = 15000, onDone = null) {
+    if (!Utils.isOnline()) return;
+    const now = Date.now();
+    if (now - Sync._lastImmediateSyncAt < minIntervalMs) return;
+    Sync._lastImmediateSyncAt = now;
+    try {
+      await Sync.push();
+      if (eventId) await Sync.pullEvent(eventId);
+      else         await Sync.pull();
+      if (typeof onDone === 'function') await onDone();
+    } catch (e) {
+      console.warn('[Sync] syncNowThrottled fallita:', e.message);
+    }
   },
 
   /**
@@ -469,6 +526,18 @@ const Sync = {
     // Spese — incrementale (risultato già scaricato in parallelo sopra)
     if (Array.isArray(remoteExp)) {
       for (const re of remoteExp) {
+        // NUOVO — tombstone dal server (soft-delete, eliminata da
+        // qualcuno): elimina FISICAMENTE la copia locale invece di
+        // tenerla marcata deleted per sempre. Il tombstone resta sul
+        // server a tempo indeterminato (garantisce che anche un device
+        // rimasto offline a lungo la riceva prima o poi via il pull
+        // incrementale), ma ogni device che la riceve può pulirsi subito
+        // in locale — libera spazio e tiene la lista Movimenti coerente.
+        if (re.deleted) {
+          await DB.expenses.hardDelete(re.id);
+          await DB.photos.delete(re.id);
+          continue;
+        }
         const le = await DB.expenses.getById(re.id);
         if (!le || new Date(re.updated_at) > new Date(le.updated_at)) {
           // Ricostruisce location da colonne separate

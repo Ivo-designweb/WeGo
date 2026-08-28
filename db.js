@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — db.js v1.10
+// WeGo — db.js v1.11
 // Gestione dati locali con IndexedDB (offline-first)
+// v1.11: NUOVO expenses.updated_by (chi ha salvato per ultimo, diverso da
+//        created_by che resta il proprietario originale) — permette a
+//        qualunque operatore di modificare/eliminare qualsiasi movimento
+//        (vedi spesa.js). expenses.delete(id, actorId) ora accetta
+//        l'autore dell'eliminazione. Nessuna modifica allo schema
+//        IndexedDB (updated_by è solo un nuovo campo nell'oggetto già
+//        esistente, non serve bump di versione DB/upgrade).
 // v1.10: NUOVI users.getAll()/expenses.getAll()/payments.getAll() (non
 //        filtrati, tutti gli eventi) — mancavano dei metodi pubblici non
 //        filtrati (esistevano solo getByEvent e getUnsyced): servono a
@@ -343,6 +350,15 @@ const DB = (() => {
         settled:        expense.settled || false,
         created_at:     expense.created_at || Utils.now(),
         created_by:     expense.created_by || null,
+        // Chi ha salvato per ultimo questo movimento (NUOVO) — a differenza
+        // di created_by, che resta SEMPRE il creatore originale, questo
+        // campo viene aggiornato ad OGNI salvataggio, anche da un
+        // operatore diverso dal proprietario (ora consentito, vedi
+        // spesa.js deleteExpense()/enterEditMode()). Usato per mostrare
+        // "(nome)" sotto l'importo in Movimenti quando qualcun altro ha
+        // toccato una spesa non sua, e dal trigger di notifica push per
+        // sapere CHI ha modificato/eliminato.
+        updated_by:     expense.updated_by || null,
         updated_at:     expense.updated_at || Utils.now(),
         synced:         expense.synced || false,
         deleted:        expense.deleted || false
@@ -351,12 +367,19 @@ const DB = (() => {
       return item;
     },
 
-    async delete(id) {
+    // actorId (NUOVO): chi sta eseguendo l'eliminazione — può essere
+    // diverso dal proprietario originale, ora che l'eliminazione è aperta
+    // a qualunque operatore previa conferma (vedi spesa.js). Salvato in
+    // updated_by così la notifica push e l'indicazione "(nome)" in lista
+    // sanno chi ha eliminato, anche se il record viene rimosso fisicamente
+    // in locale subito dopo la sincronizzazione (vedi sync.js).
+    async delete(id, actorId = null) {
       // Soft delete per mantenere coerenza offline
       const exp = await getOne('expenses', id);
       if (exp) {
         exp.deleted = true;
         exp.synced  = false;
+        if (actorId) exp.updated_by = actorId;
         await put('expenses', exp);
       }
     },

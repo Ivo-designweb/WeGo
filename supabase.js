@@ -1,6 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.14
+// WeGo — supabase.js v1.15
 // Client Supabase — lettura config da localStorage
+// v1.15: NUOVO campo expenses.updated_by (create/update/upsert) — chi ha
+//        salvato per ultimo un movimento, distinto da created_by che
+//        resta il proprietario originale. Necessario ora che modifica ed
+//        eliminazione sono aperte a qualunque operatore (vedi spesa.js) —
+//        serve per l'indicazione "(nome)" in lista Movimenti e per il
+//        testo delle notifiche push di modifica/eliminazione. Nuova
+//        colonna in SQL_SCHEMA (sp_expenses.updated_by, UUID, con ALTER
+//        TABLE IF NOT EXISTS per le installazioni esistenti — RIESEGUIRE
+//        lo schema da Admin → Schema SQL).
 // v1.14: SICUREZZA (segnalazione Supabase: "accesso completo al DB con
 //        la anon key") — ogni richiesta ora invia l'header
 //        "x-wego-codes" con i codici degli eventi che il device conosce
@@ -338,6 +347,7 @@ const SupabaseClient = (() => {
         notes:          expense.notes || '',
         settled:        expense.settled || false,
         created_by:     expense.created_by || null,
+        updated_by:     expense.updated_by || expense.created_by || null,
         created_at:     expense.created_at,
         updated_at:     expense.updated_at,
         deleted:        expense.deleted || false
@@ -371,6 +381,7 @@ const SupabaseClient = (() => {
         notes:          expense.notes,
         settled:        expense.settled,
         deleted:        expense.deleted,
+        updated_by:     expense.updated_by || expense.created_by || null,
         updated_at:     Utils.now()
       });
     },
@@ -405,6 +416,11 @@ const SupabaseClient = (() => {
         notes:          expense.notes || '',
         settled:        expense.settled || false,
         created_by:     expense.created_by || null,
+        // Chi ha salvato per ultimo (NUOVO) — se il chiamante non lo
+        // valorizza esplicitamente ricade sul creatore (comportamento
+        // identico a prima per i record salvati dal loro stesso
+        // proprietario, es. il primissimo salvataggio).
+        updated_by:     expense.updated_by || expense.created_by || null,
         created_at:     expense.created_at,
         updated_at:     expense.updated_at,
         deleted:        expense.deleted || false
@@ -685,11 +701,21 @@ CREATE TABLE IF NOT EXISTS sp_expenses (
   settled          BOOLEAN DEFAULT FALSE,
   deleted          BOOLEAN DEFAULT FALSE,
   created_by       UUID REFERENCES sp_users(id),
+  updated_by       UUID REFERENCES sp_users(id),
   created_at       TIMESTAMPTZ DEFAULT NOW(),
   updated_at       TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_sp_expenses_event ON sp_expenses(event_id);
 CREATE INDEX IF NOT EXISTS idx_sp_expenses_date  ON sp_expenses(date DESC);
+
+-- Per installazioni precedenti: aggiunge updated_by se mancante (NUOVO) —
+-- traccia CHI ha salvato per ultimo un movimento, distinto da created_by
+-- che resta sempre il proprietario originale. Serve per: (1) mostrare
+-- "(nome)" sotto l'importo in Movimenti quando un operatore diverso dal
+-- proprietario modifica/elimina una spesa (ora consentito, vedi spesa.js);
+-- (2) il testo delle notifiche push di modifica/eliminazione (Edge
+-- Function send-push-notification).
+ALTER TABLE sp_expenses ADD COLUMN IF NOT EXISTS updated_by UUID REFERENCES sp_users(id);
 
 -- TABELLA PAGAMENTI SALDATI
 CREATE TABLE IF NOT EXISTS sp_payments (

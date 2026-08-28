@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v7.6</title>
+  <title>Evento — WeGo v7.7</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/leaflet.css" />
@@ -337,6 +337,33 @@
       font-size: 18.5px; font-weight: 700; color: var(--text-primary);
     }
     .exp-amount__lbl { font-size: 14px; color: var(--text-muted); margin-top: 1px; }
+    /* NUOVO — "(nome)" sotto l'importo quando l'ultimo a modificare/
+       eliminare il movimento è diverso dal proprietario originale (vedi
+       evento.js _renderMovementItem()/_editorLabel). Stesso stile muto e
+       sintetico di .exp-amount__lbl, leggermente più piccolo per non
+       competere visivamente con l'importo. */
+    .exp-amount__editor { font-size: 12.5px; color: var(--text-muted); margin-top: 1px; }
+
+    /* ─── TRASCINA PER AGGIORNARE (pull-to-refresh) — NUOVO ───
+       Indicatore assoluto ancorato in cima a #mainContent (che deve
+       essere position:relative — vedi .page-content sotto): resta
+       nascosto sopra il bordo superiore finché evento.js non lo trascina
+       in vista via transform durante il gesto (_initPullToRefresh()). */
+    #mainContent { position: relative; }
+    .pull-refresh {
+      position: absolute;
+      top: -42px; left: 50%;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--surface-2, var(--surface));
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      color: var(--text-secondary);
+      z-index: 4;
+      pointer-events: none;
+    }
+    .pull-refresh--ready { color: var(--accent, var(--green)); }
+    .pull-refresh--loading .pull-refresh__spinner { animation: spin 0.8s linear infinite; }
 
     /* ─── PARTECIPANTE ─── */
     .part-item {
@@ -578,6 +605,14 @@
   </div>
 
   <main class="page-content" id="mainContent">
+
+    <!-- TRASCINA PER AGGIORNARE — NUOVO, vedi evento.js _initPullToRefresh() -->
+    <div class="pull-refresh" id="pullRefreshIndicator">
+      <svg class="pull-refresh__spinner" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+        <polyline points="21 3 21 9 15 9"/>
+      </svg>
+    </div>
 
     <!-- TAB SPESE -->
     <div id="panelSpese">

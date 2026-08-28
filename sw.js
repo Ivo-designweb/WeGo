@@ -1,6 +1,20 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v7.6
+// WeGo — sw.js v7.7
 // Service Worker — cache offline + background sync
+// v7.7: nessuna modifica alla lista di precache — modifica/eliminazione
+//       movimenti aperte a qualunque operatore con conferma se non
+//       proprietario, eliminazioni sincronizzate in modo più robusto
+//       (pulizia fisica locale dopo push/pull invece di restare marcate
+//       "deleted" per sempre), sync più veloce (immediata con soglia
+//       15s su apertura pagina/ritorno online/ritorno in foreground,
+//       nuovo pull-to-refresh in evento.html), "(nome)" sotto l'importo
+//       quando un movimento è stato modificato da un operatore diverso
+//       dal proprietario, notifiche push ora anche su modifica/
+//       eliminazione (db.js v1.11, supabase.js v1.15, sync.js v2.4,
+//       spesa.js v3.2, evento.js v2.33, app.js v2.20, evento.html/
+//       index.html/impostazioni.html) — anche index.html allineato alla
+//       versione "famiglia" (era rimasto indietro a v7.2). Bump di
+//       versione anche solo "di famiglia" per index.html.
 // v7.6: nessuna modifica alla lista di precache — icone categoria
 //       ingrandite a 50px in lista Movimenti e legenda Riepilogo
 //       (evento.html/evento.js v7.6/v2.32), nuovo selettore "Tipo" a
@@ -200,7 +214,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v7.6';
+const CACHE_NAME = 'wego-v7.7';
 
 const STATIC_ASSETS = [
   '/',
@@ -282,7 +296,7 @@ const STATIC_ASSETS = [
 
 // ─── INSTALL ──────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  console.log('[SW] Install v7.6');
+  console.log('[SW] Install v7.7');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       // Fetch in modalità 'reload': bypassa sempre la cache HTTP del browser,
@@ -308,7 +322,7 @@ self.addEventListener('install', (event) => {
 
 // ─── ACTIVATE ─────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate v7.6');
+  console.log('[SW] Activate v7.7');
   event.waitUntil(
     caches.keys().then(keys =>
       Promise.all(

@@ -1,6 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.32
+// WeGo — evento.js v2.33
 // Logica pagina dettaglio evento
+// v2.33: NUOVO "(nome)" sotto l'importo in Movimenti quando l'ultimo a
+//        toccare un movimento (updated_by) è diverso dal proprietario
+//        originale (created_by) — richiesta cliente, ora che modifica ed
+//        eliminazione sono aperte a qualunque operatore (vedi spesa.js).
+//        _syncQuiet() ora usa Sync.syncNowThrottled() (sync.js v2.4):
+//        sync immediata con soglia minima 15s invece del debounce di 5s,
+//        più NUOVO listener 'visibilitychange' su _initNetwork() (ritorno
+//        in foreground) e NUOVO pull-to-refresh (_initPullToRefresh(),
+//        trascinamento verso il basso su #mainContent, chiama syncNow()
+//        senza soglia) — richiesta cliente, "più velocità" nella
+//        sincronizzazione. Markup/CSS dell'indicatore in evento.html v7.7.
 // v2.32: icone categoria ingrandite a 50px fissi (richiesta cliente,
 //        "sempre più visibili") sia nella lista Movimenti
 //        (_renderMovementItem()) sia nella legenda del tab Riepilogo
@@ -287,6 +298,7 @@ const EventoApp = {
     }
 
     EventoApp._initNetwork();
+    EventoApp._initPullToRefresh();
 
     if (Utils.isOnline()) EventoApp._syncQuiet();
 
@@ -318,6 +330,17 @@ const EventoApp = {
     window.addEventListener('online',  update);
     window.addEventListener('offline', update);
     update();
+
+    // NUOVO — quando l'app torna in foreground (l'utente riapre il tab/
+    // torna dall'app switcher mentre sta guardando un evento) prova
+    // subito una sync, soggetta comunque alla soglia minima di
+    // _syncQuiet()/syncNowThrottled() (15s): risolve il caso di chi
+    // resta con la pagina evento aperta e non vede un movimento
+    // modificato/eliminato da un altro finché non ricarica a mano
+    // (richiesta cliente — "più velocità").
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') EventoApp._syncQuiet();
+    });
   },
 
   // ─── CARICA TUTTI I DATI ──────────────────────────────────
@@ -1158,6 +1181,20 @@ const EventoApp = {
   _renderMovementItem(m, userMap, currency) {
     const amountStr = Utils.formatAmount(parseFloat(m.data.amount || 0), currency);
 
+    // NUOVO — "(nome)" sotto l'importo quando l'ULTIMO a toccare il
+    // movimento (updated_by) è diverso dal proprietario originale
+    // (created_by): richiesta cliente, ora che modifica/eliminazione sono
+    // aperte a qualunque operatore (vedi spesa.js). Vale per
+    // expense/transfer/cashier (stesso store, tutti hanno updated_by —
+    // vedi db.js v1.11); non per i pagamenti (kind 'payment'), fuori
+    // scope. Voce sintetica, stesso stile muto di ".exp-meta-txt".
+    const editorUser = (m.kind !== 'payment' && m.data.updated_by && m.data.updated_by !== m.data.created_by)
+      ? userMap[m.data.updated_by]
+      : null;
+    const editedLabel = editorUser
+      ? `<div class="exp-amount__editor">(${Utils.escapeHtml(editorUser.name)})</div>`
+      : '';
+
     // ── PAGAMENTO (saldo) ──
     if (m.kind === 'payment') {
       const from = userMap[m.data.from_user];
@@ -1207,6 +1244,7 @@ const EventoApp = {
           </div>
           <div class="exp-amount">
             <div class="exp-amount__val">${amountStr}</div>
+            ${editedLabel}
           </div>
         </div>`;
     }
@@ -1240,6 +1278,7 @@ const EventoApp = {
           </div>
           <div class="exp-amount">
             <div class="exp-amount__val" style="color:var(--green);">${amountStr}</div>
+            ${editedLabel}
           </div>
         </div>`;
     }
@@ -1302,6 +1341,7 @@ const EventoApp = {
         <div class="exp-amount">
           <div class="exp-amount__val">${amountStr}</div>
           ${isMyExp ? `<div class="exp-amount__lbl" style="color:var(--green);">tu</div>` : ''}
+          ${editedLabel}
         </div>
       </div>`;
   },
@@ -2043,17 +2083,77 @@ const EventoApp = {
     }
   },
 
-  // Chiamata al caricamento pagina, al ritorno online, e (indirettamente)
-  // subito dopo il ritorno da un salvataggio spesa in spesa.js (che ora
-  // non chiama più Sync direttamente — vedi spesa.js v3.9): l'utente ha
-  // già salvato in locale e sta già guardando la pagina evento, la sync
-  // vera e propria con il server parte da sola 5s dopo, silenziosa
-  // (nessun blocco, nessun popup — vedi Sync.scheduleQuietSync() in
-  // sync.js v2.1). Il refresh dell'interfaccia (loadAll) avviene solo a
-  // sync completata, tramite il callback onDone.
+  // Chiamata al caricamento pagina, al ritorno online, al ritorno in
+  // foreground (vedi _initNetwork()) e (indirettamente) subito dopo il
+  // ritorno da un salvataggio spesa in spesa.js (che non chiama più Sync
+  // direttamente — vedi spesa.js). NUOVO (v2.33): usa
+  // Sync.syncNowThrottled() (sync.js v2.4) invece del debounce di 5s —
+  // parte SUBITO ma non più spesso di 15s, così la lista Movimenti si
+  // aggiorna più in fretta per chi la sta solo guardando, senza
+  // martellare il server se si rimbalza velocemente tra le pagine
+  // (richiesta cliente — "più velocità"). Resta silenziosa (nessun
+  // blocco, nessun popup): il refresh dell'interfaccia (loadAll) avviene
+  // solo a sync completata, tramite il callback onDone.
   async _syncQuiet() {
-    Sync.scheduleQuietSync(EventoApp._eventId, 5000, async () => {
+    await Sync.syncNowThrottled(EventoApp._eventId, 15000, async () => {
       await EventoApp.loadAll();
+    });
+  },
+
+  // ─── TRASCINA PER AGGIORNARE (pull-to-refresh) — NUOVO ─────
+  // Gesto di trascinamento verso il basso quando si è già in cima al
+  // contenuto (#mainContent, l'unico elemento che scrolla — vedi
+  // evento.html): mostra un piccolo indicatore, e oltre una soglia di
+  // trascinamento avvia una sync IMMEDIATA e SENZA soglia minima
+  // (richiesta cliente — "trascinamento verso il basso"), sfruttando
+  // syncNow() già esistente (bottone manuale in header): stesso
+  // comportamento, stesso feedback (icona sync in header + toast finale).
+  _initPullToRefresh() {
+    const scrollEl   = document.getElementById('mainContent');
+    const indicator  = document.getElementById('pullRefreshIndicator');
+    if (!scrollEl || !indicator) return;
+
+    const THRESHOLD = 64;   // px di trascinamento per attivare il refresh
+    const MAX_PULL  = 90;   // limite visivo dell'indicatore (effetto "elastico")
+    let startY   = null;
+    let pulling  = false;
+    let refreshing = false;
+
+    scrollEl.addEventListener('touchstart', (e) => {
+      if (refreshing) return;
+      // Il gesto è valido solo se si parte già in cima al contenuto —
+      // altrimenti sarebbe un normale scroll verso l'alto della lista.
+      if (scrollEl.scrollTop > 0) { startY = null; return; }
+      startY  = e.touches[0].clientY;
+      pulling = true;
+    }, { passive: true });
+
+    scrollEl.addEventListener('touchmove', (e) => {
+      if (!pulling || startY === null || refreshing) return;
+      const delta = e.touches[0].clientY - startY;
+      if (delta <= 0) { indicator.style.transform = ''; indicator.classList.remove('pull-refresh--ready'); return; }
+      const pull = Math.min(delta * 0.5, MAX_PULL); // resistenza elastica
+      indicator.style.transform = `translate(-50%, ${pull}px)`;
+      indicator.classList.toggle('pull-refresh--ready', pull >= THRESHOLD * 0.5);
+    }, { passive: true });
+
+    scrollEl.addEventListener('touchend', async () => {
+      if (!pulling || startY === null) { pulling = false; return; }
+      const ready = indicator.classList.contains('pull-refresh--ready');
+      pulling = false;
+      startY  = null;
+      indicator.style.transform = '';
+      indicator.classList.remove('pull-refresh--ready');
+      if (!ready || refreshing) return;
+
+      refreshing = true;
+      indicator.classList.add('pull-refresh--loading');
+      try {
+        await EventoApp.syncNow();
+      } finally {
+        indicator.classList.remove('pull-refresh--loading');
+        refreshing = false;
+      }
     });
   }
 };
