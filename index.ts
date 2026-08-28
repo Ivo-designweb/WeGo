@@ -3,18 +3,32 @@
 // ═══════════════════════════════════════════════════════════════
 //
 // COSA FA:
-// Riceve l'evento di INSERT su sp_expenses o sp_payments (tramite un
-// Database Webhook configurato nel Dashboard Supabase), recupera tutte le
-// sottoscrizioni push collegate a quell'evento (tabella sp_push_subscriptions)
-// — escludendo chi ha appena registrato il movimento — e invia a ciascuna
-// una notifica Web Push firmata con le chiavi VAPID.
+// Riceve gli eventi di INSERT e UPDATE su sp_expenses (e INSERT su
+// sp_payments — vedi sotto) tramite un Database Webhook configurato nel
+// Dashboard Supabase, recupera tutte le sottoscrizioni push collegate a
+// quell'evento (tabella sp_push_subscriptions) — escludendo chi ha
+// appena eseguito l'operazione — e invia a ciascuna una notifica Web
+// Push firmata con le chiavi VAPID.
 //
-// COME SI ATTIVA (1 volta sola, dal Dashboard Supabase):
-//   Database → Webhooks → Create a new hook
-//     - Table:      sp_expenses   (creane una seconda identica per sp_payments)
-//     - Events:     Insert
-//     - Type:       Supabase Edge Functions
-//     - Function:   send-push-notification
+// v2 (NUOVO): oltre alla "nuova spesa/movimento" (INSERT), ora gestisce
+// anche modifica ed eliminazione di un movimento (UPDATE su sp_expenses —
+// l'eliminazione in WeGo è un soft-delete, quindi tecnicamente anche lei
+// è un UPDATE con deleted:true). Distingue i due casi confrontando
+// old_record.deleted con record.deleted. Usa il NUOVO campo
+// record.updated_by (chi ha eseguito l'azione ADESSO — vedi db.js v1.11/
+// supabase.js v1.15) per il nome dell'autore, e record.created_by per il
+// nome del proprietario ORIGINALE, citato solo se diverso dall'autore.
+// Corretto anche un mislabeling preesistente: i movimenti "+Cassiere"
+// (type:'cashier') venivano annunciati come "Nuova spesa" — ora hanno un
+// titolo/testo dedicato, come i trasferimenti.
+//
+// COME SI ATTIVA:
+//   Database → Webhooks → il webhook già esistente su sp_expenses:
+//     - Events: spuntare anche "Update" (oltre a "Insert" già presente)
+//   sp_payments NON necessita di modifiche: resta solo su Insert, la
+//   modifica/eliminazione dei pagamenti saldati non è in questo giro di
+//   lavoro (il codice sotto la gestisce comunque in modo innocuo, nel
+//   caso la abilitiate in futuro).
 //
 // SEGRETI NECESSARI (supabase secrets set ...):
 //   VAPID_PUBLIC_KEY   = la stessa chiave pubblica già in Impostazioni > Admin
@@ -59,20 +73,52 @@ async function sbRequest(method: string, path: string, body: unknown = null) {
   return data;
 }
 
+// Etichette per tipo di movimento (sp_expenses.type) — usate sia per il
+// nome comune ("una spesa" / "un movimento di cassa" / "un versamento
+// cassiere") sia per il titolo della notifica.
+function expenseKindWords(type: string | undefined) {
+  if (type === "transfer") return { article: "un",  noun: "movimento di cassa", titleWord: "Movimento cassa" };
+  if (type === "cashier")  return { article: "un",  noun: "versamento cassiere", titleWord: "Versamento cassiere" };
+  return { article: "una", noun: "spesa", titleWord: "spesa" };
+}
+
+function fmtAmount(record: any) {
+  const amount = record.amount != null ? Number(record.amount).toFixed(2) : "";
+  return `${amount} ${record.currency || ""}`.trim();
+}
+
 Deno.serve(async (req) => {
   try {
     const payload = await req.json();
 
     // Supabase Database Webhook invia: { type, table, record, old_record, schema }
-    const table  = payload.table;
-    const record = payload.record;
+    // "type" = TG_OP: 'INSERT' | 'UPDATE' | 'DELETE'.
+    const opType    = payload.type;
+    const table     = payload.table;
+    const record    = payload.record;
+    const oldRecord = payload.old_record;
     if (!record) return new Response("ok (no record)", { status: 200 });
 
     const eventId = record.event_id;
     if (!eventId) return new Response("ok (no event_id)", { status: 200 });
 
-    // L'utente che ha creato il movimento: non notifichiamo lui stesso.
-    const actingUserId = record.created_by || record.from_user || record.paid_by || null;
+    const isUpdate = opType === "UPDATE";
+    // Eliminazione = soft-delete, tecnicamente un UPDATE: lo riconosciamo
+    // dal passaggio deleted false→true rispetto al record precedente.
+    const isDeletion = isUpdate && record.deleted === true && oldRecord?.deleted !== true;
+
+    // L'utente che ha ESEGUITO l'operazione ADESSO: per un INSERT è
+    // sempre il creatore; per un UPDATE (modifica o eliminazione) è
+    // updated_by (NUOVO — vedi db.js v1.11/supabase.js v1.15), con
+    // ripiego su created_by per righe salvate prima di questa colonna.
+    // Non notifichiamo mai lui stesso.
+    const actingUserId = isUpdate
+      ? (record.updated_by || record.created_by || record.from_user || null)
+      : (record.created_by || record.from_user || record.paid_by || null);
+
+    // Il proprietario ORIGINALE (solo sp_expenses) — citato nel testo
+    // SOLO se diverso da chi ha eseguito l'operazione ora.
+    const ownerId = table === "sp_expenses" ? (record.created_by || null) : null;
 
     // ── Dati evento (per il titolo della notifica) ──
     const events = await sbRequest(
@@ -81,33 +127,60 @@ Deno.serve(async (req) => {
     );
     const eventTitle = Array.isArray(events) && events[0] ? events[0].title : "WeGo";
 
-    // ── Nome di chi ha effettuato l'operazione ──
-    let actorName = "Qualcuno";
-    if (actingUserId) {
-      const users = await sbRequest(
-        "GET",
-        `sp_users?id=eq.${actingUserId}&select=name`
-      );
-      if (Array.isArray(users) && users[0]) actorName = users[0].name;
+    // ── Nome di chi ha effettuato l'operazione + (se serve) del proprietario ──
+    async function userName(id: string | null): Promise<string | null> {
+      if (!id) return null;
+      const users = await sbRequest("GET", `sp_users?id=eq.${id}&select=name`);
+      return Array.isArray(users) && users[0] ? users[0].name : null;
     }
+    const actorName = (await userName(actingUserId)) || "Qualcuno";
+    const ownerName = (ownerId && ownerId !== actingUserId) ? await userName(ownerId) : null;
 
-    // ── Testo della notifica in base alla tabella coinvolta ──
+    // ── Testo della notifica ──
     let title = `Nuovo movimento — ${eventTitle}`;
     let body  = `${actorName} ha registrato un nuovo movimento.`;
 
     if (table === "sp_expenses") {
-      const amount = record.amount != null ? Number(record.amount).toFixed(2) : "";
-      if (record.type === "transfer") {
-        title = `Movimento cassa — ${eventTitle}`;
-        body  = `${actorName} ha registrato "${record.title || "movimento di cassa"}" (${amount} ${record.currency || ""})`;
+      const amount = fmtAmount(record);
+      const { article, noun, titleWord } = expenseKindWords(record.type);
+      const ownerSuffix = ownerName ? ` di ${ownerName}` : "";
+
+      if (!isUpdate) {
+        // ── Nuovo movimento — stesso testo di sempre per spesa/
+        // trasferimento (invariato), NUOVO solo per "+Cassiere" (prima
+        // ricadeva per errore nel ramo "Nuova spesa", vedi nota in testa
+        // al file).
+        if (record.type === "transfer") {
+          title = `${titleWord} — ${eventTitle}`;
+          body  = `${actorName} ha registrato "${record.title || noun}" (${amount})`;
+        } else if (record.type === "cashier") {
+          title = `${titleWord} — ${eventTitle}`;
+          body  = `${actorName} ha registrato "${record.title || noun}" (${amount})`;
+        } else {
+          title = `Nuova spesa — ${eventTitle}`;
+          body  = `${actorName} ha aggiunto "${record.title || noun}" (${amount})`;
+        }
+      } else if (isDeletion) {
+        // ── Eliminazione (soft-delete) ──
+        title = `Movimento eliminato — ${eventTitle}`;
+        body  = `${actorName} ha eliminato ${article} ${noun}${ownerSuffix} — "${record.title || noun}" (${amount})`;
       } else {
-        title = `Nuova spesa — ${eventTitle}`;
-        body  = `${actorName} ha aggiunto "${record.title || "una spesa"}" (${amount} ${record.currency || ""})`;
+        // ── Modifica ──
+        title = `Movimento modificato — ${eventTitle}`;
+        body  = `${actorName} ha modificato ${article} ${noun}${ownerSuffix} — "${record.title || noun}" (${amount})`;
       }
     } else if (table === "sp_payments") {
-      const amount = record.amount != null ? Number(record.amount).toFixed(2) : "";
-      title = `Pagamento registrato — ${eventTitle}`;
-      body  = `${actorName} ha registrato un pagamento di ${amount}`;
+      const amount = fmtAmount(record);
+      if (!isUpdate) {
+        title = `Pagamento registrato — ${eventTitle}`;
+        body  = `${actorName} ha registrato un pagamento di ${amount}`;
+      } else if (isDeletion) {
+        title = `Pagamento eliminato — ${eventTitle}`;
+        body  = `${actorName} ha eliminato un pagamento di ${amount}`;
+      } else {
+        title = `Pagamento modificato — ${eventTitle}`;
+        body  = `${actorName} ha modificato un pagamento di ${amount}`;
+      }
     }
 
     // ── Tutte le sottoscrizioni collegate a questo evento ──
