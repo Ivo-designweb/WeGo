@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v7.7</title>
+  <title>Evento — WeGo v7.8</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/leaflet.css" />
@@ -176,6 +176,18 @@
       color: var(--text-primary);
       flex-shrink: 0; min-width: 72px; text-align: right;
     }
+    /* NUOVO v7.8: nota sotto il chip "Partecipante" e titolo sopra
+       l'elenco, entrambi mostrati/nascosti da evento.js _renderRiepilogo()
+       in base al criterio selezionato (solo per "Partecipante"). */
+    .riepilogo-part-hint {
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      padding: 0 0 2px; margin-top: -2px;
+    }
+    .riepilogo-part-title {
+      text-align: center; font-size: 13px; font-weight: 700;
+      color: var(--text-secondary); text-transform: uppercase;
+      letter-spacing: 0.3px; margin: 16px 0 2px;
+    }
 
     /* ─── MAPPA (Leaflet/OpenStreetMap) — NUOVO v6.7 ───
        I tile della mappa restano quelli originali OpenStreetMap
@@ -307,6 +319,12 @@
     }
     .exp-cat-icon svg { width: 50px; height: 50px; }
     .exp-cat-icon img { width: 50px; height: 50px; }
+    /* NUOVO v7.8 (richiesta cliente): icona categoria nella lista
+       Movimenti temporaneamente nascosta — non rimossa dai sorgenti,
+       solo non visibile. La classe "hide-cat-icons" è sul <body>: in
+       futuro un flag in Impostazioni (default spento) potrà
+       aggiungerla/toglierla per mostrare le icone a chi lo desidera. */
+    .hide-cat-icons .exp-cat-icon { display: none; }
     .exp-info { flex: 1; min-width: 0; }
     .exp-title {
       font-size: 17.5px; font-weight: 600; color: var(--text-primary);
@@ -438,7 +456,7 @@
     .settled-amount { font-size: 17.5px; font-weight: 700; color: var(--green); flex-shrink: 0; }
   </style>
 </head>
-<body>
+<body class="hide-cat-icons">
 
 <div class="toast-container" id="toastContainer"></div>
 <div class="app-shell">
@@ -672,8 +690,9 @@
     <!-- TAB RIEPILOGO — NUOVO v6.3: grafico a torta delle sole spese
          reali (esclude Previsioni/Trasferimenti/"+Cassiere", stessa
          base dei 4 totali in Movimenti — vedi evento.js v2.24
-         _riepilogoRealExpenses()), suddivisibile per Partecipante (chi
-         ha pagato), Data (giorno esatto) o Tipo spesa (categoria). -->
+         _riepilogoRealExpenses()), suddivisibile per Partecipante (v2.34:
+         quota pro-capite di ciascuno, indipendentemente da chi ha
+         pagato), Data (giorno esatto) o Tipo spesa (categoria). -->
     <div id="panelRiepilogo" style="display:none;">
       <div class="riepilogo-selector">
         <button class="chip selected" id="riepChipPartecipante" onclick="EventoApp.setRiepilogoGroup('partecipante')">Partecipante</button>
@@ -681,6 +700,7 @@
         <button class="chip" id="riepChipTipo" onclick="EventoApp.setRiepilogoGroup('tipo')">Tipo spesa</button>
         <button class="chip" id="riepChipMappa" onclick="EventoApp.setRiepilogoGroup('mappa')">Mappa</button>
       </div>
+      <div class="riepilogo-part-hint" id="riepilogoPartecipanteHint">(Quota Procapite)</div>
 
       <div id="riepilogoEmpty" style="display:none;text-align:center;padding:50px 20px;color:var(--text-muted);font-size:14.5px;">
         Nessuna spesa da riepilogare.
@@ -695,6 +715,7 @@
           </div>
         </div>
 
+        <div class="riepilogo-part-title" id="riepilogoPartecipanteTitle">Spesa totale Procapite</div>
         <div class="riepilogo-legend" id="riepilogoLegend" style="padding:12px 0 0;"></div>
       </div>
 

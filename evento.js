@@ -1,6 +1,18 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.33
+// WeGo — evento.js v2.34
 // Logica pagina dettaglio evento
+// v2.34: Riepilogo → "Partecipante" ora mostra la QUOTA PRO-CAPITE (somma
+//        della propria quota — amount/n.partecipanti — su tutte le Spese
+//        reali dove compare tra i "participants", indipendentemente da chi
+//        ha pagato) al posto del precedente saldo netto Versato/Incassato
+//        (che duplicava il dato già in tab Partecipanti) — sia nelle fette
+//        della torta sia nell'elenco sotto. Nuovo titolo "Spesa totale
+//        Procapite" sopra l'elenco e nota "(Quota Procapite)" sotto il chip
+//        "Partecipante", entrambi visibili solo in questo criterio (markup/
+//        CSS in evento.html v7.8). Icona categoria nella lista Movimenti
+//        temporaneamente nascosta (richiesta cliente, vedi evento.html
+//        v7.8 — .hide-cat-icons sul <body>, pronta per un futuro flag in
+//        Impostazioni, default spento) — codice di rendering invariato.
 // v2.33: NUOVO "(nome)" sotto l'importo in Movimenti quando l'ultimo a
 //        toccare un movimento (updated_by) è diverso dal proprietario
 //        originale (created_by) — richiesta cliente, ora che modifica ed
@@ -663,6 +675,12 @@ const EventoApp = {
     const emptyElChart = document.getElementById('riepilogoEmpty');
     const chartWrapEl  = document.getElementById('riepilogoChartWrap');
     const mappaWrapEl  = document.getElementById('riepilogoMappaWrap');
+    // Nota "(Quota Procapite)" sotto il chip "Partecipante" e titolo
+    // "Spesa totale Procapite" sopra l'elenco — v2.34, visibili SOLO per
+    // questo criterio (nascosti per Data/Tipo spesa/Mappa).
+    const partHintEl  = document.getElementById('riepilogoPartecipanteHint');
+    if (partHintEl) partHintEl.style.display = (mode === 'partecipante') ? '' : 'none';
+
     if (mode === 'mappa') {
       if (emptyElChart) emptyElChart.style.display = 'none';
       if (chartWrapEl)  chartWrapEl.style.display  = 'none';
@@ -671,6 +689,9 @@ const EventoApp = {
       return;
     }
     if (mappaWrapEl) mappaWrapEl.style.display = 'none';
+
+    const partTitleEl = document.getElementById('riepilogoPartecipanteTitle');
+    if (partTitleEl) partTitleEl.style.display = (mode === 'partecipante') ? '' : 'none';
 
     // Stessa palette usata per gli avatar (.avatar-0…7 in style.css) —
     // coerenza visiva col resto dell'app, specialmente per "Partecipante"
@@ -681,24 +702,33 @@ const EventoApp = {
     const userMap  = {};
     users.forEach(u => { userMap[u.id] = u; });
 
-    // "Data"/"Tipo spesa" restano solo spese reali. "Partecipante"
-    // (v2.30) usa invece il NETTO per utente — stessa identica formula
-    // di _calcUserContribution() (spese reali pagate per intero +
-    // trasferimenti/"+Cassiere" inviati MENO quelli incassati): la
+    // "Partecipante" (v2.34, SOSTITUITA da v2.30): mostra la QUOTA
+    // PRO-CAPITE di ciascun utente — per ogni Spesa reale (stessa base di
+    // _riepilogoRealExpenses(): tipo 'expense', non Previsione; Trasf. e
+    // "+Cassiere" restano esclusi, non sono "spesa" in senso stretto) si
+    // divide l'importo per il numero di partecipanti e si assegna la
+    // quota a ciascuno di essi, INDIPENDENTEMENTE da chi ha pagato. La
     // somma di tutte le fette torna così sempre uguale al totale delle
-    // sole spese reali, coerente con gli altri due criteri e con la
-    // logica di Saldi (prima un trasferimento veniva sommato per
-    // intero solo su chi lo invia, mai sottratto a chi lo riceve).
+    // spese reali (ogni importo viene ridistribuito per intero tra i suoi
+    // partecipanti). Sostituisce il precedente saldo netto Versato/
+    // Incassato (stessa formula di _calcUserContribution()), che
+    // duplicava il dato già mostrato nel tab Partecipanti.
+    // "Data"/"Tipo spesa" restano invariati: solo spese reali, sommate
+    // per intero nel proprio bucket (data o categoria).
     let groups, total;
     if (mode === 'partecipante') {
+      const quotaByUser = {};
+      for (const exp of EventoApp._riepilogoRealExpenses()) {
+        const parts = exp.participants || [];
+        if (!parts.length) continue;
+        const share = parseFloat(exp.amount || 0) / parts.length;
+        parts.forEach(uid => {
+          quotaByUser[uid] = (quotaByUser[uid] || 0) + share;
+        });
+      }
       groups = users
-        .map(u => {
-          const c   = EventoApp._calcUserContribution(u.id);
-          const net = c.isNetReceiver ? -c.amount : c.amount;
-          return { key: u.id, label: u.name, amount: net };
-        })
-        // Chi ha un netto ≤0 (es. un cassiere che ha solo incassato,
-        // senza spendere nulla di suo) non compare come fetta.
+        .map(u => ({ key: u.id, label: u.name, amount: quotaByUser[u.id] || 0 }))
+        // Chi non compare in nessuna spesa (quota 0) non compare come fetta.
         .filter(g => g.amount > 0.004);
       total = groups.reduce((s, g) => s + g.amount, 0);
     } else {

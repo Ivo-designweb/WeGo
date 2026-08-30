@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Spesa — WeGo v4.0</title>
+  <title>Spesa — WeGo v4.1</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -252,9 +252,16 @@
     .category-picker-item__label { flex: 1; font-size: 16px; font-weight: 600; color: var(--text-primary); }
     .category-picker-item__check { color: var(--accent); flex-shrink: 0; display: none; width: 20px; height: 20px; }
     .category-picker-item.selected .category-picker-item__check { display: flex; }
+    /* NUOVO v4.1 (richiesta cliente): icone tipo spesa temporaneamente
+       nascoste — non rimosse dai sorgenti, solo non visibili (le
+       etichette testuali restano, il picker resta pienamente
+       utilizzabile). Classe "hide-cat-icons" sul <body>: in futuro un
+       flag in Impostazioni (default spento) potrà aggiungerla/toglierla. */
+    .hide-cat-icons .category-picker-trigger__icon,
+    .hide-cat-icons .category-picker-item__icon { display: none; }
   </style>
 </head>
-<body>
+<body class="hide-cat-icons">
 
 <div class="toast-container" id="toastContainer"></div>
 

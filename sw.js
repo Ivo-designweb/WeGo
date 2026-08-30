@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v7.7
+// WeGo — sw.js v7.8
 // Service Worker — cache offline + background sync
+// v7.8: nessuna modifica alla lista di precache — Riepilogo→"Partecipante"
+//       ora mostra la quota pro-capite invece del saldo netto (torta +
+//       elenco), nuovo titolo/nota nella pagina; icona categoria nascosta
+//       (non rimossa) nella lista Movimenti e nel form Spesa, pronta per
+//       un futuro flag in Impostazioni (evento.html v7.8/evento.js v2.34,
+//       spesa.html v4.1) — solo bump di versione "di famiglia" per
+//       index.html/impostazioni.html (spesa.html ha un proprio numero di
+//       versione separato, ma condivide comunque questo CACHE_NAME).
 // v7.7: nessuna modifica alla lista di precache — modifica/eliminazione
 //       movimenti aperte a qualunque operatore con conferma se non
 //       proprietario, eliminazioni sincronizzate in modo più robusto
@@ -214,7 +222,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v7.7';
+const CACHE_NAME = 'wego-v7.8';
 
 const STATIC_ASSETS = [
   '/',
