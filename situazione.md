@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v7.9 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.1 per admin.html) — Aggiornato: 21 settembre 2026**
+**Versione corrente: v8.0 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.1 per admin.html) — Aggiornato: 21 settembre 2026**
 
 ---
 
@@ -43,21 +43,21 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v7.9   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
-├── evento.html          v7.9  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + Mappa GPS + bottone "Esporta in Excel"), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, "(nome)" sotto l'importo quando modificato da un operatore diverso dal proprietario (NUOVO v7.7), pull-to-refresh (NUOVO v7.7), Riepilogo→Partecipante mostra la quota pro-capite (NUOVO v7.8), icona categoria in Movimenti mostrabile/nascondibile da Impostazioni (NUOVO v7.9, default nascosta)
+├── index.html          v8.0   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
+├── evento.html          v8.0  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + Mappa GPS + bottone "Esporta in Excel"), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, "(nome)" sotto l'importo quando modificato da un operatore diverso dal proprietario (NUOVO v7.7), pull-to-refresh (NUOVO v7.7), Riepilogo→Partecipante mostra la quota pro-capite (NUOVO v7.8), icona categoria in Movimenti mostrabile/nascondibile da Impostazioni (NUOVO v7.9, default nascosta), voce "Impostazioni" nel menu "⋮" (NUOVO v8.0), "Elimina evento" rimossa dal menu "⋮" perché duplicata (NUOVO v8.0, resta solo nel menu della card in Home)
 ├── spesa.html            v4.2 Registrazione / visualizzazione movimento — Previsione, Tipo (NUOVO v7.6: modal a schermo intero con icone 60px al posto del <select>), foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune", icona categoria nel selettore "Tipo" mostrabile/nascondibile da Impostazioni (NUOVO v7.9, default nascosta)
-├── impostazioni.html    v7.9   Impostazioni: tema, metodi pagamento, categorie spesa (editor icona/nome NUOVO v7.3, toggle "Mostra icone categoria" NUOVO v7.9 — default spento), licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
+├── impostazioni.html    v8.0   Impostazioni: tema, metodi pagamento, categorie spesa (editor icona/nome NUOVO v7.3, toggle "Mostra icone categoria" NUOVO v7.9 — default spento), licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
 ├── admin.html           v2.1   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test, sezione "Log notifiche push" (NUOVO v2.1, sola lettura via /api/notification-log.js)
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
-├── sw.js                v7.9   Service Worker (CACHE_NAME: wego-v7.9) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js, /leaflet.js|css|marker-*.png e le 50 icone categoria a colori (payments.js, aggiunte v7.4/v7.5)
-├── manifest.json        v7.9   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v8.0   Service Worker (CACHE_NAME: wego-v8.0) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js, /leaflet.js|css|marker-*.png e le 50 icone categoria a colori (payments.js, aggiunte v7.4/v7.5)
+├── manifest.json        v8.0   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── exceljs.min.js        4.4.0 Libreria ExcelJS vendorizzata in locale (build "bare", nessun CDN) — usata solo da EventoApp.exportRiepilogoExcel() (evento.js), precaricata da sw.js per funzionare offline
 ├── leaflet.js/.css       1.9.4 Libreria Leaflet vendorizzata in locale (nessun CDN, nessuna API key) — usata dal criterio "Mappa" nel tab Riepilogo (evento.js), tile scaricati da OpenStreetMap al momento della visualizzazione (richiede rete)
 ├── leaflet-marker-*.png  1.9.4 Icone marker di default di Leaflet (icon/icon-2x/shadow) — non più usate dai marker della Mappa (sostituite dall'icona moneta custom, v7.2), lasciate vendorizzate per eventuali usi futuri
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
 ├── app.js                v2.20 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA, evidenziazione "Help" sul logo (prime 2 visite, solo localStorage), _syncQuiet() ora usa Sync.syncNowThrottled() (v7.7) — RIMOSSO il gating sync esterni
-├── evento.js             v2.35 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona categoria per riga — mostrabile/nascondibile da Impostazioni v7.9, "(nome)" se modificato da altro operatore v7.7), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (Partecipante = quota pro-capite NUOVO v7.8, Data, Tipo spesa con icona in legenda) + Mappa GPS (icona moneta, click→lista movimenti) + export Excel dettagliato, pull-to-refresh (NUOVO v7.7) — RIMOSSO il gating sync esterni, menu "Passa a Pro"
+├── evento.js             v2.36 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona categoria per riga — mostrabile/nascondibile da Impostazioni v7.9, "(nome)" se modificato da altro operatore v7.7), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (Partecipante = quota pro-capite NUOVO v7.8, Data, Tipo spesa con icona in legenda) + Mappa GPS (icona moneta, click→lista movimenti) + export Excel dettagliato, pull-to-refresh (NUOVO v7.7) — RIMOSSO il gating sync esterni, menu "Passa a Pro"; menu "⋮": NUOVO v8.0 voce "Impostazioni", RIMOSSA "Elimina evento" (confirmDeleteEvent/_doDeleteEvent, duplicata di Home)
 ├── spesa.js               v3.2 Logica form registrazione/visualizzazione movimento — Previsione, Tipo (NUOVO v7.6: modal a icone 60px al posto del <select> nativo, preselezionato su "Cibo" per una spesa nuova, icona mostrabile/nascondibile da Impostazioni v7.9), "+Cassiere", flag "Uso Cassa Comune", salvataggio/eliminazione NON aspettano più la sync, fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.4 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza + sync differita/"quieta" + sincronizzazione INCREMENTALE + ottimizzazione latenza (pull parallelo, throttle licenza e presenza) + NUOVO syncNowThrottled() (soglia 15s, v7.7) + eliminazioni fisiche locali dopo conferma server (hardDelete, v7.7) — RIMOSSO il gating eventi esterni
@@ -2046,6 +2046,33 @@ stesso criterio già usato per altre modifiche solo server/admin.
 
 ---
 
+## 6decies. Voce "Impostazioni" nel menu "⋮" di evento.html, rimossa "Elimina evento" duplicata (v8.0)
+
+Richiesta cliente: nel menu contestuale "⋮" della pagina evento
+(Movimenti/Partecipanti/Saldi/Riepilogo) mancava un accesso rapido a
+Impostazioni — bisognava tornare in Home. Punto d'inserimento
+confermato con l'utente prima di sviluppare (dopo la voce "Guida").
+Nella stessa richiesta, il cliente ha anche chiesto di eliminare da
+questo stesso menu la voce "Elimina evento", perché duplicata: la
+stessa funzione esiste già nel menu "⋮" della card evento in Home
+(`app.js`).
+
+1. **`evento.html` v8.0** — nuova voce "Impostazioni" nel menu `#eventMenu`,
+   subito dopo "Guida", con la stessa icona a ingranaggio già usata in
+   Home (`index.html`) e link a `/impostazioni.html`. Rimossi il
+   divisore e il bottone "Elimina evento" (`#ctxDeleteBtn`).
+2. **`evento.js` v2.36** — rimosse le funzioni ormai morte
+   `confirmDeleteEvent()`/`_doDeleteEvent()` e il codice che
+   mostrava/nascondeva `#ctxDeleteBtn` in base a `isCreator` (nessun
+   altro punto del codice le richiamava, verificato).
+
+### File toccati
+`evento.html` v8.0, `evento.js` v2.36, `index.html`/`impostazioni.html`/
+`sw.js`/`manifest.json` v8.0 (solo bump "famiglia" — nessuna modifica
+di contenuto in questi file oltre al numero di versione).
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -2145,8 +2172,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v7.9 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.1 per admin.html)
-**Service Worker cache:** `wego-v7.9`
+**Versione attuale:** v8.0 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.1 per admin.html)
+**Service Worker cache:** `wego-v8.0`
 
 ---
 

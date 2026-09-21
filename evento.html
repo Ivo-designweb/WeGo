@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Evento — WeGo v7.9</title>
+  <title>Evento — WeGo v8.0</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/leaflet.css" />
@@ -551,16 +551,21 @@
       </svg>
       Guida
     </button>
-    <div class="ctx-divider"></div>
-    <!-- Elimina evento: visibile solo al creatore (gestito da JS) -->
-    <button class="ctx-item danger" id="ctxDeleteBtn" onclick="EventoApp.confirmDeleteEvent()" style="display:none;">
+    <!-- Impostazioni: scorciatoia rapida (NUOVO v8.0, richiesta cliente) —
+         da qui non c'era prima un accesso diretto, bisognava tornare in
+         Home. Stessa icona a ingranaggio già usata in Home (index.html). -->
+    <button class="ctx-item" onclick="window.location.href='/impostazioni.html'">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="3 6 5 6 21 6"/>
-        <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
-        <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
       </svg>
-      Elimina evento
+      Impostazioni
     </button>
+    <!-- "Elimina evento" RIMOSSA da qui in v8.0 (richiesta cliente): era
+         duplicata, esiste già nel menu "⋮" della card evento in Home
+         (app.js, EventoCard "Elimina evento") — vedi anche
+         EventoApp.confirmDeleteEvent()/_doDeleteEvent() rimosse in
+         evento.js v2.36 (erano usate solo da questo bottone). -->
   </div>
 
   <!-- TAB BAR -->

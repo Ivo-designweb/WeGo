@@ -1,6 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v7.9
+// WeGo — sw.js v8.0
 // Service Worker — cache offline + background sync
+// v8.0: nessuna modifica alla lista di precache — menu "⋮" di evento.html
+//       aggiorna la voce "Impostazioni" e rimuove "Elimina evento"
+//       (duplicata, vedi evento.html/evento.js v2.36) — solo bump di
+//       versione "di famiglia" per index.html/evento.html/
+//       impostazioni.html.
 // v7.9: nessuna modifica alla lista di precache — le icone categoria in
 //       Movimenti/form Spesa (nascoste dalla v7.8) sono ora
 //       configurabili da Impostazioni → Categorie spesa ("Mostra icone
@@ -231,7 +236,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v7.9';
+const CACHE_NAME = 'wego-v8.0';
 
 const STATIC_ASSETS = [
   '/',

@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.35
+// WeGo — evento.js v2.36
 // Logica pagina dettaglio evento
+// v2.36: menu "⋮" (richiesta cliente) — rimossa la voce "Elimina evento"
+//        (era duplicata, esiste già nel menu della card evento in Home,
+//        app.js) insieme alle funzioni confirmDeleteEvent()/
+//        _doDeleteEvent() e al codice che mostrava/nascondeva
+//        #ctxDeleteBtn, ora tutti morti; aggiunta invece una nuova voce
+//        "Impostazioni" (scorciatoia rapida verso impostazioni.html) —
+//        vedi evento.html v8.0.
 // v2.35: la classe "hide-cat-icons" sul <body> (icona categoria nella
 //        lista Movimenti) non è più hardcoded nell'HTML — ora applicata
 //        qui all'avvio con Utils.applyCategoryIconsVisibility(), in base
@@ -434,14 +441,13 @@ const EventoApp = {
       photoEl.innerHTML = `<img src="${ev.photo}" alt="" />`;
     }
 
-    // Mostra bottone elimina e aggiungi partecipante solo al creatore
+    // Mostra bottone aggiungi partecipante solo al creatore
+    // ("Elimina evento" rimossa da qui in v8.0: era duplicata, vedi
+    // EventoApp.confirmDeleteEvent()/_doDeleteEvent() rimosse più sotto)
     const session = DB.sessions.get(EventoApp._eventId);
     const currentUserName = session?.userName || '';
     const isCreator = ev.created_by && currentUserName &&
                       ev.created_by.toLowerCase() === currentUserName.toLowerCase();
-
-    const deleteBtn = document.getElementById('ctxDeleteBtn');
-    if (deleteBtn) deleteBtn.style.display = isCreator ? '' : 'none';
 
     // ctx-menu "Aggiungi partecipante": solo al creatore
     const ctxAddUser = document.querySelector('.ctx-item[onclick="EventoApp.showAddUser()"]');
@@ -1926,43 +1932,10 @@ const EventoApp = {
     EventoApp._menuOpen = false;
   },
 
-  // ─── ELIMINA EVENTO (solo creatore) ───────────────────────
-  confirmDeleteEvent() {
-    EventoApp.closeEventMenu();
-    const ev = EventoApp._event;
-    if (!ev) return;
-
-    // Doppia verifica lato JS
-    const session = DB.sessions.get(EventoApp._eventId);
-    const currentUserName = session?.userName || '';
-    const isCreator = ev.created_by && currentUserName &&
-                      ev.created_by.toLowerCase() === currentUserName.toLowerCase();
-
-    if (!isCreator) {
-      Utils.toast('Solo il creatore può eliminare l\'evento', 'error');
-      return;
-    }
-
-    if (!confirm(
-      `⚠️ Eliminare l'evento "${ev.title}"?\n\n` +
-      `Tutti i dati (spese, partecipanti, pagamenti) verranno rimossi dal dispositivo.\n\n` +
-      `Questa operazione non può essere annullata.`
-    )) return;
-
-    EventoApp._doDeleteEvent();
-  },
-
-  async _doDeleteEvent() {
-    try {
-      await DB.events.delete(EventoApp._eventId);
-      DB.sessions.remove(EventoApp._eventId);
-      localStorage.removeItem('wego_last_event_id');
-      Utils.toast('Evento eliminato', 'success');
-      setTimeout(() => { window.location.href = '/index.html'; }, 800);
-    } catch(e) {
-      Utils.toast('Errore eliminazione', 'error');
-    }
-  },
+  // "Elimina evento" (confirmDeleteEvent/_doDeleteEvent) RIMOSSA da qui in
+  // v2.36 (v8.0 app): era duplicata, la stessa funzione esiste già nel
+  // menu "⋮" della card evento in Home (app.js) — vedi anche evento.html
+  // v8.0 dove è stato tolto il relativo bottone dal menu.
 
   // ─── LIGHTBOX FOTO ───────────────────────────────────────
   async openLightbox(expenseId, isPhotoOwner, e) {
