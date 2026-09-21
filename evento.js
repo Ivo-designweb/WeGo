@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.36
+// WeGo — evento.js v2.37
 // Logica pagina dettaglio evento
+// v2.37: tab Partecipanti — NUOVA icona campanello acceso/spento accanto
+//        alla data di connessione (richiesta cliente), che riflette lo
+//        stato REALE della sottoscrizione push per quell'utente su questo
+//        evento (sp_push_subscriptions, letta on-demand solo all'apertura
+//        del tab — vedi _refreshNotifSubs()/supabase.js v1.18), non
+//        un'ipotesi lato client. Mostrata solo per chi è connesso.
 // v2.36: menu "⋮" (richiesta cliente) — rimossa la voce "Elimina evento"
 //        (era duplicata, esiste già nel menu della card evento in Home,
 //        app.js) insieme alle funzioni confirmDeleteEvent()/
@@ -243,6 +249,11 @@ const EventoApp = {
   _currentUserId: null,
   _balances:      {},
   _menuOpen:      false,
+  // Set di user_id con notifiche push attive per QUESTO evento (NUOVO
+  // v2.37) — riflette lo stato reale del server (sp_push_subscriptions),
+  // non un'ipotesi lato client. Vuoto finché _refreshNotifSubs() non ha
+  // ancora risposto la prima volta (icone tutte "spente" nel frattempo).
+  _notifSubs:     new Set(),
   _searchQuery:   '',
   _riepilogoGroupBy: 'partecipante', // 'partecipante' | 'data' | 'tipo' — NUOVO v2.24
 
@@ -496,6 +507,11 @@ const EventoApp = {
     if (stickyHead) stickyHead.style.display = tab === 'spese' ? '' : 'none';
 
     EventoApp._renderTab(tab);
+
+    // Icona campanello (NUOVO v2.37): rilettura dello stato notifiche
+    // reale SOLO all'apertura del tab, non ad ogni sync — vedi
+    // _refreshNotifSubs().
+    if (tab === 'partecipanti') EventoApp._refreshNotifSubs();
   },
 
   _renderTab(tab) {
@@ -1443,6 +1459,27 @@ const EventoApp = {
     return `${day} ${month} ${year} - ${time}`;
   },
 
+  // Aggiorna EventoApp._notifSubs leggendo dal server chi ha DAVVERO una
+  // sottoscrizione push attiva per questo evento (NUOVO v2.37) — chiamata
+  // da switchTab() solo quando si APRE il tab Partecipanti (non ad ogni
+  // sync/render: sarebbe un giro di rete in più ogni 15s per un'icona
+  // accessoria). La renderizzazione usa nel frattempo il valore già in
+  // cache (icone eventualmente non aggiornatissime), poi appena la
+  // risposta arriva si ri-renderizza per riflettere lo stato reale.
+  // Fallisce in silenzio (offline, o qualunque errore di rete): è solo
+  // un'indicazione visiva accessoria, non deve mai bloccare né rompere
+  // la pagina Partecipanti.
+  async _refreshNotifSubs() {
+    if (!Utils.isOnline() || typeof SupabaseClient === 'undefined') return;
+    try {
+      const subs = await SupabaseClient.pushSubscriptions.getUserIdsByEvent(EventoApp._eventId);
+      EventoApp._notifSubs = subs;
+      if (EventoApp._currentTab === 'partecipanti') EventoApp._renderPartecipanti();
+    } catch (e) {
+      console.warn('[Evento] _refreshNotifSubs fallito (ignorato):', e.message);
+    }
+  },
+
   _renderPartecipanti() {
     const container = document.getElementById('partecipantiList');
     if (!container) return;
@@ -1499,10 +1536,30 @@ const EventoApp = {
       // andare mai a capo. Se non connesso, resta solo "Non ancora
       // connesso" + bottone invita.
       const lastSeenText = EventoApp._formatLastSeen(user.last_sync_at);
+
+      // Icona campanello (NUOVO v2.37, richiesta cliente) — riflette lo
+      // stato REALE di sp_push_subscriptions (EventoApp._notifSubs,
+      // aggiornato da _refreshNotifSubs()), non un'ipotesi: acceso solo
+      // se quell'utente ha almeno una sottoscrizione push valida per
+      // QUESTO evento in questo momento. Mostrata solo per chi è
+      // connesso (chi non ha mai fatto il join non ha alcun dispositivo
+      // da controllare). "Spento" usa la stessa icona con una riga
+      // diagonale sopra, stesso trucco visivo di un bell-off.
+      const isSubscribed = EventoApp._notifSubs.has(user.id);
+      const bellIcon = hasJoined ? `
+        <span title="${isSubscribed ? 'Notifiche attive su questo evento' : 'Notifiche non attive su questo dispositivo'}"
+          style="display:inline-flex;align-items:center;flex-shrink:0;color:${isSubscribed ? 'var(--accent)' : 'var(--text-muted)'};opacity:${isSubscribed ? '1' : '0.5'};">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 01-3.46 0"/>
+            ${isSubscribed ? '' : '<line x1="3" y1="3" x2="21" y2="21"/>'}
+          </svg>
+        </span>` : '';
+
       const statusLine = hasJoined
         ? `<span style="white-space:nowrap;">● Connesso</span>${lastSeenText
             ? ` <span style="background:#2563EB;color:#fff;font-weight:700;padding:1px 7px;border-radius:999px;font-size:9.5px;white-space:nowrap;">${lastSeenText}</span>`
-            : ''}`
+            : ''}${bellIcon}`
         : `<span style="white-space:nowrap;">○ Non ancora connesso</span> ${inviteBtn}`;
 
       html += `

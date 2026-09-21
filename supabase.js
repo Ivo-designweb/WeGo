@@ -1,6 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.17
+// WeGo — supabase.js v1.18
 // Client Supabase — lettura config da localStorage
+// v1.18: NUOVO pushSubscriptions.getUserIdsByEvent() — legge solo gli
+//        user_id con una sottoscrizione push attiva per l'evento (mai
+//        endpoint/chiavi), usata da evento.js per l'icona campanello
+//        acceso/spento nella lista Partecipanti (richiesta cliente).
 // v1.17: sp_notification_log.success ora può valere anche NULL (terzo
 //        stato "nessun destinatario", oltre a TRUE/FALSE) — scritto dalla
 //        Edge Function v4 quando un tentativo di notifica non aveva
@@ -648,6 +652,23 @@ const SupabaseClient = (() => {
         event_id: `eq.${eventId}`,
         select:   '*'
       });
+    },
+
+    // NUOVO v1.18 — usata da evento.js per mostrare in Partecipanti chi
+    // ha le notifiche davvero attive (icona campanello acceso/spento):
+    // legge SOLO user_id (mai endpoint/p256dh/auth, le chiavi Web Push
+    // vere e proprie) per non esporre inutilmente ad ogni device
+    // dell'evento i dettagli di sottoscrizione altrui. Un utente può
+    // comparire "acceso" con più righe (più dispositivi): basta un
+    // Set, non serve contarle.
+    async getUserIdsByEvent(eventId) {
+      const rows = await request('GET', 'sp_push_subscriptions', null, {
+        event_id: `eq.${eventId}`,
+        select:   'user_id'
+      });
+      return Array.isArray(rows)
+        ? new Set(rows.map(r => r.user_id).filter(Boolean))
+        : new Set();
     },
 
     async deleteByEndpoint(endpoint) {
