@@ -10,7 +10,17 @@
 // appena eseguito l'operazione — e invia a ciascuna una notifica Web
 // Push firmata con le chiavi VAPID.
 //
-// v3 (NUOVO): ogni tentativo di invio viene ora registrato in
+// v4 (NUOVO): il caso "zero destinatari" (nessuna sottoscrizione per
+// l'evento, o l'unico iscritto è chi ha appena eseguito l'azione, sempre
+// escluso) ora scrive comunque UNA riga in sp_notification_log invece di
+// uscire senza lasciare traccia — un test fatto da un solo dispositivo
+// (l'autore stesso è l'unico iscritto) prima non compariva da nessuna
+// parte, neanche come "tentativo a vuoto". Nuovo terzo stato
+// success=NULL, distinto da riuscita(true)/fallita(false) — vedi
+// admin.html v2.2 per la resa grafica ("Nessun destinatario").
+//
+// v3: ogni tentativo di invio (quando c'è almeno un destinatario) viene
+// registrato in
 // sp_notification_log (destinatario, evento/movimento, testo inviato,
 // esito riuscito/fallito con relativo errore) — vedi supabase.js v1.16
 // per lo schema. Prima di questa versione non restava NESSUNA traccia
@@ -200,8 +210,41 @@ Deno.serve(async (req) => {
       `sp_push_subscriptions?event_id=eq.${eventId}&select=*`
     );
 
-    if (!Array.isArray(subs) || subs.length === 0) {
-      return new Response("ok (no subscriptions)", { status: 200 });
+    // Destinatari effettivi (esclude chi ha appena eseguito l'operazione
+    // sul suo stesso device) — calcolati PRIMA dell'invio, così possiamo
+    // abbinare ogni esito al relativo utente per lo storico
+    // sp_notification_log (v3, vedi sotto).
+    const targets = (Array.isArray(subs) ? subs : [])
+      .filter((s: any) => !actingUserId || s.user_id !== actingUserId);
+
+    // ── Nessun destinatario (NUOVO v4) ──────────────────────────────
+    // Prima d'ora, se non c'erano sottoscrizioni per l'evento o l'unico
+    // iscritto era l'autore stesso (sempre escluso), la funzione usciva
+    // qui senza lasciare traccia — un tentativo "a vuoto" (es. un test
+    // fatto da un solo dispositivo) restava invisibile anche in
+    // sp_notification_log, non solo come notifica non inviata. Ora
+    // scriviamo comunque UNA riga di log con user_id NULL e success
+    // NULL (terzo stato, distinto da riuscita/fallita — vedi admin.html
+    // v2.2), così ogni tentativo di notifica resta consultabile.
+    if (targets.length === 0) {
+      await sbRequest("POST", "sp_notification_log", [{
+        event_id:   eventId,
+        user_id:    null,
+        table_name: table,
+        record_id:  record.id || null,
+        title,
+        body,
+        success:    null,
+        error:      (!Array.isArray(subs) || subs.length === 0)
+          ? "Nessun destinatario: nessun dispositivo iscritto alle notifiche per questo evento"
+          : "Nessun destinatario: l'unico iscritto è chi ha eseguito l'azione (sempre escluso)"
+      }]).catch((e) =>
+        console.error("[send-push-notification] scrittura log (nessun destinatario) fallita:", e)
+      );
+      return new Response(JSON.stringify({ ok: true, sent: 0, failed: 0 }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
     }
 
     const notifPayload = JSON.stringify({
@@ -209,12 +252,6 @@ Deno.serve(async (req) => {
       body,
       eventId
     });
-
-    // Destinatari effettivi (esclude chi ha appena eseguito l'operazione
-    // sul suo stesso device) — calcolati qui, PRIMA dell'invio, così
-    // possiamo abbinare ogni esito al relativo utente per lo storico
-    // sp_notification_log (v3, vedi sotto).
-    const targets = subs.filter((s: any) => !actingUserId || s.user_id !== actingUserId);
 
     const results = await Promise.allSettled(
       targets.map((s: any) =>
@@ -245,25 +282,25 @@ Deno.serve(async (req) => {
     // l'esito reale (riuscito/fallito) e l'eventuale errore. Se la
     // scrittura del log fallisce, non deve MAI far fallire la risposta:
     // l'invio è già avvenuto (o già fallito) indipendentemente da questo.
-    if (targets.length) {
-      const logRows = targets.map((s: any, i: number) => {
-        const r = results[i];
-        const reason = r.status === "rejected" ? (r as any).reason : null;
-        return {
-          event_id:   eventId,
-          user_id:    s.user_id || null,
-          table_name: table,
-          record_id:  record.id || null,
-          title,
-          body,
-          success:    r.status === "fulfilled",
-          error:      reason ? String(reason?.message || reason).slice(0, 500) : null
-        };
-      });
-      await sbRequest("POST", "sp_notification_log", logRows).catch((e) =>
-        console.error("[send-push-notification] scrittura log fallita:", e)
-      );
-    }
+    // (targets.length è sempre > 0 qui: il caso "zero destinatari" esce
+    // già prima, vedi v4 sopra.)
+    const logRows = targets.map((s: any, i: number) => {
+      const r = results[i];
+      const reason = r.status === "rejected" ? (r as any).reason : null;
+      return {
+        event_id:   eventId,
+        user_id:    s.user_id || null,
+        table_name: table,
+        record_id:  record.id || null,
+        title,
+        body,
+        success:    r.status === "fulfilled",
+        error:      reason ? String(reason?.message || reason).slice(0, 500) : null
+      };
+    });
+    await sbRequest("POST", "sp_notification_log", logRows).catch((e) =>
+      console.error("[send-push-notification] scrittura log fallita:", e)
+    );
 
     return new Response(JSON.stringify({ ok: true, sent, failed }), {
       status: 200,

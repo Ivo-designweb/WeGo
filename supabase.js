@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.16
+// WeGo — supabase.js v1.17
 // Client Supabase — lettura config da localStorage
+// v1.17: sp_notification_log.success ora può valere anche NULL (terzo
+//        stato "nessun destinatario", oltre a TRUE/FALSE) — scritto dalla
+//        Edge Function v4 quando un tentativo di notifica non aveva
+//        nessuno da notificare (nessun iscritto per l'evento, o l'unico
+//        iscritto era chi ha eseguito l'azione), cosa che prima non
+//        lasciava alcuna traccia in questa tabella. Nessuna modifica allo
+//        schema (la colonna era già NULLABLE). Vedi admin.html v2.2.
 // v1.16: NUOVA tabella sp_notification_log — storico persistente di ogni
 //        notifica push TENTATA (destinatario, evento/movimento, testo,
 //        esito), scritta dalla Edge Function send-push-notification (v3)
@@ -857,6 +864,11 @@ CREATE TABLE IF NOT EXISTS sp_device_license (
 -- l'app conservavano chi avesse effettivamente ricevuto una notifica.
 -- Sola lettura da admin.html tramite /api/notification-log.js (vedi
 -- sezione RLS più sotto: nessun privilegio per la anon key pubblica).
+-- "success" ha 3 stati (NUOVO v1.17, vedi index.ts v4): TRUE = inviata,
+-- FALSE = fallita, NULL = nessun destinatario (nessuno iscritto alle
+-- notifiche per l'evento, o l'unico iscritto era chi ha eseguito
+-- l'azione, sempre escluso) — in questo terzo caso user_id è sempre
+-- NULL. Reso grafico in admin.html v2.2.
 CREATE TABLE IF NOT EXISTS sp_notification_log (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   event_id    UUID REFERENCES sp_events(id) ON DELETE CASCADE,

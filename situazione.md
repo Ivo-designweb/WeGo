@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v8.0 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.1 per admin.html) — Aggiornato: 21 settembre 2026**
+**Versione corrente: v8.0 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.2 per admin.html) — Aggiornato: 21 settembre 2026**
 
 ---
 
@@ -47,7 +47,7 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 ├── evento.html          v8.0  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + Mappa GPS + bottone "Esporta in Excel"), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, "(nome)" sotto l'importo quando modificato da un operatore diverso dal proprietario (NUOVO v7.7), pull-to-refresh (NUOVO v7.7), Riepilogo→Partecipante mostra la quota pro-capite (NUOVO v7.8), icona categoria in Movimenti mostrabile/nascondibile da Impostazioni (NUOVO v7.9, default nascosta), voce "Impostazioni" nel menu "⋮" (NUOVO v8.0), "Elimina evento" rimossa dal menu "⋮" perché duplicata (NUOVO v8.0, resta solo nel menu della card in Home)
 ├── spesa.html            v4.2 Registrazione / visualizzazione movimento — Previsione, Tipo (NUOVO v7.6: modal a schermo intero con icone 60px al posto del <select>), foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune", icona categoria nel selettore "Tipo" mostrabile/nascondibile da Impostazioni (NUOVO v7.9, default nascosta)
 ├── impostazioni.html    v8.0   Impostazioni: tema, metodi pagamento, categorie spesa (editor icona/nome NUOVO v7.3, toggle "Mostra icone categoria" NUOVO v7.9 — default spento), licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
-├── admin.html           v2.1   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test, sezione "Log notifiche push" (NUOVO v2.1, sola lettura via /api/notification-log.js)
+├── admin.html           v2.2   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test, sezione "Log notifiche push" (NUOVO v2.1, sola lettura via /api/notification-log.js; terzo stato "Nessun destinatario" NUOVO v2.2)
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
 ├── sw.js                v8.0   Service Worker (CACHE_NAME: wego-v8.0) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js, /leaflet.js|css|marker-*.png e le 50 icone categoria a colori (payments.js, aggiunte v7.4/v7.5)
 ├── manifest.json        v8.0   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
@@ -61,7 +61,7 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 ├── spesa.js               v3.2 Logica form registrazione/visualizzazione movimento — Previsione, Tipo (NUOVO v7.6: modal a icone 60px al posto del <select> nativo, preselezionato su "Cibo" per una spesa nuova, icona mostrabile/nascondibile da Impostazioni v7.9), "+Cassiere", flag "Uso Cassa Comune", salvataggio/eliminazione NON aspettano più la sync, fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
 ├── sync.js                v2.4 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza + sync differita/"quieta" + sincronizzazione INCREMENTALE + ottimizzazione latenza (pull parallelo, throttle licenza e presenza) + NUOVO syncNowThrottled() (soglia 15s, v7.7) + eliminazioni fisiche locali dopo conferma server (hardDelete, v7.7) — RIMOSSO il gating eventi esterni
-├── supabase.js            v1.16 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune/updated_by, events.photo_sync_enabled, upsert() + "since" incrementale + header RLS "x-wego-codes" + schema sp_notification_log (NUOVO v1.16, storico notifiche push)
+├── supabase.js            v1.17 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune/updated_by, events.photo_sync_enabled, upsert() + "since" incrementale + header RLS "x-wego-codes" + schema sp_notification_log (NUOVO v1.16, storico notifiche push; success ora anche NULL = "nessun destinatario", NUOVO v1.17)
 ├── db.js                  v1.11 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast/is_cassa_comune/updated_by (NUOVO v7.7, chi ha salvato per ultimo), expenses.delete(id, actorId) — gated/sync_allowed sempre false/true — users/expenses/payments.getAll() non filtrati (per il backup completo)
 ├── utils.js               v1.5 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, applyCategoryIconsVisibility NUOVO v1.5, GPS, share, getDeviceId, calculateBalances con tipo 'cashier', calculateCassaComune())
 ├── notifications.js       v1.3 Notifiche push Web Push (VAPID) + Supabase, fix percorso icone — invio ora anche su modifica/eliminazione movimento (v7.7)
@@ -73,7 +73,7 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 │   ├── device-license.js       v4 — Lista/abilita/disabilita/registra licenze Pro per dispositivo (sp_device_license), con SUPABASE_SERVICE_KEY — propaga errore Postgres completo (v5.5) + diagnostica "Azione non valida"
 │   ├── keep-alive.js           Ping periodico per evitare la sospensione del progetto Supabase free tier per inattività (non collegato alle due funzioni sopra)
 │   └── notification-log.js     v1 — NUOVO: legge sp_notification_log (storico notifiche push, sola lettura, password admin + SUPABASE_SERVICE_KEY) — vedi §6nonies
-├── index.ts                    v3 — Edge Function Supabase `send-push-notification` (NON gira su Vercel: copia locale nel repo per riferimento — va distribuita a parte su Supabase, `supabase functions deploy send-push-notification`, vedi §11). Riceve INSERT/UPDATE su sp_expenses/sp_payments via Database Webhook, invia Web Push (VAPID) alle sottoscrizioni dell'evento, ORA scrive anche lo storico in sp_notification_log (NUOVO v3 — vedi §6nonies)
+├── index.ts                    v4 — Edge Function Supabase `send-push-notification` (NON gira su Vercel: copia locale nel repo per riferimento — va distribuita a parte su Supabase, `supabase functions deploy send-push-notification`, vedi §11). Riceve INSERT/UPDATE su sp_expenses/sp_payments via Database Webhook, invia Web Push (VAPID) alle sottoscrizioni dell'evento, scrive lo storico in sp_notification_log (NUOVO v3 — vedi §6nonies), ORA logga anche i tentativi senza nessun destinatario (NUOVO v4 — vedi §6undecies)
 └── icon*.png                  Icone PWA (72, 96, 128, 144, 152, 192, 384, 512 px) — RIGENERATE in v5.2: erano JPEG rinominati ".png" con dimensioni reali diverse da quelle dichiarate nel manifest (es. "192" era 196×196 reale), ora PNG veri esatti
 ```
 
@@ -2073,6 +2073,51 @@ di contenuto in questi file oltre al numero di versione).
 
 ---
 
+## 6undecies. Fix: i test "in solitaria" non lasciavano traccia nel log notifiche
+
+Dopo aver distribuito il log notifiche (§6nonies), l'utente ha fatto un
+test reale (creato e poi cancellato un movimento) aspettandosi di
+trovare 2 righe in `sp_notification_log`. Su Supabase risultavano 2
+invocazioni della Edge Function (entrambe riuscite, status 200), ma la
+tabella restava **vuota**.
+
+**Diagnosi** (verificata insieme all'utente: tabella interrogata
+direttamente via SQL Editor — 0 righe; log della funzione — solo
+righe di avvio/arresto, nessun errore stampato dal codice): la causa
+era il limite noto già documentato in `index.ts` v3 (§6nonies, punto 2)
+— se per l'evento non c'è **nessun destinatario reale** da notificare
+(nessuno iscritto alle notifiche, o l'unico iscritto è proprio chi ha
+eseguito l'azione — sempre escluso dall'invio a se stessi), la funzione
+usciva PRIMA del punto in cui scrive il log. Un tentativo "a vuoto" non
+lasciava quindi alcuna traccia, nemmeno come "notifica non recapitata a
+nessuno" — esattamente il caso del test dell'utente.
+
+**Fix — `index.ts` v4**: il caso "zero destinatari" ora scrive comunque
+UNA riga di log, con `user_id NULL` e un nuovo terzo valore per
+`success`: **NULL** (distinto da `TRUE`=riuscita e `FALSE`=fallita),
+con un messaggio in `error` che spiega il motivo (nessun iscritto,
+oppure l'unico iscritto è l'autore). Nessuna modifica allo schema
+richiesta (la colonna `success` era già NULLABLE) — solo un `ALTER`
+del significato, documentato in `supabase.js` v1.17.
+
+**`admin.html` v2.2** — la lista "Log notifiche push" ora riconosce
+questo terzo stato: badge grigio "— Nessun destinatario" (al posto del
+badge verde/rosso) e destinatario mostrato come "Nessun destinatario"
+invece di "Utente rimosso" (che avrebbe fatto pensare a un
+partecipante cancellato, cosa diversa).
+
+⚠️ **Da fare (utente)**: come ogni modifica a `index.ts`, va
+ridistribuita manualmente su Supabase (`supabase functions deploy
+send-push-notification`) — caricare il file su GitHub non aggiorna la
+funzione già in esecuzione.
+
+### File toccati
+`index.ts` v4 (Edge Function — **da rideployare separatamente su
+Supabase**), `supabase.js` v1.17 (solo commento, nessuna modifica allo
+schema), `admin.html` v2.2. Nessun bump di versione "famiglia".
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -2172,7 +2217,7 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v8.0 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.1 per admin.html)
+**Versione attuale:** v8.0 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.2 per admin.html)
 **Service Worker cache:** `wego-v8.0`
 
 ---
@@ -2192,19 +2237,17 @@ la funzione server non avrà ancora la chiave nuova):
 4. [ ] Solo dopo i punti 1-3, carica i file nuovi su GitHub/Vercel
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
-- [ ] **🆕 NUOVO — Log notifiche push (§6nonies), 3 passaggi nell'ordine giusto**:
-  1. Rieseguire lo schema SQL aggiornato (Admin → Schema SQL → copia →
-     Supabase SQL Editor → Run) — crea la tabella `sp_notification_log`
-     e il relativo GRANT a `service_role`
-  2. Ridistribuire la Edge Function aggiornata: `supabase functions
-     deploy send-push-notification` (il file `index.ts` nel repo è solo
-     una copia di riferimento, **non basta** caricarlo su GitHub —
-     questa volta il codice è pronto, va solo eseguito questo comando)
-  3. Caricare su GitHub il nuovo file `/api/notification-log.js` (questa
-     volta è già nella cartella `api/` corretta, nessun percorso da
-     sistemare a mano)
+- [x] Schema SQL di `sp_notification_log` eseguito, Edge Function v3
+      ridistribuita, `/api/notification-log.js` caricato — **fatto**
+      (confermato dall'utente, test del 21/9 con 2 invocazioni riuscite).
+- [ ] **🆕 NUOVO — Log notifiche push, fix "nessun destinatario" (§6undecies)**:
+  il test del 21/9 ha rivelato che i tentativi senza nessun destinatario
+  reale non lasciavano traccia (limite noto, ora corretto in `index.ts`
+  v4). **Va ridistribuita di nuovo** la Edge Function con
+  `supabase functions deploy send-push-notification` — nessun'altra
+  azione richiesta (schema invariato, nessuna nuova migrazione SQL).
 
-     Dopo questi 3 passaggi: apri Admin → sezione "Log notifiche push"
+     Dopo il redeploy: apri Admin → sezione "Log notifiche push"
      in fondo, sotto "Firebase — Push Notifications".
 - [ ] **🆕 NUOVO v7.7 — Rieseguire lo schema SQL per `sp_expenses.updated_by`** (Admin → Schema SQL → copia → Supabase SQL Editor → Run): aggiunge la colonna UUID che registra chi ha modificato per ultimo un movimento (`ALTER TABLE IF NOT EXISTS`, sicura sulle installazioni esistenti). Serve alla scritta "(nome)" in Movimenti e al testo delle notifiche push di modifica/eliminazione — **senza questa colonna il campo si salva solo in locale e non si sincronizza mai sul server** (stessa dinamica già nota per altri campi, es. `is_cassa_comune`/`category`)
 - [ ] **🆕 NUOVO v5.7 — Eseguire la migrazione SQL per `sp_expenses.is_cassa_comune`** (Admin → Schema SQL → copia → Supabase SQL Editor → Run): aggiunge la colonna booleana per il nuovo flag "Uso Cassa Comune" (vedi §5septies). **Senza questa colonna il flag si salva solo in locale (IndexedDB) e non si sincronizza mai sul server** (fallisce silenziosamente, stessa dinamica già nota per category/is_forecast)
