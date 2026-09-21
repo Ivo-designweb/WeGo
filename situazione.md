@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v7.2 (v3.9 per spesa.html/spesa.js, v1.0 per aiuto.html) — Aggiornato: 2 luglio 2026**
+**Versione corrente: v7.8 (v4.1 per spesa.html, v3.1 per spesa.js, v1.0 per aiuto.html, v2.0 per admin.html) — Aggiornato: 21 settembre 2026**
 
 ---
 
@@ -43,29 +43,29 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v7.2   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
-├── evento.html          v7.2  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + bottone "Esporta in Excel" — NUOVO), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, menu "⋮" con voce "Guida", menu "Passa a Pro"
-├── spesa.html            v3.9 Registrazione / visualizzazione movimento — Previsione, Tipo, foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune"
-├── impostazioni.html    v7.2   Impostazioni: tema, metodi pagamento, categorie spesa, licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
+├── index.html          v7.8   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
+├── evento.html          v7.8  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + Mappa GPS + bottone "Esporta in Excel"), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, "(nome)" sotto l'importo quando modificato da un operatore diverso dal proprietario (NUOVO v7.7), pull-to-refresh (NUOVO v7.7), Riepilogo→Partecipante mostra la quota pro-capite (NUOVO v7.8), icona categoria in Movimenti temporaneamente nascosta (NUOVO v7.8), menu "⋮" con voce "Guida", menu "Passa a Pro"
+├── spesa.html            v4.1 Registrazione / visualizzazione movimento — Previsione, Tipo (NUOVO v7.6: modal a schermo intero con icone 60px al posto del <select>), foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune", icona categoria temporaneamente nascosta (v7.8)
+├── impostazioni.html    v7.8   Impostazioni: tema, metodi pagamento, categorie spesa (editor icona/nome, NUOVO v7.3), licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin
 ├── admin.html           v2.0   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
-├── sw.js                v7.2   Service Worker (CACHE_NAME: wego-v7.2) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js e /leaflet.js|css|marker-*.png
-├── manifest.json        v7.2   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v7.8   Service Worker (CACHE_NAME: wego-v7.8) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js, /leaflet.js|css|marker-*.png e le 50 icone categoria a colori (payments.js, aggiunte v7.4/v7.5)
+├── manifest.json        v7.8   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── exceljs.min.js        4.4.0 Libreria ExcelJS vendorizzata in locale (build "bare", nessun CDN) — usata solo da EventoApp.exportRiepilogoExcel() (evento.js), precaricata da sw.js per funzionare offline
 ├── leaflet.js/.css       1.9.4 Libreria Leaflet vendorizzata in locale (nessun CDN, nessuna API key) — usata dal criterio "Mappa" nel tab Riepilogo (evento.js), tile scaricati da OpenStreetMap al momento della visualizzazione (richiede rete)
-├── leaflet-marker-*.png  1.9.4 Icone marker di default di Leaflet (icon/icon-2x/shadow), vendorizzate in locale insieme a leaflet.js/.css
+├── leaflet-marker-*.png  1.9.4 Icone marker di default di Leaflet (icon/icon-2x/shadow) — non più usate dai marker della Mappa (sostituite dall'icona moneta custom, v7.2), lasciate vendorizzate per eventuali usi futuri
 ├── vercel.json                 Header Cache-Control must-revalidate su tutti i file, incluse le icone PNG
 ├── style.css            v1.5   Design system globale (font +15% rispetto a v1.3; v1.5 classe .btn--pro-locked)
-├── app.js                v2.19 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA, evidenziazione "Help" sul logo (prime 2 visite, solo localStorage) — RIMOSSO il gating sync esterni
-├── evento.js             v2.29 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona moneta su "Uso Cassa Comune"), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (Partecipante/Data/Tipo spesa) + Mappa GPS (Leaflet/OSM, NUOVO) + export Excel dettagliato — RIMOSSO il gating sync esterni, menu "Passa a Pro"
-├── spesa.js               v2.9 Logica form registrazione/visualizzazione movimento — Previsione, Tipo, "+Cassiere", flag "Uso Cassa Comune", salvataggio/eliminazione NON aspettano più la sync (NUOVO, torna subito indietro), fix layout flex in modifica, fix licenza foto per-evento
+├── app.js                v2.20 Logica home: eventi, crea/unisciti, licenza Base/Pro completa, bottone "Installa" PWA, evidenziazione "Help" sul logo (prime 2 visite, solo localStorage), _syncQuiet() ora usa Sync.syncNowThrottled() (v7.7) — RIMOSSO il gating sync esterni
+├── evento.js             v2.34 Logica pagina evento: movimenti (4 totali, "+Cassiere" escluso, "Spese" = conteggio, icona categoria per riga — temporaneamente nascosta v7.8, "(nome)" se modificato da altro operatore v7.7), saldi (con Prev., "+Cassiere" e saldo informativo "Cassa Comune"), partecipanti, ricerca, foto, gate downgrade, riepilogo condivisibile = UNICA fonte di verità coi saldi di Saldi, tab "Riepilogo" con grafico a torta (Partecipante = quota pro-capite NUOVO v7.8, Data, Tipo spesa con icona in legenda) + Mappa GPS (icona moneta, click→lista movimenti) + export Excel dettagliato, pull-to-refresh (NUOVO v7.7) — RIMOSSO il gating sync esterni, menu "Passa a Pro"
+├── spesa.js               v3.1 Logica form registrazione/visualizzazione movimento — Previsione, Tipo (NUOVO v7.6: modal a icone 60px al posto del <select> nativo, preselezionato su "Cibo" per una spesa nuova), "+Cassiere", flag "Uso Cassa Comune", salvataggio/eliminazione NON aspettano più la sync, fix layout flex in modifica, fix licenza foto per-evento
 ├── license.js             v1.4 Gestione completa livello dispositivo Base/Pro + photoSyncAllowedForEvent() — FIX requestPro non nasconde più errori reali
-├── sync.js                v2.3 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza + sync differita/"quieta" (debounce 5s + rete di sicurezza) + sincronizzazione INCREMENTALE (pull solo record nuovi/modificati, push con upsert) + ottimizzazione latenza (NUOVO — pull parallelo, throttle licenza e presenza) — RIMOSSO il gating eventi esterni
-├── supabase.js            v1.14 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune, events.photo_sync_enabled, upsert() + "since" incrementale + header RLS "x-wego-codes" (NUOVO — sicurezza) — FIX GRANT service_role
-├── db.js                  v1.10 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast/is_cassa_comune — gated/sync_allowed sempre false/true — NUOVI users/expenses/payments.getAll() non filtrati (per il backup completo, vedi impostazioni.html)
-├── utils.js               v1.4 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier', NUOVA calculateCassaComune())
-├── notifications.js       v1.3 Notifiche push Web Push (VAPID) + Supabase, fix percorso icone
-├── payments.js            v1.1 Metodi di pagamento + NUOVO ExpenseCategories (categorie di spesa, stesso pattern)
+├── sync.js                v2.4 Sincronizzazione bidirezionale + foto movimenti PER EVENTO + verifica periodica licenza + sync differita/"quieta" + sincronizzazione INCREMENTALE + ottimizzazione latenza (pull parallelo, throttle licenza e presenza) + NUOVO syncNowThrottled() (soglia 15s, v7.7) + eliminazioni fisiche locali dopo conferma server (hardDelete, v7.7) — RIMOSSO il gating eventi esterni
+├── supabase.js            v1.15 Client REST Supabase — deviceLicense via /api/, expenses.category/is_forecast/is_cassa_comune/updated_by (NUOVO v7.7), events.photo_sync_enabled, upsert() + "since" incrementale + header RLS "x-wego-codes" — FIX GRANT service_role
+├── db.js                  v1.11 IndexedDB wrapper — events.photo_sync_enabled, expenses.category/is_forecast/is_cassa_comune/updated_by (NUOVO v7.7, chi ha salvato per ultimo), expenses.delete(id, actorId) — gated/sync_allowed sempre false/true — users/expenses/payments.getAll() non filtrati (per il backup completo)
+├── utils.js               v1.4 Funzioni condivise (formatAmount, formatDateLabel, formatDateTime, applyTheme, GPS, share, getDeviceId, calculateBalances con tipo 'cashier', calculateCassaComune())
+├── notifications.js       v1.3 Notifiche push Web Push (VAPID) + Supabase, fix percorso icone — invio ora anche su modifica/eliminazione movimento (v7.7)
+├── payments.js            v1.4 Metodi di pagamento + ExpenseCategories (categorie di spesa) + ExpenseCategoryIcons: ~50 icone a colori selezionabili per categoria (icona/nome personalizzabili anche sulle categorie di default, NUOVO v7.3/v7.4/v7.5 — set Icons8 free, crediti in impostazioni.html)
 ├── api/                        Funzioni serverless Vercel (NUOVO in v3.7 — vedi §5bis e §5quater)
 │   ├── admin-login.js          Verifica password admin contro env var ADMIN_PASSWORD
 │   ├── owner-verify.js         Verificava il codice dispositivo proprietario — VESTIGIALE da v5.3 (gating rimosso), nessun file chiama più /api/owner-verify
@@ -1765,6 +1765,181 @@ evidenziazione riga), `evento.js` (v2.29 — `_riepilogoCoinIcon()`,
 
 ---
 
+> **Nota:** le sezioni da 6bis a 6septies sono state ricostruite il
+> 21 settembre 2026 leggendo i commenti di changelog presenti in testa
+> ai file scaricati da GitHub (questo documento era fermo alla v7.2,
+> il codice era già alla v7.8) — sintetiche per costruzione, non
+> scritte durante lo sviluppo effettivo.
+
+## 6bis. Icone categoria nei Movimenti + editor icona/nome in Impostazioni + fix totale Riepilogo (v7.3)
+
+1. **`payments.js` v1.2** — NUOVA `ExpenseCategoryIcons` (~50 icone SVG
+   a contorno) + campo `icon` su ogni categoria + `ExpenseCategories.
+   setIcon()`/`rename()`: anche le categorie di default (Cibo,
+   Trasporti, ecc.) sono ora rinominabili e possono cambiare icona da
+   Impostazioni (prima solo abilita/disabilita). Editor in
+   `impostazioni.html` v7.3.
+2. **`evento.js` v2.30** — nella lista Movimenti le Spese reali
+   mostrano l'icona della categoria al posto dell'iniziale utente
+   colorata (`_renderMovementItem()`); le spese senza categoria (spese
+   vecchie) mostrano di default l'icona "Cibo" solo visivamente, senza
+   scrivere nulla sul record salvato. Trasferimenti e "+Cassiere" non
+   cambiano (non hanno categoria).
+3. **FIX tab Riepilogo → criterio "Partecipante"**: il totale per
+   persona ora usa lo stesso calcolo Versato/Incassato già in uso nel
+   tab Partecipanti (`_calcUserContribution()`), non più una somma
+   grezza che contava i trasferimenti solo su chi li invia senza
+   sottrarli a chi li riceve (disallineava il totale da Saldi e dagli
+   altri due criteri Data/Tipo spesa). Chi ha un netto ≤0 (es. un
+   cassiere che ha solo incassato) non compare più come fetta.
+4. **`spesa.js` v3.0** — per una spesa NUOVA il campo Tipo parte
+   preselezionato su "Cibo" invece che vuoto; in modifica di una spesa
+   esistente non cambia nulla (il valore reale salvato sovrascrive
+   subito il default).
+5. Font della seconda riga nella lista Movimenti più leggibile.
+
+### File toccati
+`evento.js` v2.30, `evento.html`/`impostazioni.html` v7.3, `payments.js`
+v1.2, `spesa.js` v3.0, `index.html`/`sw.js`/`manifest.json` v7.3 (solo
+bump "famiglia").
+
+---
+
+## 6ter. 42 nuove icone a colori per le categorie di spesa (v7.4)
+
+**`payments.js` v1.3** — NUOVE 42 icone PNG a colori (set Icons8 free —
+crediti in `impostazioni.html`) selezionate dal cliente, gestite da
+`ExpenseCategoryIcons.IMAGES`. `svg()` distingue ora automaticamente
+un'icona-immagine (`IMAGES`) da un'icona-contorno (`PATHS`, il vecchio
+set v1.2) e restituisce `<img>` o `<svg>` di conseguenza — nessuna
+rottura per categorie che avessero già un'icona del vecchio set. Il
+selettore icone mostra le 42 nuove a colori + le sole 2 icone a
+contorno rimaste (bed/dots, per Alloggio e Altro: nessuna icona a
+colori disponibile per questi due concetti). Nuovi default categoria:
+Cibo→ciotola-di-riso, Trasporti→trasporti, Ingressi→biglietto,
+Souvenir→regalo (Alloggio e Altro invariati).
+
+Bump di `sw.js` **necessario** (non solo "di famiglia"): la lista di
+precache è cambiata per includere le 42 nuove icone PNG.
+
+### File toccati
+`payments.js` v1.3, `sw.js` v7.4 (precache), `index.html`/`evento.html`/
+`impostazioni.html` v7.4.
+
+---
+
+## 6quater. +8 icone a colori (letto, cane, gatto, guida turistica, strada, dogana, autostrada) + icone categoria ingrandite (v7.5)
+
+**`payments.js` v1.4** — +8 nuove icone a colori: letto,
+dormire-nel-letto, cane, gatto, guida-turistica, strada, dogana,
+autostrada (50 icone a colori in totale). Il default di Alloggio passa
+da `bed` (contorno) a `letto` (a colori): era l'unica delle 6 categorie
+di default rimasta col vecchio stile per mancanza di un'icona adatta.
+
+**`evento.js` v2.31 / `evento.html`** — la legenda del tab Riepilogo
+per il criterio "Tipo spesa" mostra ora anche l'icona della categoria a
+sinistra dello swatch colore (solo per questo criterio: Data e
+Partecipante non hanno un'icona di riferimento).
+
+Bump di `sw.js` **necessario** per le 8 nuove icone in precache.
+
+### File toccati
+`payments.js` v1.4, `evento.js` v2.31, `evento.html` v7.5, `sw.js` v7.5
+(precache), `index.html`/`impostazioni.html` v7.5.
+
+---
+
+## 6quinquies. Icone categoria a 50px fisse + nuovo selettore "Tipo" a icone grandi nel form spesa (v7.6)
+
+**`evento.js` v2.32 / `evento.html`** — icone categoria ingrandite a
+50px fissi (richiesta cliente, "sempre più visibili") sia nella lista
+Movimenti sia nella legenda Riepilogo per "Tipo spesa" (classi
+`.exp-cat-icon`/`.riepilogo-legend__icon`).
+
+**`spesa.js` v3.1 / `spesa.html` v4.0** — sostituito il vecchio
+`<select>` nativo per il campo "Tipo" con un bottone che apre un modal
+a schermo intero (le `<option>` HTML non possono contenere icone): il
+modal mostra ogni categoria con la sua icona a 60px. Il valore
+selezionato resta nello stesso `<input type="hidden" id=
+"expenseCategory">` di prima — `save()`/`_loadExistingExpense()` non
+cambiano nella sostanza. Nuove funzioni: `_initCategoryPicker()` (ex
+`_buildCategorySelect()`), `openCategoryPicker()`, `selectCategory()`,
+`_refreshCategoryTrigger()`.
+
+Nessuna modifica alla lista di precache — solo bump "di famiglia".
+
+### File toccati
+`evento.js` v2.32, `evento.html` v7.6, `spesa.js` v3.1, `spesa.html`
+v4.0, `index.html`/`impostazioni.html`/`sw.js` v7.6.
+
+---
+
+## 6sexies. Modifica/eliminazione aperte a qualunque operatore + sync più veloce + notifiche su modifica (v7.7)
+
+1. **`db.js` v1.11 / `supabase.js` v1.15`** — NUOVO campo
+   `expenses.updated_by` (chi ha salvato per ultimo un movimento,
+   distinto da `created_by` che resta il proprietario originale):
+   permette a **qualunque operatore** di modificare/eliminare qualsiasi
+   movimento, con conferma richiesta se chi agisce non è il
+   proprietario originale. `expenses.delete(id, actorId)` accetta ora
+   l'autore dell'eliminazione.
+   **⚠️ Nuova colonna SQL `sp_expenses.updated_by` (UUID)** — aggiunta
+   con `ALTER TABLE IF NOT EXISTS` nello schema, ma **va rieseguito lo
+   schema SQL da Admin → Schema SQL → Supabase SQL Editor** se non già
+   fatto (senza la colonna il campo si salva solo in locale e non si
+   sincronizza — stessa dinamica già nota per altri campi, vedi §11).
+2. **`evento.js` v2.33 / `evento.html`** — NUOVO "(nome)" mostrato
+   sotto l'importo in Movimenti quando l'ultimo a toccare un movimento
+   (`updated_by`) è diverso dal proprietario originale (`created_by`).
+   `_syncQuiet()` ora usa `Sync.syncNowThrottled()` (sync.js v2.4): sync
+   immediata con soglia minima 15s (non più il debounce di 5s) per
+   apertura pagina/ritorno online/ritorno in foreground (NUOVO listener
+   `visibilitychange`) + NUOVO **pull-to-refresh** (trascinamento verso
+   il basso su `#mainContent`, chiama `syncNow()` senza soglia).
+3. **`sync.js` v2.4** — eliminazioni più robuste: `push()`/
+   `pullEvent()` ora eliminano FISICAMENTE in locale
+   (`DB.expenses.hardDelete()`) un movimento appena il device sa che è
+   stato cancellato sul server (dopo un push riuscito, o ricevendolo nel
+   pull) — prima restava marcato `deleted` per sempre in locale. Il
+   soft-delete lato server resta permanente (tombstone), indispensabile
+   perché anche un device rimasto offline a lungo lo riceva col pull
+   incrementale.
+4. Notifiche push (`notifications.js`) ora anche su modifica/
+   eliminazione movimento, non solo su creazione.
+5. `index.html` riallineato alla versione "famiglia" (era rimasto
+   indietro a v7.2 per alcuni bump).
+
+### File toccati
+`db.js` v1.11, `supabase.js` v1.15, `sync.js` v2.4, `spesa.js` v3.2,
+`evento.js` v2.33, `app.js` v2.20, `evento.html`/`index.html`/
+`impostazioni.html`/`sw.js` v7.7.
+
+---
+
+## 6septies. Riepilogo→Partecipante mostra la quota pro-capite + icona categoria temporaneamente nascosta (v7.8)
+
+**`evento.js` v2.34 / `evento.html`** — nel tab Riepilogo, il criterio
+"Partecipante" mostra ora la **quota pro-capite** (somma della propria
+quota — importo/n. partecipanti — su tutte le Spese reali dove
+l'utente compare tra i "participants", indipendentemente da chi ha
+pagato) al posto del precedente saldo netto Versato/Incassato (che
+duplicava il dato già presente nel tab Partecipanti) — sia nelle fette
+della torta sia nell'elenco sotto. Nuovo titolo "Spesa totale
+Procapite" e nota "(Quota Procapite)" sotto il chip "Partecipante",
+visibili solo in questo criterio.
+
+Icona categoria nella lista Movimenti e nel form Spesa **temporaneamente
+nascosta** (richiesta cliente) — non rimossa: nuova classe
+`.hide-cat-icons` sul `<body>`, pronta per un futuro flag in
+Impostazioni (default spento), codice di rendering invariato.
+
+### File toccati
+`evento.js` v2.34, `evento.html` v7.8, `spesa.html` v4.1 (icona
+nascosta lato form), `index.html`/`impostazioni.html`/`sw.js` v7.8
+(solo bump "famiglia").
+
+---
+
 ## 6. Fix critici applicati (storia, in ordine cronologico)
 
 | Versione | Fix |
@@ -1864,8 +2039,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v7.2 (v3.9 per spesa.html/spesa.js, v1.0 per aiuto.html)
-**Service Worker cache:** `wego-v7.2`
+**Versione attuale:** v7.8 (v4.1 per spesa.html, v3.1 per spesa.js, v1.0 per aiuto.html, v2.0 per admin.html)
+**Service Worker cache:** `wego-v7.8`
 
 ---
 
@@ -1884,6 +2059,7 @@ la funzione server non avrà ancora la chiave nuova):
 4. [ ] Solo dopo i punti 1-3, carica i file nuovi su GitHub/Vercel
 
 ### ⚠️ Da completare TU (richiede accesso al progetto Supabase/Vercel, non eseguibile da Claude)
+- [ ] **🆕 NUOVO v7.7 — Rieseguire lo schema SQL per `sp_expenses.updated_by`** (Admin → Schema SQL → copia → Supabase SQL Editor → Run): aggiunge la colonna UUID che registra chi ha modificato per ultimo un movimento (`ALTER TABLE IF NOT EXISTS`, sicura sulle installazioni esistenti). Serve alla scritta "(nome)" in Movimenti e al testo delle notifiche push di modifica/eliminazione — **senza questa colonna il campo si salva solo in locale e non si sincronizza mai sul server** (stessa dinamica già nota per altri campi, es. `is_cassa_comune`/`category`)
 - [ ] **🆕 NUOVO v5.7 — Eseguire la migrazione SQL per `sp_expenses.is_cassa_comune`** (Admin → Schema SQL → copia → Supabase SQL Editor → Run): aggiunge la colonna booleana per il nuovo flag "Uso Cassa Comune" (vedi §5septies). **Senza questa colonna il flag si salva solo in locale (IndexedDB) e non si sincronizza mai sul server** (fallisce silenziosamente, stessa dinamica già nota per category/is_forecast)
 - [ ] **🔴 URGENTE v5.4 — Rieseguire lo schema SQL aggiornato** (Admin → Schema SQL → copia → Supabase SQL Editor → Run): aggiunge il `GRANT` a `service_role` su `sp_device_license`/`sp_sync_status` che risolve "permission denied for table sp_device_license" quando abiliti/disabiliti la versione Pro da admin.html. Un redeploy del codice da solo NON applica questo GRANT, va eseguito a mano sul database
 - [ ] **v5.6 — prossimo passo concreto**: ricarica `license.js` (v1.4) insieme agli altri file di questa sessione, poi da un device qualsiasi vai su Impostazioni → "Richiedi soluzione completa" → invia una richiesta di prova. Se c'è ancora un problema di permessi, ORA comparirà un toast con l'errore vero (prima veniva nascosto) — riportalo per la diagnosi definitiva. Se invece "Richiesta inviata!" questa volta è vero, controlla che il dispositivo compaia nella lista di admin.html
