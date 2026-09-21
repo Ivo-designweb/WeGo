@@ -1,5 +1,5 @@
 # WeGo — Documento di Stato Progetto
-**Versione corrente: v8.1 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.2 per admin.html) — Aggiornato: 21 settembre 2026**
+**Versione corrente: v8.2 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.2 per admin.html) — Aggiornato: 21 settembre 2026**
 
 ---
 
@@ -43,14 +43,14 @@ Non esistono sottocartelle `js/` o `css/`. Ogni path nei file HTML usa `/nomefil
 
 ```
 /  (root)
-├── index.html          v8.1   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
+├── index.html          v8.2   Home: lista eventi, crea/unisciti, icona app + link alla Guida sul logo grande "WeGo" con evidenziazione "Help" (prime 2 visite), badge "Pro N"/"Base" corsivo, bottone "Installa", numero di versione accanto al logo "WeGo" nell'header
 ├── evento.html          v8.0  Pagina evento: tab Movimenti / Saldi / Partecipanti / Riepilogo (grafico a torta + Mappa GPS + bottone "Esporta in Excel"), 4 totali ("+Cassiere" escluso, "Spese" = conteggio), colonna Prev., saldo informativo "Cassa Comune" nei Saldi, badge "(Prev. ...)" in Partecipanti, "(nome)" sotto l'importo quando modificato da un operatore diverso dal proprietario (NUOVO v7.7), pull-to-refresh (NUOVO v7.7), Riepilogo→Partecipante mostra la quota pro-capite (NUOVO v7.8), icona categoria in Movimenti mostrabile/nascondibile da Impostazioni (NUOVO v7.9, default nascosta), voce "Impostazioni" nel menu "⋮" (NUOVO v8.0), "Elimina evento" rimossa dal menu "⋮" perché duplicata (NUOVO v8.0, resta solo nel menu della card in Home)
 ├── spesa.html            v4.2 Registrazione / visualizzazione movimento — Previsione, Tipo (NUOVO v7.6: modal a schermo intero con icone 60px al posto del <select>), foto sincronizzata, "+Cassiere" (icona moneta gialla), flag "Uso Cassa Comune", icona categoria nel selettore "Tipo" mostrabile/nascondibile da Impostazioni (NUOVO v7.9, default nascosta)
-├── impostazioni.html    v8.1   Impostazioni: tema, metodi pagamento, categorie spesa (editor icona/nome NUOVO v7.3, toggle "Mostra icone categoria" NUOVO v7.9 — default spento), licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin, avviso "installa prima da Home" per le notifiche su iPhone/iPad non standalone (NUOVO v8.1)
+├── impostazioni.html    v8.2   Impostazioni: tema, metodi pagamento, categorie spesa (editor icona/nome NUOVO v7.3, toggle "Mostra icone categoria" NUOVO v7.9 — default spento), licenza Base/Pro (id "licenzaSection", richiesta auto-apribile da evento.html), backup JSON completo + import da backup (entrambi Pro-only), link Admin, avviso "installa prima da Home" per le notifiche su iPhone/iPad non standalone (NUOVO v8.1)
 ├── admin.html           v2.2   Pannello admin/debug — password verificata lato server + SOLO licenza Pro (sync esterni rimossa), lista con header fisso, bottone "Reset evidenziazione Help" per i test, sezione "Log notifiche push" (NUOVO v2.1, sola lettura via /api/notification-log.js; terzo stato "Nessun destinatario" NUOVO v2.2)
 ├── aiuto.html            v1.0  Guida/Help: 3 passi base (crea/unisciti, registra spese, saldi), box sincronizzazione, confronto Base/Pro (senza il numero esatto di eventi Pro), approfondimenti in <details> richiudibili, freccia "Indietro" torna alla pagina di provenienza
-├── sw.js                v8.1   Service Worker (CACHE_NAME: wego-v8.1) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js, /leaflet.js|css|marker-*.png e le 50 icone categoria a colori (payments.js, aggiunte v7.4/v7.5)
-├── manifest.json        v8.1   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
+├── sw.js                v8.2   Service Worker (CACHE_NAME: wego-v8.2) — esclude /api/* dalla cache, precache include /aiuto.html, /exceljs.min.js, /leaflet.js|css|marker-*.png e le 50 icone categoria a colori (payments.js, aggiunte v7.4/v7.5)
+├── manifest.json        v8.2   PWA manifest — icone corrette (dimensioni reali = dichiarate), "maskable" rimosso (logo senza margine di sicurezza)
 ├── exceljs.min.js        4.4.0 Libreria ExcelJS vendorizzata in locale (build "bare", nessun CDN) — usata solo da EventoApp.exportRiepilogoExcel() (evento.js), precaricata da sw.js per funzionare offline
 ├── leaflet.js/.css       1.9.4 Libreria Leaflet vendorizzata in locale (nessun CDN, nessuna API key) — usata dal criterio "Mappa" nel tab Riepilogo (evento.js), tile scaricati da OpenStreetMap al momento della visualizzazione (richiede rete)
 ├── leaflet-marker-*.png  1.9.4 Icone marker di default di Leaflet (icon/icon-2x/shadow) — non più usate dai marker della Mappa (sostituite dall'icona moneta custom, v7.2), lasciate vendorizzate per eventuali usi futuri
@@ -2190,6 +2190,45 @@ esattamente questi due casi.
 `supabase.js` v1.18, `evento.js` v2.37. Nessun bump di versione
 "famiglia" (nessun file HTML toccato).
 
+⚠️ **Corretto in §6quaterdecies**: questa scelta ("nessun bump
+necessario perché nessun HTML toccato") era sbagliata — vedi sotto.
+
+---
+
+## 6quaterdecies. FIX: CACHE_NAME non aggiornato per supabase.js/evento.js
+
+Dopo aver caricato su GitHub i file di §6undecies e §6terdecies (fix
+log "nessun destinatario" + icona campanello), l'utente non vedeva né
+la nuova icona né capiva perché la versione mostrata in Home fosse
+rimasta indietro. Causa reale individuata prima ancora che l'utente
+confermasse il problema (poi risultato essere, in parte, un commit
+mancato lato utente): **`supabase.js` ed `evento.js` sono entrambi
+nella lista di precache della PWA (`STATIC_ASSETS` in `sw.js`)**, ma
+negli ultimi due pacchetti li avevo aggiornati senza cambiare il
+`CACHE_NAME` di `sw.js` — la regola di questo progetto (§7) impone di
+farlo per QUALUNQUE file precache modificato, non solo per l'HTML
+"di famiglia". Senza quel bump, un device che ha già installato l'app
+resta bloccato sulla versione vecchia di quei file a tempo
+indeterminato, anche dopo un upload corretto su GitHub — il Service
+Worker non ha modo di accorgersi che deve riscaricarli.
+
+**Fix**: `sw.js` v8.2 (solo `CACHE_NAME`, nessuna modifica alla lista
+di precache) — bump "di famiglia" anche per `index.html`/
+`impostazioni.html`/`manifest.json`, pur non avendo contenuto nuovo,
+solo per coerenza del numero mostrato in Home.
+
+**Regola chiarita per il futuro** (vedi §7 aggiornato): il bump del
+`CACHE_NAME` non dipende dal fatto che un file abbia un proprio numero
+di versione "di famiglia" o indipendente — dipende SOLO dal fatto che
+sia elencato in `STATIC_ASSETS`. `supabase.js`, `evento.js`, `spesa.js`,
+`sync.js`, `notifications.js`, `payments.js`, `app.js`, `db.js`,
+`license.js`, `utils.js` e tutte le pagine `.html` lo sono TUTTI — va
+sempre controllato prima di dire "nessun bump necessario".
+
+### File toccati
+`sw.js` v8.2, `index.html`/`impostazioni.html`/`manifest.json` v8.2
+(solo bump "famiglia"/CACHE_NAME, nessuna modifica di contenuto).
+
 ---
 
 ## 6. Fix critici applicati (storia, in ordine cronologico)
@@ -2238,7 +2277,7 @@ esattamente questi due casi.
 - **Versione globale** (`index.html` title + `manifest.json` + `sw.js` CACHE_NAME): incrementa di +0.1 ad ogni sessione di sviluppo che tocca file "di controllo" dell'app
 - **Versioni interne file JS/HTML**: incrementano separatamente nel commento di intestazione / `<title>`
 - **Eccezione**: per iterazioni rapide di debug/correzione su richiesta esplicita dell'utente, la versione **non** va aggiornata (è stato chiesto più volte in questa sessione) — usare il buon senso: se l'utente non specifica, default è aggiornare
-- **Service Worker**: il CACHE_NAME deve cambiare ad ogni modifica per invalidare la cache su tutti i device
+- **Service Worker**: il CACHE_NAME deve cambiare ad ogni modifica per invalidare la cache su tutti i device — ⚠️ **questo vale per QUALUNQUE file elencato in `STATIC_ASSETS` (sw.js)**, non solo per l'HTML "di famiglia": `supabase.js`, `evento.js`, `spesa.js`, `sync.js`, `notifications.js`, `payments.js`, `app.js`, `db.js`, `license.js`, `utils.js` e tutte le pagine `.html` sono TUTTI precache. Dimenticarlo (successo in §6quaterdecies) lascia i device che hanno già installato l'app bloccati sulla versione vecchia a tempo indeterminato, anche con file corretti su GitHub. Prima di dire "nessun bump necessario", controllare sempre se il file toccato è in quella lista
 - **impostazioni.html**: aggiornare sempre la stringa "Versione X.X" nella sezione Informazioni
 - **Tema**: lo script inline nell'`<head>` legge da `localStorage.getItem("wego_config")` e applica `data-theme` prima del caricamento dei CSS
 
@@ -2291,8 +2330,8 @@ Ordine di caricamento negli script tag: `utils.js → db.js → license.js → s
 4. Claude aggiorna la versione del file HTML/JS coinvolto +0.1 e, se necessario, sw.js CACHE_NAME + manifest.json + index.html in coerenza
 5. Dopo aver ricevuto i file: caricarli su GitHub (Add file → Upload files → sovrascrive automaticamente i file con lo stesso nome → Commit) → Vercel pubblica da solo
 
-**Versione attuale:** v8.1 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.2 per admin.html)
-**Service Worker cache:** `wego-v8.0`
+**Versione attuale:** v8.2 (v4.2 per spesa.html, v3.2 per spesa.js, v1.0 per aiuto.html, v2.2 per admin.html)
+**Service Worker cache:** `wego-v8.2`
 
 ---
 

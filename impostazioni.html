@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v8.0</title>
+  <title>Impostazioni — WeGo v8.2</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -538,7 +538,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 8.0</div>
+        <div class="about-ver">Versione 8.2</div>
 
         <div class="about-div"></div>
 
@@ -691,6 +691,36 @@
       <span class="form-hint">Puoi comunicarlo (o solo il tuo nome) allo sviluppatore via WhatsApp/email per velocizzare l'abilitazione</span>
     </div>
     <button class="btn btn--primary btn--full btn--xl" onclick="SettingsApp.sendRequestPro()">Invia richiesta</button>
+  </div>
+</div>
+
+<!-- Istruzioni "Aggiungi a Home" per iPhone/iPad (NUOVO v8.1) — su iOS le
+     notifiche push funzionano SOLO se l'app è stata prima installata
+     sulla schermata Home (Safari → Condividi → "Aggiungi a Home") e
+     aperta da lì: da una scheda Safari normale il permesso non si può
+     nemmeno richiedere. Stesso identico testo già usato per il bottone
+     "Installa" della Home (app.js `_showInstallInfo()`), duplicato qui
+     perché app.js non è caricato in questa pagina. -->
+<div class="modal-backdrop" id="modalInstallIOS" onclick="SettingsApp.closeModal('modalInstallIOS')">
+  <div class="bottom-sheet" onclick="event.stopPropagation()">
+    <div class="bottom-sheet__handle"></div>
+    <h2 class="bottom-sheet__title">Abilita le notifiche su iPhone/iPad</h2>
+    <p style="font-size:13.5px;color:var(--text-secondary);line-height:1.5;margin:-4px 0 14px;">
+      Su iOS le notifiche funzionano solo se prima installi WeGo sulla schermata Home. Segui questi passaggi, poi torna qui e tocca di nuovo "Abilita":
+    </p>
+    <ol style="padding-left:20px;line-height:1.8;margin:0 0 16px;font-size:13.5px;">
+      <li>Apri questa pagina con <strong>Safari</strong> (non funziona da Chrome o altre app su iOS)</li>
+      <li>Tocca l'icona <strong>Condividi</strong>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin:0 1px;">
+          <path d="M12 2v13"/><polyline points="8 6 12 2 16 6"/>
+          <path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/>
+        </svg>
+        nella barra di Safari (in basso su iPhone, in alto su iPad)</li>
+      <li>Scorri l'elenco e tocca <strong>"Aggiungi a Home"</strong></li>
+      <li>Tocca <strong>"Aggiungi"</strong> in alto a destra</li>
+      <li>Apri WeGo dall'icona appena aggiunta alla Home (non da Safari)</li>
+    </ol>
+    <button class="btn btn--primary btn--full btn--xl" onclick="SettingsApp.closeModal('modalInstallIOS')">Ho capito</button>
   </div>
 </div>
 
@@ -1172,10 +1202,37 @@ const SettingsApp = {
   },
 
   // ─── NOTIFICHE ──────────────────────────────────────────
+  // NUOVO v8.1: su iOS le notifiche push richiedono che l'app sia stata
+  // prima installata sulla schermata Home (Web Push non è disponibile da
+  // una scheda Safari normale) — prima d'ora questo prerequisito non era
+  // spiegato da nessuna parte in Impostazioni, chi provava "Abilita" da
+  // Safari normale vedeva solo un fallimento silenzioso o poco chiaro.
+  _isIOSNotStandalone() {
+    const ua = navigator.userAgent;
+    const isIOS = /iPad|iPhone|iPod/.test(ua)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPadOS 13+
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+      || window.navigator.standalone === true;
+    return isIOS && !isStandalone;
+  },
+
+  showIOSInstallInfo() {
+    SettingsApp.openModal('modalInstallIOS');
+  },
+
   _renderNotifStatus() {
-    const perm   = Notification?.permission || 'unknown';
     const statusEl = document.getElementById('notifStatus');
     const btnEl    = document.getElementById('notifBtn');
+
+    if (SettingsApp._isIOSNotStandalone()) {
+      statusEl.textContent = 'Su iPhone/iPad serve prima installare l\'app dalla Home';
+      statusEl.style.color = 'var(--text-secondary)';
+      btnEl.textContent    = 'Come si fa';
+      btnEl.disabled       = false;
+      return;
+    }
+
+    const perm = Notification?.permission || 'unknown';
     if (!('Notification' in window)) {
       statusEl.textContent = 'Non supportate su questo browser';
       btnEl.style.display  = 'none';
@@ -1199,6 +1256,10 @@ const SettingsApp = {
   },
 
   async toggleNotifications() {
+    if (SettingsApp._isIOSNotStandalone()) {
+      SettingsApp.showIOSInstallInfo();
+      return;
+    }
     if (Notification.permission === 'granted') return;
     const granted = await Notifications.requestPermission();
     if (granted) Utils.toast('Notifiche attivate!', 'success');

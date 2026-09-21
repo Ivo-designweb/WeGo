@@ -1,6 +1,22 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v8.0
+// WeGo — sw.js v8.2
 // Service Worker — cache offline + background sync
+// v8.2: nessuna modifica alla lista di precache, ma CACHE_NAME comunque
+//       cambiato — FIX: la v1.18 di supabase.js e la v2.37 di evento.js
+//       (icona campanello notifiche in Partecipanti) erano state
+//       distribuite SENZA bump di questo file, ma entrambi sono in
+//       STATIC_ASSETS (precache) — senza un CACHE_NAME nuovo, i device
+//       che avevano già installato l'app sarebbero rimasti bloccati
+//       sulla versione vecchia di questi due file a tempo indeterminato,
+//       anche dopo l'upload su GitHub. Promemoria per il futuro: ogni
+//       modifica a un file elencato in STATIC_ASSETS richiede SEMPRE
+//       questo bump, indipendentemente dal fatto che quel file abbia o
+//       no un proprio numero di versione "di famiglia".
+// v8.1: nessuna modifica alla lista di precache — Impostazioni →
+//       Notifiche push mostra ora un avviso dedicato su iPhone/iPad
+//       quando l'app non è ancora installata da Home (vedi
+//       impostazioni.html v8.1) — solo bump di versione "di famiglia"
+//       per index.html/impostazioni.html.
 // v8.0: nessuna modifica alla lista di precache — menu "⋮" di evento.html
 //       aggiorna la voce "Impostazioni" e rimuove "Elimina evento"
 //       (duplicata, vedi evento.html/evento.js v2.36) — solo bump di
@@ -236,7 +252,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v8.0';
+const CACHE_NAME = 'wego-v8.2';
 
 const STATIC_ASSETS = [
   '/',
