@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — utils.js v1.4
+// WeGo — utils.js v1.5
 // Funzioni di utilità condivise da tutti i moduli
+// v1.5: NUOVA applyCategoryIconsVisibility() — mostra/nasconde le icone
+//       delle categorie di spesa in Movimenti e nel form Spesa (classe
+//       "hide-cat-icons" sul <body>, prima sempre forzata via HTML — ora
+//       configurabile da Impostazioni → Categorie spesa, vedi
+//       impostazioni.html v7.9). Default nascoste (show=false) se
+//       l'utente non ha mai toccato l'impostazione — stesso pattern di
+//       Utils.getConfig('theme', 'dark')/applyTheme().
 // v1.4: NUOVA calculateCassaComune() — saldo informativo "Cassa Comune"
 //       per utente, SEPARATO dal saldo normale (calculateBalances, mai
 //       toccata): per ogni utente è la somma di tutti i movimenti
@@ -332,6 +339,27 @@ const Utils = {
     document.querySelector('meta[name="theme-color"]')?.setAttribute(
       'content', theme === 'dark' ? '#0F172A' : '#F8FAFC'
     );
+  },
+
+  /**
+   * Mostra/nasconde le icone delle categorie di spesa (lista Movimenti
+   * in evento.html, selettore "Tipo" nel form Spesa) — NUOVO v1.5.
+   * Le icone stesse restano sempre nel codice: qui si aggiunge/toglie
+   * solo la classe CSS "hide-cat-icons" (regole già presenti in
+   * evento.html/spesa.html). Applicata su <html>, non su <body>, per lo
+   * stesso motivo di applyTheme(): un piccolo script inline nell'<head>
+   * di evento.html/spesa.html la imposta SUBITO da localStorage, prima
+   * ancora che il resto della pagina si carichi, evitando un flash delle
+   * icone (visibili di default finché JS non interviene) per chi le
+   * tiene nascoste — che è il caso di default. Questa chiamata a
+   * inizio pagina (evento.js/spesa.js) resta comunque necessaria per
+   * riflettere un cambio fatto in Impostazioni in un'altra scheda/tab
+   * già aperta. Impostazione per-dispositivo (localStorage, vedi
+   * getConfig/setConfig), default nascoste se l'utente non l'ha mai
+   * cambiata da Impostazioni.
+   */
+  applyCategoryIconsVisibility(show = false) {
+    document.documentElement.classList.toggle('hide-cat-icons', !show);
   },
 
   // ─── GPS ────────────────────────────────────────────────────

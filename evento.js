@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — evento.js v2.34
+// WeGo — evento.js v2.35
 // Logica pagina dettaglio evento
+// v2.35: la classe "hide-cat-icons" sul <body> (icona categoria nella
+//        lista Movimenti) non è più hardcoded nell'HTML — ora applicata
+//        qui all'avvio con Utils.applyCategoryIconsVisibility(), in base
+//        alla nuova impostazione configurabile da Impostazioni →
+//        Categorie spesa (default: nascoste, come finora — vedi
+//        utils.js v1.5/impostazioni.html v7.9).
 // v2.34: Riepilogo → "Partecipante" ora mostra la QUOTA PRO-CAPITE (somma
 //        della propria quota — amount/n.partecipanti — su tutte le Spese
 //        reali dove compare tra i "participants", indipendentemente da chi
@@ -246,6 +252,7 @@ const EventoApp = {
 
     // Carica chiavi.json dal server (sovrascrive sempre supabase/fcm locali se presente)
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
+    Utils.applyCategoryIconsVisibility(Utils.getConfig('show_category_icons', false));
     Utils.loadRemoteConfig().catch(() => {}); // background: non blocca i dati locali
 
     // Registra il Service Worker e attende che sia ATTIVO (non solo

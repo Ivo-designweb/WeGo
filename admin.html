@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
-  <title>Admin — WeGo v2.0</title>
+  <title>Admin — WeGo v2.1</title>
   <link rel="stylesheet" href="/style.css" />
   <style>
     .admin-section { margin-bottom: 22px; }
@@ -103,6 +103,35 @@
       width: 100%; font-size: 11px; padding: 5px 3px;
       height: 30px; text-align: center;
     }
+    /* Log notifiche push (NUOVO v2.1) — stesso pattern di .dl-scroll/
+       .dl-header sopra, colonne diverse (destinatario/evento invece di
+       codice/scadenza) + badge esito riuscita/fallita. */
+    .nl-scroll { max-height: 400px; overflow-y: auto; }
+    .nl-header {
+      position: sticky; top: 0; z-index: 1;
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 13px; background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.3px; color: var(--text-muted);
+    }
+    .nl-col-msg  { flex: 1; min-width: 0; }
+    .nl-col-when { width: 78px; flex-shrink: 0; text-align: right; }
+    .nl-row {
+      display: flex; align-items: flex-start; gap: 8px;
+      padding: 9px 13px; border-bottom: 1px solid var(--border);
+    }
+    .nl-row:last-child { border-bottom: none; }
+    .nl-row .nl-info { flex: 1; min-width: 0; }
+    .nl-row .nl-when { width: 78px; flex-shrink: 0; text-align: right; font-size: 11px; color: var(--text-muted); }
+    .nl-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 999px;
+      margin-left: 6px; vertical-align: middle;
+    }
+    .nl-badge--ok  { background: rgba(16,185,129,0.12); color: var(--green); }
+    .nl-badge--err { background: rgba(239,68,68,0.12);  color: var(--red); }
+    .nl-error { font-size: 11.5px; color: var(--red); margin-top: 2px; }
     .admin-about { text-align: center; padding: 20px 14px; border-top: 1px solid var(--border); margin-top: 8px; }
     .admin-about__logo {
       width: 36px; height: 36px; background: var(--accent); border-radius: 8px;
@@ -448,6 +477,38 @@
       </div>
     </div>
 
+    <!-- LOG NOTIFICHE PUSH (NUOVO v2.1) — storico persistente di ogni
+         invio tentato (tabella sp_notification_log, scritta dalla Edge
+         Function send-push-notification v3 — vedi supabase.js v1.16).
+         Sola lettura, via /api/notification-log.js (stesso pattern di
+         sicurezza di device-license.js: password admin + service key). -->
+    <div class="admin-section">
+      <div class="section-header"><span class="section-title">Log notifiche push</span></div>
+      <div class="admin-group" style="margin-bottom:10px;">
+        <div class="admin-row">
+          <p class="config-note">
+            Ogni notifica push TENTATA (riuscita o no) da quando è stata attivata questa
+            versione — non risale a prima. Un fallimento ripetuto sullo stesso destinatario
+            di solito significa sottoscrizione scaduta/revocata sul suo device (si
+            ripulisce da sola al tentativo successivo).
+          </p>
+        </div>
+      </div>
+      <div class="admin-group" style="padding:0;">
+        <div class="admin-row" style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:14px;font-weight:600;color:var(--text-primary);">Ultimi invii</span>
+          <button class="btn btn--ghost btn--sm" onclick="AdminApp.loadNotificationLog()">Aggiorna</button>
+        </div>
+        <div class="nl-scroll">
+          <div class="nl-header">
+            <span class="nl-col-msg">Destinatario / evento / messaggio</span>
+            <span class="nl-col-when">Quando</span>
+          </div>
+          <div id="notificationLogList"><p class="config-note" style="padding:11px 13px;">Caricamento…</p></div>
+        </div>
+      </div>
+    </div>
+
     <!-- VERCEL -->
     <div class="admin-section">
       <div class="section-header">
@@ -519,6 +580,7 @@ const AdminApp = {
     AdminApp._checkStatus();
     AdminApp._renderSQL();
     AdminApp.loadDeviceLicenseList();
+    AdminApp.loadNotificationLog();
 
     // Default comodo per il campo "fino al": oggi + 1 anno (caso d'uso più
     // frequente). L'admin può comunque cambiarlo o usare il bottone
@@ -758,6 +820,49 @@ const AdminApp = {
           ${isActive
             ? `<button class="btn btn--ghost btn--sm" style="color:var(--red);flex-shrink:0;" onclick="AdminApp.disableDeviceLicense('${item.device_id}')">Disabilita</button>`
             : `<button class="btn btn--primary btn--sm" style="flex-shrink:0;" onclick="AdminApp.enableDeviceLicenseRow(this, '${item.device_id}')">Abilita</button>`}
+        </div>`;
+      }).join('');
+    } catch (e) {
+      container.innerHTML = `<p class="config-note" style="color:var(--red);padding:11px 13px;">Errore: ${Utils.escapeHtml(e.message)}</p>`;
+    }
+  },
+
+  // Storico notifiche push (NUOVO v2.1) — vedi /api/notification-log.js.
+  // Ogni riga: destinatario (o "Utente rimosso" se sp_users(name) non
+  // risolve — es. partecipante eliminato), evento, testo inviato, esito
+  // con badge riuscita/fallita ed errore in rosso se fallita.
+  async loadNotificationLog() {
+    const container = document.getElementById('notificationLogList');
+    if (!container) return;
+    container.innerHTML = '<p class="config-note" style="padding:11px 13px;">Caricamento…</p>';
+    try {
+      const res = await fetch('/api/notification-log?limit=150', {
+        headers: { 'x-admin-password': AdminGate.password || '' }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !Array.isArray(data.items)) {
+        container.innerHTML = `<p class="config-note" style="color:var(--red);padding:11px 13px;">Errore caricamento: ${Utils.escapeHtml(data.error || String(res.status))}</p>`;
+        return;
+      }
+      if (!data.items.length) {
+        container.innerHTML = '<p class="config-note" style="padding:11px 13px;">Nessuna notifica registrata finora.</p>';
+        return;
+      }
+      container.innerHTML = data.items.map(item => {
+        const recipient = item.sp_users?.name || 'Utente rimosso';
+        const eventTitle = item.sp_events?.title || 'Evento rimosso';
+        const badge = item.success
+          ? `<span class="nl-badge nl-badge--ok">✓ Inviata</span>`
+          : `<span class="nl-badge nl-badge--err">✗ Fallita</span>`;
+        return `
+        <div class="nl-row">
+          <div class="nl-info">
+            <div style="font-size:12.5px;font-weight:700;color:var(--text-primary);">${Utils.escapeHtml(recipient)}${badge}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">${Utils.escapeHtml(eventTitle)} — ${Utils.escapeHtml(item.title || '')}</div>
+            <div style="font-size:12px;color:var(--text-secondary);margin-top:1px;">${Utils.escapeHtml(item.body || '')}</div>
+            ${!item.success && item.error ? `<div class="nl-error">${Utils.escapeHtml(item.error)}</div>` : ''}
+          </div>
+          <div class="nl-when">${Utils.escapeHtml(Utils.formatDateTime(item.created_at))}</div>
         </div>`;
       }).join('');
     } catch (e) {

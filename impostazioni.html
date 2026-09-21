@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Impostazioni — WeGo v7.8</title>
+  <title>Impostazioni — WeGo v7.9</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="apple-touch-icon" href="/icon192.png" />
   <link rel="stylesheet" href="/style.css" />
@@ -302,6 +302,33 @@
           Aggiungi
         </button>
       </div>
+
+      <!-- NUOVO v7.9: mostra/nasconde le icone categoria in Movimenti e
+           nel form Spesa (erano solo nascoste via CSS dalla v7.8/v4.1,
+           ora configurabile — default spento = nascoste, invariato per
+           chi non tocca l'impostazione). Vedi utils.js v1.5
+           Utils.applyCategoryIconsVisibility(). -->
+      <div class="settings-group">
+        <div class="settings-row settings-row--static">
+          <div class="settings-row__icon" style="background:#8B5CF6;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/>
+            </svg>
+          </div>
+          <div class="settings-row__body">
+            <div class="settings-row__label">Mostra icone categoria</div>
+            <div class="settings-row__value">Nei Movimenti e nel form Spesa — spento di default</div>
+          </div>
+          <div class="settings-row__right">
+            <label class="toggle">
+              <input type="checkbox" id="showCatIconsToggle" onchange="SettingsApp.setShowCategoryIcons(this.checked)" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
       <div class="settings-group" id="expenseCategoriesList">
         <!-- Generato da JS -->
       </div>
@@ -511,7 +538,7 @@
       <div class="about-box">
         <div class="about-logo">WG</div>
         <div class="about-name">WeGo</div>
-        <div class="about-ver">Versione 7.8</div>
+        <div class="about-ver">Versione 7.9</div>
 
         <div class="about-div"></div>
 
@@ -940,6 +967,9 @@ const SettingsApp = {
     // Metodi pagamento
     SettingsApp._renderPaymentMethods();
 
+    // Icone categoria (Movimenti + form Spesa) — NUOVO v7.9, default spento
+    document.getElementById('showCatIconsToggle').checked = Utils.getConfig('show_category_icons', false);
+
     // Categorie spesa
     SettingsApp._renderExpenseCategories();
   },
@@ -950,6 +980,15 @@ const SettingsApp = {
     Utils.applyTheme(theme);
     SettingsApp._renderAll();
     Utils.toast(`Tema ${theme === 'dark' ? 'scuro' : 'chiaro'} applicato`, 'success', 1500);
+  },
+
+  // ─── ICONE CATEGORIA (Movimenti + form Spesa) — NUOVO v7.9 ─────
+  // Qui in Impostazioni non ci sono icone da mostrare/nascondere: si
+  // scrive solo la preferenza, applicata poi da evento.js/spesa.js al
+  // loro caricamento (Utils.applyCategoryIconsVisibility()).
+  setShowCategoryIcons(show) {
+    Utils.setConfig('show_category_icons', show);
+    Utils.toast(`Icone categoria ${show ? 'visibili' : 'nascoste'} in Movimenti e Spesa`, 'success', 1500);
   },
 
   // ─── VALUTA ─────────────────────────────────────────────

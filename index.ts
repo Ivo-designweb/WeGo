@@ -10,15 +10,26 @@
 // appena eseguito l'operazione — e invia a ciascuna una notifica Web
 // Push firmata con le chiavi VAPID.
 //
-// v2 (NUOVO): oltre alla "nuova spesa/movimento" (INSERT), ora gestisce
-// anche modifica ed eliminazione di un movimento (UPDATE su sp_expenses —
+// v3 (NUOVO): ogni tentativo di invio viene ora registrato in
+// sp_notification_log (destinatario, evento/movimento, testo inviato,
+// esito riuscito/fallito con relativo errore) — vedi supabase.js v1.16
+// per lo schema. Prima di questa versione non restava NESSUNA traccia
+// persistente degli invii: un fallimento silenzioso (endpoint scaduto,
+// chiave VAPID sbagliata, ecc.) non era mai verificabile col senno di
+// poi. La scrittura del log non è mai bloccante: se fallisce, resta solo
+// un console.error diagnostico, l'invio già avvenuto non viene rimesso
+// in discussione. Consultabile da admin.html tramite il nuovo
+// /api/notification-log.js.
+//
+// v2: oltre alla "nuova spesa/movimento" (INSERT), gestisce anche
+// modifica ed eliminazione di un movimento (UPDATE su sp_expenses —
 // l'eliminazione in WeGo è un soft-delete, quindi tecnicamente anche lei
 // è un UPDATE con deleted:true). Distingue i due casi confrontando
-// old_record.deleted con record.deleted. Usa il NUOVO campo
-// record.updated_by (chi ha eseguito l'azione ADESSO — vedi db.js v1.11/
-// supabase.js v1.15) per il nome dell'autore, e record.created_by per il
-// nome del proprietario ORIGINALE, citato solo se diverso dall'autore.
-// Corretto anche un mislabeling preesistente: i movimenti "+Cassiere"
+// old_record.deleted con record.deleted. Usa il campo record.updated_by
+// (chi ha eseguito l'azione ADESSO — vedi db.js v1.11/supabase.js v1.15)
+// per il nome dell'autore, e record.created_by per il nome del
+// proprietario ORIGINALE, citato solo se diverso dall'autore. Corretto
+// anche un mislabeling preesistente: i movimenti "+Cassiere"
 // (type:'cashier') venivano annunciati come "Nuova spesa" — ora hanno un
 // titolo/testo dedicato, come i trasferimenti.
 //
@@ -199,32 +210,60 @@ Deno.serve(async (req) => {
       eventId
     });
 
+    // Destinatari effettivi (esclude chi ha appena eseguito l'operazione
+    // sul suo stesso device) — calcolati qui, PRIMA dell'invio, così
+    // possiamo abbinare ogni esito al relativo utente per lo storico
+    // sp_notification_log (v3, vedi sotto).
+    const targets = subs.filter((s: any) => !actingUserId || s.user_id !== actingUserId);
+
     const results = await Promise.allSettled(
-      subs
-        // Non notificare chi ha appena creato il movimento sul suo stesso device
-        .filter((s: any) => !actingUserId || s.user_id !== actingUserId)
-        .map((s: any) =>
-          webpush.sendNotification(
-            {
-              endpoint: s.endpoint,
-              keys: { p256dh: s.p256dh, auth: s.auth }
-            },
-            notifPayload
-          ).catch(async (err: any) => {
-            // 404/410 = sottoscrizione scaduta o revocata: la rimuoviamo
-            if (err?.statusCode === 404 || err?.statusCode === 410) {
-              await sbRequest(
-                "DELETE",
-                `sp_push_subscriptions?id=eq.${s.id}`
-              ).catch(() => {});
-            }
-            throw err;
-          })
-        )
+      targets.map((s: any) =>
+        webpush.sendNotification(
+          {
+            endpoint: s.endpoint,
+            keys: { p256dh: s.p256dh, auth: s.auth }
+          },
+          notifPayload
+        ).catch(async (err: any) => {
+          // 404/410 = sottoscrizione scaduta o revocata: la rimuoviamo
+          if (err?.statusCode === 404 || err?.statusCode === 410) {
+            await sbRequest(
+              "DELETE",
+              `sp_push_subscriptions?id=eq.${s.id}`
+            ).catch(() => {});
+          }
+          throw err;
+        })
+      )
     );
 
     const sent   = results.filter(r => r.status === "fulfilled").length;
     const failed = results.filter(r => r.status === "rejected").length;
+
+    // ── Storico persistente degli invii (NUOVO v3) ──
+    // Un record per ogni destinatario a cui era destinato l'invio, con
+    // l'esito reale (riuscito/fallito) e l'eventuale errore. Se la
+    // scrittura del log fallisce, non deve MAI far fallire la risposta:
+    // l'invio è già avvenuto (o già fallito) indipendentemente da questo.
+    if (targets.length) {
+      const logRows = targets.map((s: any, i: number) => {
+        const r = results[i];
+        const reason = r.status === "rejected" ? (r as any).reason : null;
+        return {
+          event_id:   eventId,
+          user_id:    s.user_id || null,
+          table_name: table,
+          record_id:  record.id || null,
+          title,
+          body,
+          success:    r.status === "fulfilled",
+          error:      reason ? String(reason?.message || reason).slice(0, 500) : null
+        };
+      });
+      await sbRequest("POST", "sp_notification_log", logRows).catch((e) =>
+        console.error("[send-push-notification] scrittura log fallita:", e)
+      );
+    }
 
     return new Response(JSON.stringify({ ok: true, sent, failed }), {
       status: 200,

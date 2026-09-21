@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — spesa.js v3.1
+// WeGo — spesa.js v3.2
 // Logica pagina inserimento / modifica spesa
+// v3.2: la classe "hide-cat-icons" sul <body> (icone nel selettore
+//       "Tipo") non è più hardcoded nell'HTML — ora applicata qui
+//       all'avvio con Utils.applyCategoryIconsVisibility(), in base
+//       alla nuova impostazione configurabile da Impostazioni →
+//       Categorie spesa (default: nascoste, come finora — vedi
+//       utils.js v1.5/impostazioni.html v7.9).
 // v3.1: campo "Tipo" (categoria spesa) — sostituito il vecchio <select>
 //       nativo con un bottone che apre un modal a schermo intero
 //       (richiesta cliente: le <option> HTML non possono contenere
@@ -143,6 +149,7 @@ const SpesaApp = {
 
     // Carica chiavi.json dal server (sovrascrive sempre supabase/fcm locali se presente)
     Utils.applyTheme(Utils.getConfig('theme', 'dark'));
+    Utils.applyCategoryIconsVisibility(Utils.getConfig('show_category_icons', false));
     Utils.loadRemoteConfig().catch(() => {}); // background: non blocca i dati locali
 
     await DB.open();

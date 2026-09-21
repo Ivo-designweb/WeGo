@@ -1,6 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — supabase.js v1.15
+// WeGo — supabase.js v1.16
 // Client Supabase — lettura config da localStorage
+// v1.16: NUOVA tabella sp_notification_log — storico persistente di ogni
+//        notifica push TENTATA (destinatario, evento/movimento, testo,
+//        esito), scritta dalla Edge Function send-push-notification (v3)
+//        ad ogni invio. Prima non esisteva NESSUNA traccia di chi avesse
+//        effettivamente ricevuto una notifica: né il database né l'app
+//        conservavano gli invii. Sola lettura da admin.html tramite il
+//        nuovo /api/notification-log.js (stesso pattern di
+//        device-license.js — password admin + SUPABASE_SERVICE_KEY; la
+//        tabella non ha NESSUN privilegio per la anon key pubblica).
+//        RIESEGUIRE lo schema da Admin → Schema SQL.
 // v1.15: NUOVO campo expenses.updated_by (create/update/upsert) — chi ha
 //        salvato per ultimo un movimento, distinto da created_by che
 //        resta il proprietario originale. Necessario ora che modifica ed
@@ -838,6 +848,30 @@ CREATE TABLE IF NOT EXISTS sp_device_license (
   enabled_by   VARCHAR(50)
 );
 
+-- TABELLA LOG NOTIFICHE PUSH (NUOVO v1.16) — storico persistente di ogni
+-- notifica push TENTATA (non solo quelle riuscite): chi era il
+-- destinatario, per quale evento/movimento, il testo inviato e se è
+-- andata a buon fine o no. Scritta dalla Edge Function
+-- send-push-notification (v3) subito dopo ogni invio — prima d'ora non
+-- esisteva NESSUNA traccia persistente degli invii: né il database né
+-- l'app conservavano chi avesse effettivamente ricevuto una notifica.
+-- Sola lettura da admin.html tramite /api/notification-log.js (vedi
+-- sezione RLS più sotto: nessun privilegio per la anon key pubblica).
+CREATE TABLE IF NOT EXISTS sp_notification_log (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  event_id    UUID REFERENCES sp_events(id) ON DELETE CASCADE,
+  user_id     UUID REFERENCES sp_users(id) ON DELETE SET NULL,
+  table_name  VARCHAR(30),
+  record_id   UUID,
+  title       TEXT,
+  body        TEXT,
+  success     BOOLEAN DEFAULT TRUE,
+  error       TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_sp_notification_log_event   ON sp_notification_log(event_id);
+CREATE INDEX IF NOT EXISTS idx_sp_notification_log_created ON sp_notification_log(created_at DESC);
+
 -- ═══════════════════════════════════════════════════════════════
 -- SICUREZZA — ROW LEVEL SECURITY basata sui codici evento (v7.1)
 -- ═══════════════════════════════════════════════════════════════
@@ -884,6 +918,7 @@ ALTER TABLE sp_expense_photos     ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sp_push_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sp_sync_status        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sp_device_license     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sp_notification_log   ENABLE ROW LEVEL SECURITY;
 
 -- sp_events: accesso solo alle righe il cui codice è nell'header
 DROP POLICY IF EXISTS wego_events_select ON sp_events;
@@ -952,6 +987,12 @@ CREATE POLICY wego_syncstatus_select ON sp_sync_status FOR SELECT TO anon USING 
 DROP POLICY IF EXISTS wego_license_select ON sp_device_license;
 CREATE POLICY wego_license_select ON sp_device_license FOR SELECT TO anon USING (true);
 
+-- sp_notification_log: NESSUNA policy per anon (RLS attiva, zero
+-- privilegi di default) — consultabile SOLO dalle funzioni server con la
+-- service role key (la Edge Function per scriverla, /api/notification-log.js
+-- per leggerla da admin.html), che bypassano comunque la RLS. La anon
+-- key pubblica non può leggerla né scriverla in nessun modo.
+
 -- GRANT: i permessi a livello tabella restano necessari (RLS filtra le
 -- RIGHE, i GRANT decidono le OPERAZIONI)
 GRANT SELECT, INSERT, UPDATE ON sp_events      TO anon;
@@ -969,6 +1010,14 @@ REVOKE INSERT, UPDATE, DELETE ON sp_sync_status    FROM anon;
 REVOKE INSERT, UPDATE, DELETE ON sp_device_license FROM anon;
 GRANT SELECT ON sp_sync_status    TO anon;
 GRANT SELECT ON sp_device_license TO anon;
+
+-- sp_notification_log: scritta dalla Edge Function, letta da /api/
+-- notification-log.js, ENTRAMBE con la service role key — GRANT
+-- esplicito (i privilegi di default su una tabella nuova non sempre
+-- bastano a service_role su ogni progetto Supabase, vedi il fix v5.4
+-- per sp_device_license/sp_sync_status: stesso sintomo, stessa causa).
+-- Zero privilegi per anon (vedi policy/commento più sopra).
+GRANT SELECT, INSERT ON sp_notification_log TO service_role;
 
 SELECT 'Schema WeGo installato correttamente!' AS status;
 `;

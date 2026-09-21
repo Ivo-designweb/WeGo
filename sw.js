@@ -1,6 +1,15 @@
 // ═══════════════════════════════════════════════════════════════
-// WeGo — sw.js v7.8
+// WeGo — sw.js v7.9
 // Service Worker — cache offline + background sync
+// v7.9: nessuna modifica alla lista di precache — le icone categoria in
+//       Movimenti/form Spesa (nascoste dalla v7.8) sono ora
+//       configurabili da Impostazioni → Categorie spesa ("Mostra icone
+//       categoria", default spento) invece di essere forzate via HTML
+//       (utils.js v1.5 Utils.applyCategoryIconsVisibility(), evento.js
+//       v2.35, spesa.js v3.2, evento.html/spesa.html/impostazioni.html)
+//       — solo bump di versione "di famiglia" per index.html/
+//       evento.html/impostazioni.html (spesa.html ha un proprio numero
+//       di versione separato, ma condivide comunque questo CACHE_NAME).
 // v7.8: nessuna modifica alla lista di precache — Riepilogo→"Partecipante"
 //       ora mostra la quota pro-capite invece del saldo netto (torta +
 //       elenco), nuovo titolo/nota nella pagina; icona categoria nascosta
@@ -222,7 +231,7 @@
 //       sono le funzioni serverless per login admin / gating sync)
 // ═══════════════════════════════════════════════════════════════
 
-const CACHE_NAME = 'wego-v7.8';
+const CACHE_NAME = 'wego-v7.9';
 
 const STATIC_ASSETS = [
   '/',

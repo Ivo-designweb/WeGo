@@ -2,12 +2,12 @@
 <html lang="it" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
-  <script>try{var _t=JSON.parse(localStorage.getItem("wego_config")||"{}").theme||"dark";document.documentElement.setAttribute("data-theme",_t);if(document.querySelector('meta[name="theme-color"]'))document.querySelector('meta[name="theme-color"]').setAttribute("content",_t==="dark"?"#0F172A":"#F8FAFC")}catch(e){}</script>
+  <script>try{var _cfg=JSON.parse(localStorage.getItem("wego_config")||"{}");var _t=_cfg.theme||"dark";document.documentElement.setAttribute("data-theme",_t);if(document.querySelector('meta[name="theme-color"]'))document.querySelector('meta[name="theme-color"]').setAttribute("content",_t==="dark"?"#0F172A":"#F8FAFC");if(!_cfg.show_category_icons)document.documentElement.classList.add("hide-cat-icons")}catch(e){}</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0F172A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Spesa — WeGo v4.1</title>
+  <title>Spesa — WeGo v4.2</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="stylesheet" href="/style.css" />
   <style>
@@ -252,16 +252,20 @@
     .category-picker-item__label { flex: 1; font-size: 16px; font-weight: 600; color: var(--text-primary); }
     .category-picker-item__check { color: var(--accent); flex-shrink: 0; display: none; width: 20px; height: 20px; }
     .category-picker-item.selected .category-picker-item__check { display: flex; }
-    /* NUOVO v4.1 (richiesta cliente): icone tipo spesa temporaneamente
-       nascoste — non rimosse dai sorgenti, solo non visibili (le
+    /* v4.1: icone tipo spesa nascondibili — non rimosse dai sorgenti,
+       solo non visibili quando attiva la classe "hide-cat-icons" (le
        etichette testuali restano, il picker resta pienamente
-       utilizzabile). Classe "hide-cat-icons" sul <body>: in futuro un
-       flag in Impostazioni (default spento) potrà aggiungerla/toglierla. */
+       utilizzabile). v4.2: configurabile da Impostazioni → Categorie
+       spesa ("Mostra icone categoria", default spento) — la classe è
+       ora su <html> (non più hardcoded su <body>), impostata a
+       caricamento pagina dallo script inline in <head> (anti-flash,
+       stesso meccanismo del tema) e da
+       Utils.applyCategoryIconsVisibility() in spesa.js. */
     .hide-cat-icons .category-picker-trigger__icon,
     .hide-cat-icons .category-picker-item__icon { display: none; }
   </style>
 </head>
-<body class="hide-cat-icons">
+<body>
 
 <div class="toast-container" id="toastContainer"></div>
 
